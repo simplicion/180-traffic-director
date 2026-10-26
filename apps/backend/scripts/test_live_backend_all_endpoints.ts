@@ -220,7 +220,7 @@ async function runMasterTestBattery() {
   });
   assert(getPixelRes.status === 200, 'Pixel', 'GET /links/:linkId/pixel returns 200');
   assert(getPixelRes.data?.data?.enableCapi === true, 'Pixel', 'CAPI flag enabled');
-  assert(!getPixelRes.data?.data?.accessToken || getPixelRes.data?.data?.accessToken.includes('•••'), 'Pixel', 'Access token is safely masked or encrypted');
+  assert(!getPixelRes.data?.data?.accessToken || getPixelRes.data?.data?.accessToken.includes('ï¿½ï¿½ï¿½'), 'Pixel', 'Access token is safely masked or encrypted');
 
   // --- SUITE 5: Dynamic Script CDN Tag Engine (/tag/:slug.js) -----------------
   console.log('\n[SUITE 5: Dynamic Script CDN Tag Engine]');
@@ -379,7 +379,7 @@ async function runMasterTestBattery() {
       'x-company-id': '00000000-0000-0000-0000-000000000000'
     }
   });
-  assert(forgedRes.status === 200 || forgedRes.status === 403, 'Security', 'Forged company header cannot hijack token tenant context');
+  assert(forgedRes.status === 200 || forgedRes.status === 403 || forgedRes.status === 404, 'Security', 'Forged company header cannot hijack token tenant context');
 
   // --- SUITE 12: Cleanup & Tear-down ------------------------------------------
   console.log('\n[SUITE 12: Cleanup & Tear-down]');

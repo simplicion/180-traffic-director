@@ -96,13 +96,7 @@ export const sanitizeModelData = (modelName: string, dataObj: any, isUpdate = fa
     }
   }
 
-  // Handle special aliases
-  if (m === 'lead') {
-    if (dataObj.company && typeof dataObj.company === 'object' && (dataObj.company.connect || dataObj.company.create)) {
-      if (!dataObj.tenantCompany) dataObj.tenantCompany = dataObj.company;
-      delete dataObj.company;
-    }
-  }
+  // No legacy special aliases required for Traffic Director
 };
 
 export const rawPrisma: any =
@@ -175,10 +169,8 @@ if ((Prisma as any).dmmf && (Prisma as any).dmmf.datamodel && (Prisma as any).dm
 
 // Truly global platform-level models that are NOT partitioned by company
 const GLOBAL_MODELS = new Set([
-  'Company', 'PlatformSettings', 'Plan', 'Coupon', 'SuperAdmin',
-  'FeatureFlag', 'ReleaseNote', 'SupportTicket', 'DeletionLog',
-  'company', 'platformSettings', 'plan', 'coupon', 'superAdmin',
-  'featureFlag', 'releaseNote', 'supportTicket', 'deletionLog'
+  'Company', 'company',
+  'DomainRegistry', 'domainRegistry'
 ]);
 
 const FILTER_OPERATIONS = new Set([

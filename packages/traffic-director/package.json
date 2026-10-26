@@ -12,6 +12,7 @@
     "@prisma/client": "^5.x.x",
     "@workspace/backend-infra": "workspace:*",
     "@workspace/db": "workspace:*",
+    "axios": "^1.7.9",
     "javascript-obfuscator": "^5.9.0"
   },
   "devDependencies": {

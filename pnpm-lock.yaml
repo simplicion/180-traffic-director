@@ -154,6 +154,19 @@ importers:
         specifier: ^5.0.0
         version: 5.22.0
 
+  packages/public:
+    dependencies:
+      '@workspace/db':
+        specifier: workspace:*
+        version: link:../db
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+
   packages/traffic-director:
     dependencies:
       '@prisma/client':
@@ -165,6 +178,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../db
+      axios:
+        specifier: ^1.7.9
+        version: 1.20.0
       javascript-obfuscator:
         specifier: ^5.9.0
         version: 5.9.0
