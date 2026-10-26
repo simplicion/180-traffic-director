@@ -165,6 +165,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../db
+      javascript-obfuscator:
+        specifier: ^5.9.0
+        version: 5.9.0
     devDependencies:
       '@types/javascript-obfuscator':
         specifier: ^0.17.0
