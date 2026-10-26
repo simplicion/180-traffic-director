@@ -1,0 +1,31 @@
+{
+  "name": "traffic-director-backend",
+  "version": "1.0.0",
+  "description": "180 Traffic Director Dedicated Edge Backend",
+  "main": "server.ts",
+  "scripts": {
+    "start": "cross-env PORT=4005 tsx server.ts",
+    "dev": "cross-env PORT=4005 tsx watch server.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*",
+    "@workspace/traffic-director": "workspace:*",
+    "axios": "^1.13.6",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.2.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.11.24",
+    "cross-env": "^7.0.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.4.5"
+  }
+}

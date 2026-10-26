@@ -1,0 +1,52 @@
+import { Router } from 'express';
+import { TrafficDirectorController } from '../controllers/traffic-director.controller';
+
+const router = Router();
+
+// Overview & Analytics
+router.get('/overview', TrafficDirectorController.getOverviewStats);
+router.get('/logs', TrafficDirectorController.getLogs);
+router.post('/simulate', TrafficDirectorController.simulate);
+router.get('/check-slug', TrafficDirectorController.checkSlug);
+router.post('/verify-tag', TrafficDirectorController.verifyTagInstallation);
+
+// Centralized Threat Intelligence & Blacklists
+router.get('/threats', TrafficDirectorController.getThreatIntelligence);
+router.post('/threats/toggle-feed', TrafficDirectorController.toggleThreatFeed);
+router.post('/threats/sync-tor', TrafficDirectorController.syncTorExitNodes);
+router.post('/threats/custom', TrafficDirectorController.createCustomThreatEntry);
+router.delete('/threats/custom/:entryId', TrafficDirectorController.deleteCustomThreatEntry);
+
+// Links CRUD
+router.get('/links', TrafficDirectorController.getLinks);
+router.post('/links', TrafficDirectorController.createLink);
+router.post('/links/bulk-delete', TrafficDirectorController.bulkDeleteLinks);
+router.delete('/links/bulk', TrafficDirectorController.bulkDeleteLinks);
+router.get('/links/:linkId', TrafficDirectorController.getLinkById);
+router.get('/links/:linkId/analytics', TrafficDirectorController.getLinkAnalytics);
+router.put('/links/:linkId', TrafficDirectorController.updateLink);
+router.patch('/links/:linkId', TrafficDirectorController.updateLink);
+router.delete('/links/:linkId', TrafficDirectorController.deleteLink);
+
+// Universal Pixel & CAPI Management
+router.get('/links/:linkId/pixel', TrafficDirectorController.getPixelConfig);
+router.post('/links/:linkId/pixel', TrafficDirectorController.upsertPixelConfig);
+router.delete('/links/:linkId/pixel', TrafficDirectorController.deletePixelConfig);
+router.get('/links/:linkId/pixel/logs', TrafficDirectorController.getPixelLogs);
+
+// Rules CRUD
+router.get('/links/:linkId/rules', TrafficDirectorController.getRules);
+router.post('/links/:linkId/rules', TrafficDirectorController.createRule);
+router.put('/rules/:ruleId', TrafficDirectorController.updateRule);
+router.patch('/rules/:ruleId', TrafficDirectorController.updateRule);
+router.delete('/rules/:ruleId', TrafficDirectorController.deleteRule);
+router.post('/links/:linkId/rules/reorder', TrafficDirectorController.reorderRules);
+
+// Subscriptions & 180 Pay Billing
+router.get('/billing/status', TrafficDirectorController.getBillingStatus);
+router.post('/billing/validate-coupon', TrafficDirectorController.validateCoupon);
+router.post('/billing/create-checkout', TrafficDirectorController.createBillingCheckout);
+router.post('/billing/confirm-session', TrafficDirectorController.confirmBillingSession);
+router.post('/billing/webhook', TrafficDirectorController.handleBillingWebhook);
+
+export default router;

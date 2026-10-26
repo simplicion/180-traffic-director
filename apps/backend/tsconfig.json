@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/traffic-director": ["../../packages/traffic-director/src/index.ts"],
+      "@workspace/traffic-director/*": ["../../packages/traffic-director/src/*"],
+      "@workspace/db": ["../../packages/db/src/index.ts"],
+      "@workspace/backend-infra": ["../../packages/backend-common/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*", "server.ts"]
+}

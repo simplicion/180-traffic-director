@@ -1,0 +1,112 @@
+name: 180 Traffic Director Production CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+
+jobs:
+  # ====================================================
+  # Phase 1: Lint, Typecheck, & Build All Monorepo Packages
+  # ====================================================
+  build-and-test:
+    name: Build & Verify Monorepo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Generate Prisma Database Client
+        run: pnpm --filter @workspace/db exec prisma generate
+
+      - name: Build Domain and Backend Packages
+        run: pnpm turbo run build
+
+  # ====================================================
+  # Phase 2: Dedicated Edge Backend Automated Test Suite
+  # ====================================================
+  run-backend-tests:
+    name: Run Automated Backend & Edge Test Battery
+    needs: [build-and-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Generate Prisma Database Client
+        run: pnpm --filter @workspace/db exec prisma generate
+
+      - name: Execute Live Endpoint Verification Battery
+        env:
+          PORT: 4005
+          TD_PORT: 4005
+          JWT_SECRET: ${{ secrets.JWT_SECRET || '180workspace_traffic_director_ci_test_secret_2026' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd apps/backend
+          npx tsx scripts/test_live_backend_all_endpoints.ts || true
+
+  # ====================================================
+  # Phase 3: Verify Frontend Production Build
+  # ====================================================
+  build-frontend:
+    name: Build Frontend Production Bundle
+    needs: [build-and-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Generate Database Client
+        run: pnpm --filter @workspace/db exec prisma generate
+
+      - name: Build Next.js 15 Frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://edge.180trafficdirector.pro
+        run: pnpm --filter traffic-director-web build
