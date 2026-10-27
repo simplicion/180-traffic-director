@@ -35,7 +35,7 @@ function req(options: http.RequestOptions, postData?: any): Promise<{ status: nu
       reqHeaders['Content-Length'] = Buffer.byteLength(payload);
     }
     const r = http.request({
-      host: 'localhost',
+      host: '127.0.0.1',
       port: 4005,
       ...options,
       headers: reqHeaders,

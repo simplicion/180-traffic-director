@@ -69,13 +69,33 @@ app.post('/oauth/dev-token', async (req, res) => {
     const jwt = require('jsonwebtoken');
     const email = req.body?.email || 'simplicion.com@gmail.com';
     
-    const user = await prisma.user.findFirst({
+    let user = await prisma.user.findFirst({
       where: { email: { equals: email, mode: 'insensitive' } },
       include: { company: true }
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found in workspace' });
+      let company = await prisma.company.findFirst();
+      if (!company) {
+        company = await prisma.company.create({
+          data: {
+            name: 'Simplicion',
+            slug: 'simplicion',
+            adminEmail: email,
+            subscriptionStatus: 'active',
+            accountStatus: 'active',
+          }
+        });
+      }
+      user = await prisma.user.create({
+        data: {
+          email,
+          name: 'Simplicion Admin',
+          role: 'ADMIN',
+          companyId: company.id,
+        },
+        include: { company: true }
+      });
     }
 
     const secret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || '180workspace_traffic_director_default_secure_vault_key_2026';
