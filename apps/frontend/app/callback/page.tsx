@@ -42,7 +42,7 @@ export default function CallbackPage() {
           window.location.hostname === 'localhost' ||
           window.location.hostname === '127.0.0.1';
         const apiBase = isLocal 
-          ? 'http://localhost:4002'
+          ? 'http://localhost:4005'
           : (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_IDENTITY_SERVER_URL || 'https://api.180workspace.com');
         const redirectUri = window.location.origin + '/callback';
 

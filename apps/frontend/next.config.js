@@ -37,7 +37,7 @@ const nextConfig = {
     return config;
   },
   async rewrites() {
-    const backendUrl = process.env.BACKEND_INTERNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4002';
+    const backendUrl = process.env.BACKEND_INTERNAL_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4005';
     return [
       {
         source: '/r/:path*',

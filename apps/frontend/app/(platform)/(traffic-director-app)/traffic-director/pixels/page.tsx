@@ -71,6 +71,7 @@ export default function UniversalPixelManagerPage() {
   const [showToken, setShowToken] = useState(false);
 
   // Universal Tag Generator state
+  const [mounted, setMounted] = useState(false);
   const [tagPlatform, setTagPlatform] = useState<'html' | 'shopify' | 'wordpress' | 'webflow'>('html');
   const [activeTagSlug, setActiveTagSlug] = useState<string>('');
   const [verifyUrl, setVerifyUrl] = useState('');
@@ -116,6 +117,7 @@ export default function UniversalPixelManagerPage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     fetchLinks();
     fetchAllPixelLogs();
   }, []);
@@ -271,7 +273,7 @@ export default function UniversalPixelManagerPage() {
     setTimeout(() => setCopiedSlug(null), 2000);
   };
 
-  const apiBase = typeof window !== 'undefined' ? getApiBase() : 'http://localhost:4002';
+  const apiBase = getApiBase();
   const tagUrl = `${apiBase}/api/v1/traffic-director/tag/${activeTagSlug || 'my-link'}.js`;
 
   const getPlatformSnippet = () => {
@@ -473,7 +475,7 @@ add_action('wp_head', function() {
 
         {/* Snippet box */}
         <div className="relative group">
-          <pre className="p-4 rounded-xl bg-zinc-950 text-zinc-200 font-mono text-xs overflow-x-auto border border-zinc-800 selection:bg-blue-600/30">
+          <pre suppressHydrationWarning className="p-4 rounded-xl bg-zinc-950 text-zinc-200 font-mono text-xs overflow-x-auto border border-zinc-800 selection:bg-blue-600/30">
             {getPlatformSnippet()}
           </pre>
           <button

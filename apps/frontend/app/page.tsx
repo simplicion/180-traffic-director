@@ -50,8 +50,8 @@ export default function TrafficDirectorLandingPage() {
     try {
       setIsDevLoggingIn(true);
       const apiBase = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-        ? 'http://localhost:4002'
-        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4002');
+        ? 'http://localhost:4005'
+        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4005');
       const res = await fetch(`${apiBase}/oauth/dev-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

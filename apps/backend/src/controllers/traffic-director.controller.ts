@@ -666,11 +666,23 @@ export class TrafficDirectorController {
   static async validateCoupon(req: Request, res: Response) {
     try {
       const { couponCode, planTier } = req.body || {};
-      const result = await TrafficDirectorBillingService.validateCoupon(couponCode, planTier);
-      return res.json({ success: true, ...result });
+      if (!couponCode || typeof couponCode !== 'string' || !couponCode.trim()) {
+        return res.json({ success: true, valid: false, error: 'Please enter a coupon code' });
+      }
+
+      try {
+        const result = await TrafficDirectorBillingService.validateCoupon(couponCode.trim(), planTier);
+        return res.json({ success: true, ...result });
+      } catch (validationErr: any) {
+        return res.json({
+          success: true,
+          valid: false,
+          error: validationErr.message || 'Invalid or inactive coupon code'
+        });
+      }
     } catch (error: any) {
       console.error('[TrafficDirectorController.validateCoupon]', error);
-      return res.status(400).json({ success: false, error: error.message || 'Coupon validation failed' });
+      return res.status(500).json({ success: false, error: error.message || 'Coupon validation failed' });
     }
   }
 

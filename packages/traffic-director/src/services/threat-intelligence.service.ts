@@ -212,7 +212,9 @@ export class ThreatIntelligenceService {
    * Toggle a system feed for a company
    */
   static toggleSystemFeed(companyId: string, feedKey: string, enabled: boolean) {
-    if (!this.SYSTEM_FEEDS[feedKey]) {
+    // Normalize aliases (e.g. tor_exit_nodes -> tor_network)
+    const normalizedKey = feedKey === 'tor_exit_nodes' ? 'tor_network' : feedKey;
+    if (!this.SYSTEM_FEEDS[normalizedKey]) {
       throw new Error(`Invalid threat feed: ${feedKey}`);
     }
 
@@ -223,12 +225,12 @@ export class ThreatIntelligenceService {
 
     const set = this.companyEnabledFeeds.get(companyId)!;
     if (enabled) {
-      set.add(feedKey);
+      set.add(normalizedKey);
     } else {
-      set.delete(feedKey);
+      set.delete(normalizedKey);
     }
 
-    return { success: true, feedKey, isEnabled: enabled };
+    return { success: true, feedKey: normalizedKey, isEnabled: enabled };
   }
 
   /**

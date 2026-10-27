@@ -18,6 +18,11 @@ export interface AuthenticatedRequest extends Request {
 
 export function protect(req: any, res: Response, next: NextFunction) {
   try {
+    // Payment webhooks use machine-to-machine cryptographic HMAC signatures, not user bearer tokens
+    if (req.path === '/billing/webhook' || req.originalUrl?.includes('/billing/webhook')) {
+      return next();
+    }
+
     let token: string | undefined;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -66,6 +71,15 @@ export function protect(req: any, res: Response, next: NextFunction) {
     };
 
     req.companyId = companyId;
+
+    if (companyId) {
+      try {
+        const { requestContext } = require('@workspace/db');
+        return requestContext.run({ companyId, userId }, () => next());
+      } catch (_) {
+        return next();
+      }
+    }
 
     return next();
   } catch (error: any) {
