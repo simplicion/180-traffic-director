@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import axios from 'axios';
 import dotenv from 'dotenv';
 import path from 'path';
 import { protect } from './src/middleware/auth';
@@ -126,6 +127,109 @@ app.post('/oauth/dev-token', async (req, res) => {
   } catch (err: any) {
     console.error('[TrafficDirectorDevToken] Error:', err);
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── 180 Core OAuth 2.0 Authorization Code Exchange (Server-to-Server) ─────
+app.post(['/oauth/exchange', '/oauth/token', '/api/auth/exchange'], async (req, res) => {
+  try {
+    const { code, redirect_uri, code_verifier } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, error: 'Authorization code is required' });
+    }
+
+    const clientId = process.env.TRAFFIC_DIRECTOR_CLIENT_ID || '180_client_39d675390e2ddf3a518b8c436ae665f5';
+    const clientSecret = process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || '180_secret_77d4c99df29f155d1535d7cc608f231622d89a3951f7ec1376399bed929a9434';
+    const redirectUri = redirect_uri || 'https://180trafficdirector.pro/callback';
+
+    // 1. Server-to-server exchange with 180 Core Auth Server
+    const tokenPayload: any = {
+      grant_type: 'authorization_code',
+      client_id: clientId,
+      client_secret: clientSecret,
+      code,
+      redirect_uri: redirectUri,
+    };
+    if (code_verifier) tokenPayload.code_verifier = code_verifier;
+
+    const coreRes = await axios.post('https://api.180core.cloud/api/oauth/token', tokenPayload, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 10000
+    });
+
+    const tokenData = coreRes.data;
+    const profileUser = tokenData.user || {};
+    const email = profileUser.email || `${profileUser.username || 'user'}@180core.cloud`;
+
+    // 2. Ensure user and company exist in dedicated 180trafficdirector_db
+    const { prisma } = require('@workspace/db');
+    let user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+      include: { company: true }
+    });
+
+    if (!user) {
+      let company = await prisma.company.findFirst();
+      if (!company) {
+        company = await prisma.company.create({
+          data: {
+            name: profileUser.name ? `${profileUser.name}'s Workspace` : 'Traffic Director Company',
+            slug: (profileUser.username || 'company').toLowerCase(),
+            adminEmail: email,
+            subscriptionStatus: 'active',
+            accountStatus: 'active',
+          }
+        });
+      }
+      user = await prisma.user.create({
+        data: {
+          email,
+          name: profileUser.name || profileUser.username || '180 User',
+          role: profileUser.role || 'ADMIN',
+          companyId: company.id,
+        },
+        include: { company: true }
+      });
+    }
+
+    // 3. Issue edge access token
+    const secret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || '180workspace_traffic_director_default_secure_vault_key_2026';
+    const jwt = require('jsonwebtoken');
+    const localToken = jwt.sign(
+      {
+        id: user.id,
+        sub: user.id,
+        userId: user.id,
+        email: user.email,
+        companyId: user.companyId,
+        role: user.role || 'admin',
+        coreSub: profileUser.sub || profileUser.id
+      },
+      secret,
+      { expiresIn: '7d' }
+    );
+
+    return res.json({
+      success: true,
+      access_token: localToken,
+      token: localToken,
+      id_token: tokenData.id_token,
+      core_access_token: tokenData.access_token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        companyId: user.companyId,
+        role: user.role,
+        avatarUrl: profileUser.picture || profileUser.avatarUrl
+      }
+    });
+  } catch (err: any) {
+    console.error('[OAuthExchange] Error:', err.response?.data || err.message);
+    return res.status(500).json({
+      success: false,
+      error: err.response?.data?.error_description || err.response?.data?.error || err.message || 'Token exchange failed'
+    });
   }
 });
 

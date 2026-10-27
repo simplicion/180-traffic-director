@@ -18,6 +18,12 @@ export default function CallbackPage() {
       if (err) {
         setError(err);
         toast.error(`Authentication error: ${err}`);
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage({ type: '180_IDENTITY_ERROR', error: err }, '*');
+          window.close();
+        } else if (window.parent && window.parent !== window) {
+          window.parent.postMessage({ type: '180_IDENTITY_ERROR', error: err }, '*');
+        }
         return;
       }
 
@@ -30,9 +36,18 @@ export default function CallbackPage() {
       if (window.opener && !window.opener.closed) {
         window.opener.postMessage(
           { type: '180_IDENTITY_SUCCESS', code },
-          window.location.origin
+          '*'
         );
         window.close();
+        return;
+      }
+
+      // If opened in in-DOM iframe / bottom-sheet, post to parent window
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(
+          { type: '180_IDENTITY_SUCCESS', code },
+          '*'
+        );
         return;
       }
 
@@ -43,32 +58,36 @@ export default function CallbackPage() {
           window.location.hostname === '127.0.0.1';
         const apiBase = isLocal 
           ? 'http://localhost:4005'
-          : (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_IDENTITY_SERVER_URL || 'https://api.180workspace.com');
+          : (process.env.NEXT_PUBLIC_API_URL || 'https://api.180trafficdirector.pro');
         const redirectUri = window.location.origin + '/callback';
+        const pkceVerifier = sessionStorage.getItem('180_pkce_verifier') || undefined;
 
         const tokenPayload = {
           grant_type: 'authorization_code',
-          client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || process.env.NEXT_PUBLIC_CLIENT_ID || '180_client_39d675390e2ddf3a518b8c436ae665f5',
+          client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_39d675390e2ddf3a518b8c436ae665f5',
           code,
           redirect_uri: redirectUri,
+          code_verifier: pkceVerifier,
         };
 
-        let tokenRes = await fetch(`${apiBase}/oauth/token`, {
+        // Try backend exchange first (server-to-server with secret)
+        let tokenRes = await fetch(`${apiBase}/oauth/exchange`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(tokenPayload),
         });
 
-        if (!tokenRes.ok && tokenRes.status === 404) {
-          tokenRes = await fetch(`${apiBase}/api/oauth/token`, {
+        // Fallback to backend /oauth/token or core cloud oauth token endpoint
+        if (!tokenRes.ok) {
+          tokenRes = await fetch(`${apiBase}/oauth/token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(tokenPayload),
           });
         }
 
-        if (!tokenRes.ok && tokenRes.status === 404) {
-          tokenRes = await fetch(`${apiBase}/api/v1/identity/oauth/token`, {
+        if (!tokenRes.ok) {
+          tokenRes = await fetch('https://api.180core.cloud/api/oauth/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(tokenPayload),
@@ -76,21 +95,24 @@ export default function CallbackPage() {
         }
 
         const tokenData = await tokenRes.json();
-        if (!tokenRes.ok || !tokenData.access_token) {
+        const token = tokenData.access_token || tokenData.token || tokenData.authToken;
+
+        if (!tokenRes.ok || !token) {
           throw new Error(
             tokenData.error_description || tokenData.error || 'Token exchange failed'
           );
         }
 
-        const token = tokenData.access_token;
         const refreshToken = tokenData.refresh_token;
 
         localStorage.setItem('platform_auth_token', token);
+        localStorage.setItem('token', token);
         if (refreshToken) localStorage.setItem('platform_refresh_token', refreshToken);
+        if (tokenData.user) localStorage.setItem('180_user', JSON.stringify(tokenData.user));
 
         const isProd = window.location.protocol === 'https:';
-        const is180 = window.location.hostname.endsWith('180workspace.com');
-        const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+        const is180 = window.location.hostname.endsWith('180trafficdirector.pro');
+        const domainAttr = is180 ? '; domain=.180trafficdirector.pro' : '';
         const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${
           isProd ? '; Secure' : ''
         }${domainAttr}`;

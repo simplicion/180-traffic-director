@@ -22,27 +22,44 @@ export default function TrafficDirectorLandingPage() {
 
   const handleLogin = () => {
     launch180Identity({
-      clientId: process.env.NEXT_PUBLIC_180_CLIENT_ID || process.env.NEXT_PUBLIC_CLIENT_ID || '180_client_39d675390e2ddf3a518b8c436ae665f5',
-      authServerUrl: (process.env.NEXT_PUBLIC_180_AUTH_URL && !process.env.NEXT_PUBLIC_180_AUTH_URL.includes('180workspace.com'))
-        ? process.env.NEXT_PUBLIC_180_AUTH_URL
-        : 'https://profile.180core.cloud',
-      redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/callback` : undefined,
-      onSuccess: (res: any) => {
-        const token = res?.authToken || res?.accessToken || res?.token;
+      clientId: process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_39d675390e2ddf3a518b8c436ae665f5',
+      authServerUrl: 'https://profile.180core.cloud',
+      redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/callback` : 'https://180trafficdirector.pro/callback',
+      onSuccess: async (res: any) => {
+        let token = res?.authToken || res?.accessToken || res?.token;
+        if (!token && res?.code) {
+          try {
+            const apiBase = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+              ? 'http://localhost:4005'
+              : (process.env.NEXT_PUBLIC_API_URL || 'https://api.180trafficdirector.pro');
+            const tokenRes = await fetch(`${apiBase}/oauth/exchange`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                code: res.code,
+                client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_39d675390e2ddf3a518b8c436ae665f5',
+                redirect_uri: window.location.origin + '/callback',
+              }),
+            });
+            const data = await tokenRes.json();
+            token = data?.access_token || data?.token;
+            if (data?.user) res.user = data.user;
+          } catch (_) {}
+        }
         if (token) {
           localStorage.setItem('platform_auth_token', token);
           localStorage.setItem('token', token);
           const isProd = window.location.protocol === 'https:';
-          const is180 = window.location.hostname.endsWith('180workspace.com');
-          const domainAttr = is180 ? '; domain=.180workspace.com' : '';
-          const secureAttr = isProd ? '; Secure' : '';
-          document.cookie = `platform_auth_token=${token}; path=/; max-age=604800; SameSite=Lax${secureAttr}${domainAttr}`;
+          document.cookie = `platform_auth_token=${token}; path=/; max-age=604800; SameSite=Lax${isProd ? '; Secure' : ''}`;
           if (res?.user) {
             localStorage.setItem('user', JSON.stringify(res.user));
           }
           window.location.href = '/traffic-director';
         }
       },
+      onError: (err: any) => {
+        console.error('180 Identity Sign-In Error:', err);
+      }
     });
   };
 
