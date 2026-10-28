@@ -7,7 +7,7 @@ import { AILogo, AILogoIcon } from "./AILogo";
 import { AICreditDrawer, AI_CREDITS_DRAWER_OPEN_EVENT } from "./AICreditDrawer";
 
 export interface AICreditAccountStatus {
-  companyId?: string;
+  userId?: string;
   tier?: "FREE" | "PRO" | "AGENCY" | string;
   monthlyIncludedQuota?: number;
   monthlyCreditsUsed?: number;
@@ -30,7 +30,7 @@ export interface AICreditAccountStatus {
 export type AICreditWidgetVariant = "card" | "compact" | "nav" | "inline";
 
 export interface AICreditProgressWidgetProps {
-  companyId?: string;
+  userId?: string;
   variant?: AICreditWidgetVariant;
   compact?: boolean;
   status?: AICreditAccountStatus | null;
@@ -47,7 +47,7 @@ export const AI_CREDITS_SYNC_EVENT = "180_ai_credits_updated";
  * centralized design system, UI/UX Pro Max guidelines, and light/dark theme responsiveness.
  */
 export const AICreditProgressWidget: React.FC<AICreditProgressWidgetProps> = ({
-  companyId,
+  userId,
   variant = "card",
   compact = false,
   status: initialStatus,
@@ -106,10 +106,10 @@ export const AICreditProgressWidget: React.FC<AICreditProgressWidgetProps> = ({
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
-      const cId = companyId || (typeof window !== "undefined" ? localStorage.getItem("current_company_id") : "") || "";
+      const uId = userId || (typeof window !== "undefined" ? localStorage.getItem("current_user_id") : "") || "";
       const endpoints = [
-        `/api/v1/ai/credits/status?companyId=${encodeURIComponent(cId)}`,
-        `http://127.0.0.1:4002/api/v1/ai/credits/status?companyId=${encodeURIComponent(cId)}`,
+        `/api/v1/ai/credits/status${uId ? `?userId=${encodeURIComponent(uId)}` : ""}`,
+        `http://127.0.0.1:4002/api/v1/ai/credits/status${uId ? `?userId=${encodeURIComponent(uId)}` : ""}`,
       ];
 
       for (const url of endpoints) {
@@ -127,7 +127,7 @@ export const AICreditProgressWidget: React.FC<AICreditProgressWidgetProps> = ({
 
       // Default safe fallback if network is offline or unauthenticated
       setAccountStatus((prev) => prev || {
-        companyId: cId || "default_workspace",
+        userId: uId || "default_user",
         tier: "PRO",
         monthlyIncludedQuota: 5000,
         currentBalance: 4850,
@@ -147,7 +147,7 @@ export const AICreditProgressWidget: React.FC<AICreditProgressWidgetProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [companyId, initialStatus]);
+  }, [userId, initialStatus]);
 
   // Initial fetch + Global synchronization listener across the entire platform
   useEffect(() => {
@@ -350,7 +350,7 @@ export const AICreditProgressWidget: React.FC<AICreditProgressWidgetProps> = ({
         <AICreditDrawer
           isOpen={isDrawerOpen}
           onClose={() => setIsDrawerOpen(false)}
-          companyId={companyId}
+          userId={userId}
           onRecharged={(status) => {
             setAccountStatus(status);
             onRecharged?.(status);

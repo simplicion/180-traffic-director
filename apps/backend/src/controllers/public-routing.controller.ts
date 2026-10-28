@@ -48,8 +48,8 @@ export class PublicRoutingController {
       const signals = SignalExtractor.extractFromRequest(req);
 
       // Verify active subscription / 7-day free trial status
-      const isSubActive = link.companyId
-        ? await TrafficDirectorBillingService.isCompanySubscriptionActive(link.companyId)
+      const isSubActive = link.userId
+        ? await TrafficDirectorBillingService.isUserSubscriptionActive(link.userId)
         : true;
       const effectiveIsActive = Boolean(link.isActive && isSubActive);
 
@@ -229,8 +229,8 @@ export class PublicRoutingController {
       const signals = SignalExtractor.extractFromRequest(req);
 
       // Verify active subscription / 7-day free trial status
-      const isSubActive = link.companyId
-        ? await TrafficDirectorBillingService.isCompanySubscriptionActive(link.companyId)
+      const isSubActive = link.userId
+        ? await TrafficDirectorBillingService.isUserSubscriptionActive(link.userId)
         : true;
       const effectiveIsActive = Boolean(link.isActive && isSubActive);
 

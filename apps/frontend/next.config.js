@@ -57,6 +57,30 @@ const nextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: '/traffic-director',
+        destination: '/traffic-director/links',
+        permanent: false,
+      },
+      {
+        source: '/traffic-director/domains',
+        destination: '/traffic-director/links',
+        permanent: false,
+      },
+      {
+        source: '/traffic-director/pixels',
+        destination: '/traffic-director/links',
+        permanent: false,
+      },
+      {
+        source: '/traffic-director/analytics',
+        destination: '/traffic-director/links',
+        permanent: false,
+      },
+    ];
+  },
   outputFileTracingRoot: path.join(__dirname, '../../'),
 };
 

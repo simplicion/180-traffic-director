@@ -23,7 +23,7 @@ export const AI_CREDITS_DRAWER_OPEN_EVENT = "180_open_ai_credits_drawer";
 export interface AICreditDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  companyId?: string;
+  userId?: string;
   onRecharged?: (status: AICreditAccountStatus) => void;
 }
 
@@ -84,7 +84,7 @@ export const COST_BREAKDOWN = [
 export const AICreditDrawer: React.FC<AICreditDrawerProps> = ({
   isOpen,
   onClose,
-  companyId,
+  userId,
   onRecharged,
 }) => {
   const [mounted, setMounted] = useState(false);
@@ -104,10 +104,10 @@ export const AICreditDrawer: React.FC<AICreditDrawerProps> = ({
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
-      const cId = companyId || (typeof window !== "undefined" ? localStorage.getItem("current_company_id") : "") || "";
+      const uId = userId || (typeof window !== "undefined" ? localStorage.getItem("current_user_id") : "") || "";
       const endpoints = [
-        `/api/v1/ai/credits/status?companyId=${encodeURIComponent(cId)}`,
-        `http://127.0.0.1:4002/api/v1/ai/credits/status?companyId=${encodeURIComponent(cId)}`,
+        `/api/v1/ai/credits/status${uId ? `?userId=${encodeURIComponent(uId)}` : ""}`,
+        `http://127.0.0.1:4002/api/v1/ai/credits/status${uId ? `?userId=${encodeURIComponent(uId)}` : ""}`,
       ];
 
       for (const url of endpoints) {
@@ -125,7 +125,7 @@ export const AICreditDrawer: React.FC<AICreditDrawerProps> = ({
 
       // Default safe fallback if network is offline or unauthenticated
       setAccountStatus((prev) => prev || {
-        companyId: cId || "default_workspace",
+        userId: uId || "default_user",
         tier: "PRO",
         monthlyIncludedQuota: 5000,
         monthlyCreditsUsed: 150,
@@ -146,7 +146,7 @@ export const AICreditDrawer: React.FC<AICreditDrawerProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [companyId]);
+  }, [userId]);
 
   useEffect(() => {
     if (isOpen) {

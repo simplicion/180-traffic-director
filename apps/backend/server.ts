@@ -14,6 +14,7 @@ import { TorExitSyncService } from '@workspace/traffic-director';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config();
 
+// Dedicated Traffic Director Backend Server (User Scoped)
 const app = express();
 const PORT = process.env.TD_PORT || process.env.TRAFFIC_DIRECTOR_PORT || 4005;
 
@@ -37,7 +38,7 @@ app.use(cors({
   allowedHeaders: [
     'Content-Type',
     'Authorization',
-    'x-company-id',
+    'x-user-id',
     'x-180-signature',
     'x-180-timestamp',
     'Range'
@@ -71,31 +72,16 @@ app.post('/oauth/dev-token', async (req, res) => {
     const email = req.body?.email || 'simplicion.com@gmail.com';
     
     let user = await prisma.user.findFirst({
-      where: { email: { equals: email, mode: 'insensitive' } },
-      include: { company: true }
+      where: { email: { equals: email, mode: 'insensitive' } }
     });
 
     if (!user) {
-      let company = await prisma.company.findFirst();
-      if (!company) {
-        company = await prisma.company.create({
-          data: {
-            name: 'Simplicion',
-            slug: 'simplicion',
-            adminEmail: email,
-            subscriptionStatus: 'active',
-            accountStatus: 'active',
-          }
-        });
-      }
       user = await prisma.user.create({
         data: {
           email,
           name: 'Simplicion Admin',
           role: 'ADMIN',
-          companyId: company.id,
-        },
-        include: { company: true }
+        }
       });
     }
 
@@ -106,7 +92,6 @@ app.post('/oauth/dev-token', async (req, res) => {
         sub: user.id, 
         userId: user.id, 
         email: user.email, 
-        companyId: user.companyId, 
         role: user.role || 'admin' 
       },
       secret,
@@ -120,7 +105,6 @@ app.post('/oauth/dev-token', async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name,
-        companyId: user.companyId,
         role: user.role
       }
     });
@@ -161,34 +145,19 @@ app.post(['/oauth/exchange', '/oauth/token', '/api/auth/exchange'], async (req, 
     const profileUser = tokenData.user || {};
     const email = profileUser.email || `${profileUser.username || 'user'}@180core.cloud`;
 
-    // 2. Ensure user and company exist in dedicated 180trafficdirector_db
+    // 2. Ensure user exists in dedicated 180trafficdirector_db
     const { prisma } = require('@workspace/db');
     let user = await prisma.user.findFirst({
-      where: { email: { equals: email, mode: 'insensitive' } },
-      include: { company: true }
+      where: { email: { equals: email, mode: 'insensitive' } }
     });
 
     if (!user) {
-      let company = await prisma.company.findFirst();
-      if (!company) {
-        company = await prisma.company.create({
-          data: {
-            name: profileUser.name ? `${profileUser.name}'s Workspace` : 'Traffic Director Company',
-            slug: (profileUser.username || 'company').toLowerCase(),
-            adminEmail: email,
-            subscriptionStatus: 'active',
-            accountStatus: 'active',
-          }
-        });
-      }
       user = await prisma.user.create({
         data: {
           email,
           name: profileUser.name || profileUser.username || '180 User',
           role: profileUser.role || 'ADMIN',
-          companyId: company.id,
-        },
-        include: { company: true }
+        }
       });
     }
 
@@ -201,7 +170,6 @@ app.post(['/oauth/exchange', '/oauth/token', '/api/auth/exchange'], async (req, 
         sub: user.id,
         userId: user.id,
         email: user.email,
-        companyId: user.companyId,
         role: user.role || 'admin',
         coreSub: profileUser.sub || profileUser.id
       },
@@ -219,7 +187,6 @@ app.post(['/oauth/exchange', '/oauth/token', '/api/auth/exchange'], async (req, 
         id: user.id,
         email: user.email,
         name: user.name,
-        companyId: user.companyId,
         role: user.role,
         avatarUrl: profileUser.picture || profileUser.avatarUrl
       }

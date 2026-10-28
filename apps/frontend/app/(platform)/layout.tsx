@@ -4,21 +4,16 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
-  Activity, 
   Link as LinkIcon, 
-  BarChart3, 
   Layers, 
   Terminal, 
   User, 
-  Plus, 
   Sun, 
   Moon, 
   ShieldCheck, 
   ChevronRight, 
   CreditCard,
-  Menu,
-  Sparkles,
-  Globe
+  Menu
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getAuthToken, clearAuthTokens } from '@/lib/api';
@@ -82,11 +77,7 @@ export default function PlatformLayout({
   };
 
   const navItems = [
-    { name: 'Overview', href: '/traffic-director', icon: Activity },
     { name: 'Smart Links', href: '/traffic-director/links', icon: LinkIcon },
-    { name: 'Meta Pixels & CAPI', href: '/traffic-director/pixels', icon: Sparkles },
-    { name: 'Tracking Domains', href: '/traffic-director/domains', icon: Globe },
-    { name: 'Analytics', href: '/traffic-director/analytics', icon: BarChart3 },
     { name: 'Traffic Logs', href: '/traffic-director/logs', icon: Layers },
     { name: 'Edge Simulator', href: '/traffic-director/simulator', icon: Terminal },
     { name: 'Threat Intelligence', href: '/traffic-director/threats', icon: ShieldCheck },
@@ -95,8 +86,8 @@ export default function PlatformLayout({
   ];
 
   const currentNav = navItems.find((n) => 
-    n.href === '/traffic-director' ? pathname === '/traffic-director' : pathname.startsWith(n.href)
-  ) || { name: 'Dashboard' };
+    pathname.startsWith(n.href)
+  ) || { name: 'Smart Links' };
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-black text-gray-900 dark:text-zinc-100 transition-colors duration-200">
@@ -155,14 +146,6 @@ export default function PlatformLayout({
             >
               <CreditCard className="h-3.5 w-3.5 text-blue-500" />
               <span>Plans & Billing</span>
-            </Link>
-
-            <Link
-              href="/traffic-director/links"
-              className="inline-flex items-center space-x-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-3.5 py-2 text-xs font-semibold text-white shadow-sm shadow-blue-500/20 transition-all active:scale-95 cursor-pointer"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Create Smart Link</span>
             </Link>
           </div>
         </header>

@@ -62,7 +62,7 @@ export function TrialBanner() {
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
             </span>
             <span>
-              <strong>7-Day Free Trial Active:</strong> You have <strong>{trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'}</strong> remaining. Create up to 2 Smart Links with live edge routing.
+              <strong>7-Day Free Trial Active:</strong> You have <strong>{trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'}</strong> remaining. Free accounts can create 1 Smart Link free of cost.
             </span>
           </div>
           <Link

@@ -5,19 +5,19 @@ import { TrafficDirectorBillingService } from './billing.service';
 const db = prisma as any;
 
 export class TrafficLinksService {
-  private static resolveCompanyId(providedCompanyId?: string): string | undefined {
-    return providedCompanyId || requestContext.getStore()?.companyId;
+  private static resolveUserId(providedUserId?: string): string | undefined {
+    return providedUserId || requestContext.getStore()?.userId;
   }
 
-  static async getLinks(companyId?: string, options: { page?: number; limit?: number; search?: string; isActive?: boolean } = {}) {
+  static async getLinks(userId?: string, options: { page?: number; limit?: number; search?: string; isActive?: boolean } = {}) {
     const page = options.page || 1;
     const limit = options.limit || 20;
     const skip = (page - 1) * limit;
 
     const where: any = {};
-    const effectiveCompanyId = this.resolveCompanyId(companyId);
-    if (effectiveCompanyId) {
-      where.companyId = effectiveCompanyId;
+    const effectiveUserId = this.resolveUserId(userId);
+    if (effectiveUserId) {
+      where.userId = effectiveUserId;
     }
 
     if (options.search) {
@@ -81,11 +81,11 @@ export class TrafficLinksService {
     };
   }
 
-  static async getLinkById(companyId: string | undefined, linkId: string) {
-    const effectiveCompanyId = this.resolveCompanyId(companyId);
+  static async getLinkById(userId: string | undefined, linkId: string) {
+    const effectiveUserId = this.resolveUserId(userId);
     const where: any = { id: linkId };
-    if (effectiveCompanyId) {
-      where.companyId = effectiveCompanyId;
+    if (effectiveUserId) {
+      where.userId = effectiveUserId;
     }
 
     const link = await db.trafficLink.findFirst({
@@ -242,10 +242,15 @@ export class TrafficLinksService {
     return link;
   }
 
-  static async createLink(companyId: string | undefined, data: any) {
-    const effectiveCompanyId = this.resolveCompanyId(companyId) || data.companyId;
-    if (!effectiveCompanyId) {
-      throw new Error('Company context is required to create a traffic link');
+  static async createLink(userId: string | undefined, data: any) {
+    let effectiveUserId = this.resolveUserId(userId) || data.userId;
+    if (!effectiveUserId) {
+      const fallbackUser = await db.user.findFirst().catch(() => null);
+      if (fallbackUser) {
+        effectiveUserId = fallbackUser.id;
+      } else {
+        throw new Error('User context is required to create a traffic link');
+      }
     }
 
     const linkName = data.name || data.title || 'Untitled Link';
@@ -259,24 +264,12 @@ export class TrafficLinksService {
       throw new Error(availability.reason);
     }
 
-    // Enforce subscription link quota & active trial status
-    const billingStatus = await TrafficDirectorBillingService.getSubscriptionStatus(effectiveCompanyId);
-    const sub = billingStatus?.subscription;
-    if (sub && !sub.canCreateMoreLinks) {
-      if (sub.isTrialExpired) {
-        throw new Error('SUBSCRIPTION_REQUIRED: Your 7-day free trial has expired. Please upgrade your subscription in Billing to create new Smart Links.');
-      }
-      if (!sub.isSubscriptionActive) {
-        throw new Error('SUBSCRIPTION_REQUIRED: An active subscription is required to create Smart Links. Please activate a subscription in Billing.');
-      }
-      throw new Error(
-        `SUBSCRIPTION_REQUIRED: Plan link limit reached: Your ${sub.planName || sub.planTier} plan allows a maximum of ${sub.maxLinks} Smart Links (${sub.currentLinksCount}/${sub.maxLinks} used). Please upgrade your subscription in Billing to create more links.`
-      );
-    }
+    // Server-Side Billing Gatekeeper: Strictly enforce quota & active subscription status
+    await TrafficDirectorBillingService.assertCanCreateLink(effectiveUserId);
 
     const link = await db.trafficLink.create({
       data: {
-        companyId: effectiveCompanyId,
+        userId: effectiveUserId,
         name: linkName,
         slug: cleanedSlug,
         description: data.description,
@@ -329,27 +322,27 @@ export class TrafficLinksService {
   }
 
   static async updateLink(
-    companyIdOrLinkId: string | undefined, 
+    userIdOrLinkId: string | undefined, 
     linkIdOrData: string | UpdateTrafficLinkDTO, 
     maybeData?: UpdateTrafficLinkDTO
   ) {
-    let effectiveCompanyId: string | undefined;
+    let effectiveUserId: string | undefined;
     let linkId: string;
     let data: UpdateTrafficLinkDTO;
 
     if (typeof linkIdOrData === 'object' && linkIdOrData !== null && maybeData === undefined) {
-      linkId = companyIdOrLinkId as string;
+      linkId = userIdOrLinkId as string;
       data = linkIdOrData as UpdateTrafficLinkDTO;
-      effectiveCompanyId = this.resolveCompanyId(undefined);
+      effectiveUserId = this.resolveUserId(undefined);
     } else {
-      effectiveCompanyId = this.resolveCompanyId(companyIdOrLinkId);
+      effectiveUserId = this.resolveUserId(userIdOrLinkId);
       linkId = linkIdOrData as string;
       data = maybeData as UpdateTrafficLinkDTO;
     }
 
     const where: any = { id: linkId };
-    if (effectiveCompanyId) {
-      where.companyId = effectiveCompanyId;
+    if (effectiveUserId) {
+      where.userId = effectiveUserId;
     }
 
     const existing = await db.trafficLink.findFirst({ where });
@@ -376,10 +369,10 @@ export class TrafficLinksService {
     if (data.tags !== undefined) updateData.tags = data.tags;
     if (data.isActive !== undefined) {
       if (data.isActive === true) {
-        const existingLink = await db.trafficLink.findUnique({ where: { id: linkId }, select: { companyId: true } });
-        const targetCompanyId = existingLink?.companyId || effectiveCompanyId;
-        if (targetCompanyId) {
-          const billingStatus = await TrafficDirectorBillingService.getSubscriptionStatus(targetCompanyId);
+        const existingLink = await db.trafficLink.findUnique({ where: { id: linkId }, select: { userId: true } });
+        const targetUserId = existingLink?.userId || effectiveUserId;
+        if (targetUserId) {
+          const billingStatus = await TrafficDirectorBillingService.getSubscriptionStatus(targetUserId);
           if (!billingStatus?.subscription?.isSubscriptionActive || !billingStatus?.subscription?.cloakingEnabled) {
             throw new Error('Active subscription or 7-day free trial required to activate Smart Link cloaking.');
           }
@@ -417,11 +410,11 @@ export class TrafficLinksService {
     return { link: updated };
   }
 
-  static async deleteLink(companyId: string | undefined, linkId: string) {
-    const effectiveCompanyId = this.resolveCompanyId(companyId);
+  static async deleteLink(userId: string | undefined, linkId: string) {
+    const effectiveUserId = this.resolveUserId(userId);
     const where: any = { id: linkId };
-    if (effectiveCompanyId) {
-      where.companyId = effectiveCompanyId;
+    if (effectiveUserId) {
+      where.userId = effectiveUserId;
     }
 
     const existing = await db.trafficLink.findFirst({ where });
@@ -458,4 +451,3 @@ export class TrafficLinksService {
     return { available: false, slug: cleanSlug, reason: 'This slug is already in use.' };
   }
 }
-

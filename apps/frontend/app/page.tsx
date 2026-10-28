@@ -54,7 +54,7 @@ export default function TrafficDirectorLandingPage() {
           if (res?.user) {
             localStorage.setItem('user', JSON.stringify(res.user));
           }
-          window.location.href = '/traffic-director';
+          window.location.href = '/traffic-director/links';
         }
       },
       onError: (err: any) => {
@@ -86,7 +86,7 @@ export default function TrafficDirectorLandingPage() {
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));
         }
-        window.location.href = '/traffic-director';
+        window.location.href = '/traffic-director/links';
       } else {
         alert(data?.error || 'Failed to authenticate dev user');
       }
@@ -101,7 +101,7 @@ export default function TrafficDirectorLandingPage() {
     const token = getAuthToken();
     if (token) {
       setIsAuthenticated(true);
-      window.location.href = '/traffic-director';
+      window.location.href = '/traffic-director/links';
       return;
     }
     setIsAuthenticated(false);
@@ -294,7 +294,7 @@ export default function TrafficDirectorLandingPage() {
     },
     {
       question: "Can I connect my own custom branded domains for tracking links?",
-      answer: "Yes. You can connect unlimited custom domains (e.g., track.youragency.com) through our Company Hub. SSL certificates are provisioned automatically via Cloudflare with zero manual DNS configuration required after setting the initial CNAME record."
+      answer: "Yes. You can connect custom domains (e.g., track.youragency.com) directly from each Smart Link's settings. SSL certificates are provisioned automatically via Cloudflare with zero manual DNS configuration required after setting the initial CNAME record."
     }
   ];
 
@@ -349,7 +349,7 @@ export default function TrafficDirectorLandingPage() {
 
             {isAuthenticated ? (
               <Link
-                href="/traffic-director"
+                href="/traffic-director/links"
                 className="inline-flex items-center space-x-2 rounded-full bg-blue-600 hover:bg-blue-700 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:scale-105 active:scale-95"
               >
                 <span>Open Dashboard</span>
@@ -417,7 +417,7 @@ export default function TrafficDirectorLandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
             {isAuthenticated ? (
               <Link
-                href="/traffic-director"
+                href="/traffic-director/links"
                 className="btn-primary w-full sm:w-auto text-base group"
               >
                 <span>Launch Dashboard</span>
@@ -750,10 +750,10 @@ export default function TrafficDirectorLandingPage() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
               {isAuthenticated ? (
                 <Link
-                  href="/traffic-director"
+                  href="/traffic-director/links"
                   className="btn-primary w-full"
                 >
-                  <span>Go to Traffic Director Dashboard</span>
+                  <span>Go to Smart Links Directory</span>
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Link>
               ) : (
@@ -788,7 +788,7 @@ export default function TrafficDirectorLandingPage() {
 
           <div className="flex items-center gap-6 text-xs font-semibold text-slate-500">
             <Link href="/traffic-director/links" className="hover:text-blue-600 transition">Smart Links</Link>
-            <Link href="/traffic-director/analytics" className="hover:text-blue-600 transition">Analytics</Link>
+            <Link href="/traffic-director/threats" className="hover:text-blue-600 transition">Threat Intelligence</Link>
             <Link href="/traffic-director/logs" className="hover:text-blue-600 transition">Traffic Logs</Link>
             <Link href="/traffic-director/simulator" className="hover:text-blue-600 transition">Simulator</Link>
           </div>

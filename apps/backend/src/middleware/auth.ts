@@ -7,13 +7,12 @@ export interface AuthenticatedUser {
   sub?: string;
   email: string;
   name?: string;
-  companyId?: string;
   role?: string;
 }
 
 export interface AuthenticatedRequest extends Request {
   user?: AuthenticatedUser;
-  companyId?: string;
+  userId?: string;
 }
 
 export async function protect(req: any, res: Response, next: NextFunction) {
@@ -57,23 +56,17 @@ export async function protect(req: any, res: Response, next: NextFunction) {
       }
     }
 
-    const userId = decoded.id || decoded.userId || decoded.sub;
-    let companyId = decoded.companyId || decoded.company?.id || '';
+    let userId = decoded.id || decoded.userId || decoded.sub;
 
-    if (!companyId) {
-      try {
-        const { prisma } = require('@workspace/db');
-        const user = await prisma.user.findFirst({
-          where: decoded.email ? { email: { equals: decoded.email, mode: 'insensitive' } } : { id: userId }
-        });
-        if (user) {
-          companyId = user.companyId;
-        } else {
-          const comp = await prisma.company.findFirst();
-          if (comp) companyId = comp.id;
-        }
-      } catch (_) {}
-    }
+    try {
+      const { prisma } = require('@workspace/db');
+      const user = await prisma.user.findFirst({
+        where: decoded.email ? { email: { equals: decoded.email, mode: 'insensitive' } } : { id: userId }
+      });
+      if (user) {
+        userId = user.id;
+      }
+    } catch (_) {}
 
     req.user = {
       id: userId,
@@ -81,16 +74,15 @@ export async function protect(req: any, res: Response, next: NextFunction) {
       sub: userId,
       email: decoded.email || '',
       name: decoded.name || 'User',
-      companyId,
       role: decoded.role || 'user'
     };
 
-    req.companyId = companyId;
+    req.userId = userId;
 
-    if (companyId) {
+    if (userId) {
       try {
         const { requestContext } = require('@workspace/db');
-        return requestContext.run({ companyId, userId }, () => next());
+        return requestContext.run({ userId }, () => next());
       } catch (_) {
         return next();
       }

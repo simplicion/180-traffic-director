@@ -17,7 +17,7 @@ async function main() {
   console.log(`Testing simulator on link: ${link.name} (/r/${link.slug})`);
 
   // Test 1: Simulating Jio 5G Mobile User in India
-  const simJio = await TrafficSimulatorService.simulate(link.companyId, {
+  const simJio = await TrafficSimulatorService.simulate(link.userId, {
     linkId: link.id,
     simulatedCountry: 'IN',
     simulatedCity: 'Mumbai',
@@ -31,7 +31,7 @@ async function main() {
   console.log('- Matched:', simJio.simulationResult.matchedRuleName);
 
   // Test 2: Simulating AdPlexity Scraper
-  const simSpy = await TrafficSimulatorService.simulate(link.companyId, {
+  const simSpy = await TrafficSimulatorService.simulate(link.userId, {
     linkId: link.id,
     simulatedIsSpyService: true,
     simulatedSpyServiceName: 'AdPlexity',
@@ -44,7 +44,7 @@ async function main() {
   console.log('- Is Fallback:', simSpy.simulationResult.isFallback);
 
   // Test 3: Simulating Timezone Delta (US IP with Asia/Kolkata Clock)
-  const simTz = await TrafficSimulatorService.simulate(link.companyId, {
+  const simTz = await TrafficSimulatorService.simulate(link.userId, {
     linkId: link.id,
     simulatedCountry: 'US',
     simulatedClientTimezone: 'Asia/Kolkata',
@@ -58,7 +58,7 @@ async function main() {
   console.log('- Decision:', simTz.simulationResult.matchedRuleName);
 
   // Test 4: Simulating Tor Exit Node
-  const simTor = await TrafficSimulatorService.simulate(link.companyId, {
+  const simTor = await TrafficSimulatorService.simulate(link.userId, {
     linkId: link.id,
     simulatedIsTor: true,
     simulatedIp: '185.220.101.5'

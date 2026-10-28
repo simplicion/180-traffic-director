@@ -30,15 +30,15 @@ export interface SimulationInput {
 const db = prisma as any;
 
 export class TrafficSimulatorService {
-  private static resolveCompanyId(providedCompanyId?: string): string | undefined {
-    return providedCompanyId || requestContext.getStore()?.companyId;
+  private static resolveUserId(providedUserId?: string): string | undefined {
+    return providedUserId || requestContext.getStore()?.userId;
   }
 
-  static async simulate(companyId: string | undefined, input: SimulationInput) {
-    const effectiveCompanyId = this.resolveCompanyId(companyId);
+  static async simulate(userId: string | undefined, input: SimulationInput) {
+    const effectiveUserId = this.resolveUserId(userId);
     const where: any = { id: input.linkId };
-    if (effectiveCompanyId) {
-      where.companyId = effectiveCompanyId;
+    if (effectiveUserId) {
+      where.userId = effectiveUserId;
     }
 
     const link = await db.trafficLink.findFirst({

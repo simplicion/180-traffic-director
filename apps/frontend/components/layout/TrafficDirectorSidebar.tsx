@@ -4,16 +4,13 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
-  Activity, 
   Link as LinkIcon, 
-  BarChart3, 
   Layers, 
   Terminal, 
   ShieldCheck, 
   CreditCard, 
   User, 
-  Sparkles, 
-  Globe,
+  Sparkles,
   ChevronLeft, 
   X, 
   LogOut 
@@ -138,11 +135,7 @@ export function TrafficDirectorSidebar({
   };
 
   const navItems: NavItem[] = [
-    { id: 'overview', name: 'Overview', href: '/traffic-director', icon: Activity },
     { id: 'links', name: 'Smart Links', href: '/traffic-director/links', icon: LinkIcon },
-    { id: 'pixels', name: 'Meta Pixels & CAPI', href: '/traffic-director/pixels', icon: Sparkles, badge: 'PRO' },
-    { id: 'domains', name: 'Tracking Domains', href: '/traffic-director/domains', icon: Globe },
-    { id: 'analytics', name: 'Analytics', href: '/traffic-director/analytics', icon: BarChart3 },
     { id: 'logs', name: 'Traffic Logs', href: '/traffic-director/logs', icon: Layers },
     { id: 'simulator', name: 'Edge Simulator', href: '/traffic-director/simulator', icon: Terminal },
     { id: 'threats', name: 'Threat Intelligence', href: '/traffic-director/threats', icon: ShieldCheck },
@@ -161,7 +154,7 @@ export function TrafficDirectorSidebar({
         {isExpanded ? (
           <>
             <Link
-              href="/traffic-director"
+              href="/traffic-director/links"
               onClick={onMobileClose}
               className="flex items-center gap-2.5 p-1 rounded-xl group transition-all min-h-[44px] min-w-0"
             >
@@ -200,7 +193,7 @@ export function TrafficDirectorSidebar({
           </>
         ) : (
           <Link
-            href="/traffic-director"
+            href="/traffic-director/links"
             onClick={onMobileClose}
             className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-white/10 flex items-center justify-center mx-auto hover:scale-105 transition-all shadow-xs overflow-hidden"
             title="180 Traffic Director"
@@ -239,10 +232,7 @@ export function TrafficDirectorSidebar({
 
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive =
-              item.href === '/traffic-director'
-                ? pathname === '/traffic-director'
-                : pathname.startsWith(item.href);
+            const isActive = pathname.startsWith(item.href);
 
             return (
               <Link

@@ -7,10 +7,10 @@ Welcome to the **180 Traffic Director** standalone workspace. Agents operating w
 - **NEVER** hardcode database passwords, JWT signing keys, Meta Graph API access tokens, or CAPI verification secrets.
 - Always retrieve environment configurations via `process.env` or centralized config services.
 
-## 2. Multi-Tenant Scoping & Company Isolation
-- All database queries for Links, Rules, Threat Lists, Pixel Configurations, and Logs **MUST** enforce `companyId` scoping.
+## 2. User-Level Scoping & Isolation (`userId`)
+- All database queries for Links, Rules, Threat Lists, Pixel Configurations, and Logs **MUST** enforce `userId` scoping.
 - Unauthenticated requests to management APIs must be rejected with `HTTP 401/403`.
-- Edge routing redirectors (`/r/:slug`, `/tag/:slug.js`, `/evaluate/:slug`) execute publicly for visitors, but client data ingestion (`/pixel/event`) must securely bind to the link's registered tenant.
+- Edge routing redirectors (`/r/:slug`, `/tag/:slug.js`, `/evaluate/:slug`) execute publicly for visitors, but client data ingestion (`/pixel/event`) must securely bind to the link's registered user.
 
 ## 3. Edge Latency & Non-Blocking Design
 - The edge decision engine (`/evaluate/:slug`) must maintain sub-10ms evaluation latency.

@@ -14,7 +14,7 @@ export interface SystemThreatFeed {
 
 export interface CustomThreatEntry {
   id: string;
-  companyId: string;
+  userId: string;
   name: string;
   type: 'ip' | 'cidr' | 'asn' | 'user_agent';
   value: string;
@@ -183,19 +183,19 @@ export class ThreatIntelligenceService {
     }
   };
 
-  // Company feed toggles: companyId -> Set of enabled feed keys
+  // User feed toggles: userId -> Set of enabled feed keys
   // By default, if not set, meta_reviewers, google_compliance, tiktok_qa, spy_scrapers, and tor_network are ENABLED.
-  private static companyEnabledFeeds: Map<string, Set<string>> = new Map();
+  private static userEnabledFeeds: Map<string, Set<string>> = new Map();
 
-  // Custom threat lists per company: companyId -> CustomThreatEntry[]
-  private static companyCustomEntries: Map<string, CustomThreatEntry[]> = new Map();
+  // Custom threat lists per user: userId -> CustomThreatEntry[]
+  private static userCustomEntries: Map<string, CustomThreatEntry[]> = new Map();
 
   /**
-   * Get all system feeds with status for a company
+   * Get all system feeds with status for a user
    */
-  static getSystemFeeds(companyId?: string) {
-    const effectiveCompanyId = companyId || 'default';
-    const enabledSet = this.companyEnabledFeeds.get(effectiveCompanyId);
+  static getSystemFeeds(userId?: string) {
+    const effectiveUserId = userId || 'default';
+    const enabledSet = this.userEnabledFeeds.get(effectiveUserId);
 
     return Object.values(this.SYSTEM_FEEDS).map(feed => {
       const isEnabled = enabledSet ? enabledSet.has(feed.key) : true; // Enabled by default
@@ -209,21 +209,21 @@ export class ThreatIntelligenceService {
   }
 
   /**
-   * Toggle a system feed for a company
+   * Toggle a system feed for a user
    */
-  static toggleSystemFeed(companyId: string, feedKey: string, enabled: boolean) {
+  static toggleSystemFeed(userId: string, feedKey: string, enabled: boolean) {
     // Normalize aliases (e.g. tor_exit_nodes -> tor_network)
     const normalizedKey = feedKey === 'tor_exit_nodes' ? 'tor_network' : feedKey;
     if (!this.SYSTEM_FEEDS[normalizedKey]) {
       throw new Error(`Invalid threat feed: ${feedKey}`);
     }
 
-    if (!this.companyEnabledFeeds.has(companyId)) {
+    if (!this.userEnabledFeeds.has(userId)) {
       // Initialize with all feeds enabled
-      this.companyEnabledFeeds.set(companyId, new Set(Object.keys(this.SYSTEM_FEEDS)));
+      this.userEnabledFeeds.set(userId, new Set(Object.keys(this.SYSTEM_FEEDS)));
     }
 
-    const set = this.companyEnabledFeeds.get(companyId)!;
+    const set = this.userEnabledFeeds.get(userId)!;
     if (enabled) {
       set.add(normalizedKey);
     } else {
@@ -234,23 +234,23 @@ export class ThreatIntelligenceService {
   }
 
   /**
-   * Get custom entries for a company
+   * Get custom entries for a user
    */
-  static getCustomEntries(companyId: string): CustomThreatEntry[] {
-    return this.companyCustomEntries.get(companyId) || [];
+  static getCustomEntries(userId: string): CustomThreatEntry[] {
+    return this.userCustomEntries.get(userId) || [];
   }
 
   /**
    * Add a custom threat entry
    */
-  static addCustomEntry(companyId: string, entry: Omit<CustomThreatEntry, 'id' | 'companyId' | 'createdAt'>): CustomThreatEntry {
+  static addCustomEntry(userId: string, entry: Omit<CustomThreatEntry, 'id' | 'userId' | 'createdAt'>): CustomThreatEntry {
     if (!entry.name || !entry.value || !entry.type) {
       throw new Error('Name, type, and value are required');
     }
 
     const newEntry: CustomThreatEntry = {
       id: `threat_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-      companyId,
+      userId,
       name: entry.name.trim(),
       type: entry.type,
       value: entry.value.trim(),
@@ -259,9 +259,9 @@ export class ThreatIntelligenceService {
       createdAt: new Date().toISOString()
     };
 
-    const list = this.companyCustomEntries.get(companyId) || [];
+    const list = this.userCustomEntries.get(userId) || [];
     list.unshift(newEntry);
-    this.companyCustomEntries.set(companyId, list);
+    this.userCustomEntries.set(userId, list);
 
     return newEntry;
   }
@@ -269,23 +269,23 @@ export class ThreatIntelligenceService {
   /**
    * Delete a custom threat entry
    */
-  static deleteCustomEntry(companyId: string, entryId: string): boolean {
-    const list = this.companyCustomEntries.get(companyId) || [];
+  static deleteCustomEntry(userId: string, entryId: string): boolean {
+    const list = this.userCustomEntries.get(userId) || [];
     const filtered = list.filter(e => e.id !== entryId);
-    this.companyCustomEntries.set(companyId, filtered);
+    this.userCustomEntries.set(userId, filtered);
     return filtered.length < list.length;
   }
 
   /**
    * Evaluates visitor signals against enabled global threat intelligence feeds
-   * and custom company blacklists/whitelists in < 1ms.
+   * and custom user blacklists/whitelists in < 1ms.
    */
   static checkThreat(
     signals: ExtractedSignals,
-    companyId?: string
+    userId?: string
   ): { isThreat: boolean; isWhitelisted?: boolean; matchedFeed?: string; reason?: string } {
-    const effectiveCompanyId = companyId || 'default';
-    const enabledSet = this.companyEnabledFeeds.get(effectiveCompanyId);
+    const effectiveUserId = userId || 'default';
+    const enabledSet = this.userEnabledFeeds.get(effectiveUserId);
 
     const isFeedEnabled = (key: string) => (enabledSet ? enabledSet.has(key) : true);
 
@@ -293,8 +293,8 @@ export class ThreatIntelligenceService {
     const ua = signals.userAgent || '';
     const asn = signals.asnOrg ? parseInt(signals.asnOrg.replace(/\D/g, ''), 10) : undefined;
 
-    // 1. Check Custom Company Whitelists first (Whitelist bypasses all firewalls)
-    const customEntries = this.companyCustomEntries.get(effectiveCompanyId) || [];
+    // 1. Check Custom User Whitelists first (Whitelist bypasses all firewalls)
+    const customEntries = this.userCustomEntries.get(effectiveUserId) || [];
     for (const item of customEntries) {
       if (item.mode === 'whitelist') {
         if (item.type === 'ip' && item.value === ip) {
@@ -309,7 +309,7 @@ export class ThreatIntelligenceService {
       }
     }
 
-    // 2. Check Custom Company Blacklists
+    // 2. Check Custom User Blacklists
     for (const item of customEntries) {
       if (item.mode === 'blacklist') {
         if (item.type === 'ip' && item.value === ip) {

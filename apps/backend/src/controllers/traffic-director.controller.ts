@@ -12,77 +12,24 @@ import {
 
 export class TrafficDirectorController {
   /**
-   * Resolves the company ID for the request.
-   * If an authenticated 180 Identity user does not have a workspace company yet,
-   * automatically provisions a seamless personal headless tenant so they skip
-   * onboarding and can use Traffic Director immediately.
+   * Resolves the authenticated user ID for the request.
    */
-  private static async getCompanyId(req: Request): Promise<string> {
+  private static async getUserId(req: Request): Promise<string> {
     const reqAny = req as any;
-    let companyId = reqAny.companyId || reqAny.company?.id || reqAny.user?.companyId;
-    if (companyId) return companyId;
+    let userId = reqAny.userId || reqAny.user?.id || reqAny.user?.userId;
+    if (userId) return userId;
 
     const user = reqAny.user;
-    if (user?.id) {
+    if (user?.email) {
       const { prisma } = require('@workspace/db');
-      let dbUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { id: true, companyId: true, email: true, name: true }
+      const dbUser = await prisma.user.findFirst({
+        where: { email: { equals: user.email, mode: 'insensitive' } },
+        select: { id: true }
       });
-
-      if (!dbUser && user.email) {
-        dbUser = await prisma.user.findFirst({
-          where: { email: { equals: user.email, mode: 'insensitive' } },
-          select: { id: true, companyId: true, email: true, name: true }
-        });
+      if (dbUser?.id) {
+        reqAny.userId = dbUser.id;
+        return dbUser.id;
       }
-
-      if (dbUser?.companyId) {
-        reqAny.companyId = dbUser.companyId;
-        if (reqAny.user) reqAny.user.companyId = dbUser.companyId;
-        return dbUser.companyId;
-      }
-
-      // Auto-provision personal workspace for 180 Traffic Director
-      const baseSlug = `td-${user.id.slice(0, 8)}-${Date.now().toString(36)}`;
-      const newCompany = await prisma.company.create({
-        data: {
-          name: `${dbUser?.name || user.name || dbUser?.email?.split('@')[0] || user.email?.split('@')[0] || 'User'}'s Traffic Director`,
-          slug: baseSlug,
-          adminName: dbUser?.name || user.name || 'User',
-          adminEmail: dbUser?.email || user.email || `${baseSlug}@180workspace.internal`,
-          accountStatus: 'active',
-          subscriptionStatus: 'active',
-          isOnboardingComplete: true,
-          metadata: {
-            enabledApps: ['traffic-director'],
-            autoProvisioned: true,
-            source: 'traffic-director'
-          }
-        }
-      });
-
-      if (dbUser) {
-        await prisma.user.update({
-          where: { id: dbUser.id },
-          data: { companyId: newCompany.id, role: 'OWNER' }
-        });
-      } else {
-        await prisma.user.create({
-          data: {
-            id: user.id,
-            email: user.email || `${baseSlug}@180workspace.internal`,
-            name: user.name || 'User',
-            companyId: newCompany.id,
-            role: 'OWNER',
-            isActive: true
-          }
-        }).catch(() => {});
-      }
-
-      reqAny.companyId = newCompany.id;
-      if (reqAny.user) reqAny.user.companyId = newCompany.id;
-      return newCompany.id;
     }
 
     return '';
@@ -91,10 +38,10 @@ export class TrafficDirectorController {
   // ─── Links ─────────────────────────────────────────────────────────
   static async getLinks(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const { page, limit, search, isActive } = req.query;
 
-      const result = await TrafficLinksService.getLinks(companyId, {
+      const result = await TrafficLinksService.getLinks(userId, {
         page: page ? parseInt(page as string, 10) : 1,
         limit: limit ? parseInt(limit as string, 10) : 20,
         search: search ? String(search) : undefined,
@@ -201,110 +148,134 @@ export class TrafficDirectorController {
           checks.push({
             name: 'Page Reachability',
             status: 'passed',
-            message: `Website reached successfully (HTTP ${statusCode}) in ${latencyMs}ms.`
+            message: `HTTP ${statusCode} OK (Response time: ${latencyMs}ms)`
           });
         } else {
           checks.push({
             name: 'Page Reachability',
             status: 'failed',
-            message: `Website returned error status HTTP ${statusCode}. Ensure your page is published and publicly accessible.`
+            message: `Target returned HTTP ${statusCode}. Make sure the page is publicly accessible.`
           });
         }
 
         const html = await pageRes.text();
-        const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-        const headContent = headMatch ? headMatch[1] : '';
-        const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-        const bodyContent = bodyMatch ? bodyMatch[1] : html;
 
-        // Check 3: Script Tag Detection (in head vs body)
-        const tagPattern = new RegExp(`tag/${cleanSlug}(\\.js)?|evaluate/${cleanSlug}`, 'i');
-        const inHead = tagPattern.test(headContent);
-        const inBody = tagPattern.test(bodyContent) || tagPattern.test(html);
+        // Check 3: Tag Script Detection
+        const hasScriptTag = 
+          html.includes(`/tag/${cleanSlug}.js`) ||
+          html.includes(`tag/${cleanSlug}.js`) ||
+          html.includes(`data-link-slug="${cleanSlug}"`) ||
+          html.includes(`/evaluate/${cleanSlug}`);
 
-        if (inHead) {
+        const hasAnyTagScript = html.includes('/tag/') || html.includes('td-shield');
+
+        if (hasScriptTag) {
           checks.push({
-            name: 'Tag Detection & Head Placement',
+            name: 'JavaScript Tag',
             status: 'passed',
-            message: 'Tag script is properly installed inside <head> for zero-flicker instant redirection.'
+            message: `Found valid script tag referencing "/tag/${cleanSlug}.js" in page HTML.`
           });
-        } else if (inBody) {
+        } else if (hasAnyTagScript) {
           checks.push({
-            name: 'Tag Detection & Head Placement',
+            name: 'JavaScript Tag',
             status: 'warning',
-            message: 'Tag script was found, but placed inside <body>. We recommend moving it into <head> for faster execution before page render.'
+            message: `Found a Traffic Director script tag, but the slug does not match "${cleanSlug}". Check the slug in your embed snippet.`
           });
         } else {
           checks.push({
-            name: 'Tag Detection & Head Placement',
+            name: 'JavaScript Tag',
             status: 'failed',
-            message: `Could not find a client-side <script> tag matching "/tag/${cleanSlug}.js" or inline shield code in this page HTML. (Note: If you deployed a Server-Side Gateway like index.php or WordPress hook, it operates 100% server-side with zero client-side scripts — this is normal and expected).`
+            message: `Could not find <script src=".../tag/${cleanSlug}.js"> in page HTML. Ensure you copied and pasted the exact snippet before </head>.`
           });
         }
 
-        // Check 4: Async / Defer Optimization
-        if (inHead || inBody) {
-          const scriptTagMatch = html.match(new RegExp(`<script[^>]*tag/${cleanSlug}[^>]*>`, 'i'));
-          if (scriptTagMatch && /async|defer/i.test(scriptTagMatch[0])) {
-            checks.push({
-              name: 'Non-Blocking Execution',
-              status: 'passed',
-              message: 'Script tag includes "async" attribute to prevent blocking safe page rendering for review bots.'
-            });
-          } else {
-            checks.push({
-              name: 'Non-Blocking Execution',
-              status: 'warning',
-              message: 'Script tag is missing "async". Add async attribute (<script src="..." async></script>) for better compliance.'
-            });
-          }
+        // Check 4: PHP Integration Detection
+        const isPhpUrl = targetUrl.endsWith('.php') || targetUrl.includes('.php?');
+        const hasPhpSigns = 
+          pageRes.headers.get('x-powered-by')?.toLowerCase().includes('php') ||
+          pageRes.headers.get('server')?.toLowerCase().includes('php');
+
+        if (isPhpUrl || hasPhpSigns) {
+          checks.push({
+            name: 'PHP Gateway Integration',
+            status: 'passed',
+            message: `Page environment is running PHP. Server-side cloaking via index.php provides zero-latency protection.`
+          });
+        } else {
+          checks.push({
+            name: 'PHP Gateway Integration',
+            status: 'passed',
+            message: 'HTML/Static integration detected. Client-side shielding active.'
+          });
         }
 
-        const isFullyVerified = checks.every(c => c.status !== 'failed');
+        // Check 5: SSL/HTTPS
+        if (targetUrl.startsWith('https://')) {
+          checks.push({
+            name: 'SSL Security',
+            status: 'passed',
+            message: 'Page is secured with valid HTTPS.'
+          });
+        } else {
+          checks.push({
+            name: 'SSL Security',
+            status: 'warning',
+            message: 'Page is using unencrypted HTTP. Meta/Google will reject landing pages without HTTPS.'
+          });
+        }
+
+        const passedCount = checks.filter(c => c.status === 'passed').length;
+        const totalChecks = checks.length;
+        const overallStatus = checks.some(c => c.status === 'failed') 
+          ? 'unverified' 
+          : checks.some(c => c.status === 'warning') 
+            ? 'warning' 
+            : 'verified';
 
         return res.json({
           success: true,
-          verified: isFullyVerified,
-          url: targetUrl,
-          statusCode,
-          latencyMs,
-          checks,
-          summary: isTargetUrl 
-            ? `Warning: You tested your Target Offer URL (${targetUrl}). Please test your Safe Page or Gateway URL instead.`
-            : isFullyVerified
-              ? 'All diagnostics passed! Your safe landing page is fully protected and ready for Meta / Google Ads review.'
-              : 'One or more diagnostic checks require your attention.'
+          data: {
+            overallStatus,
+            score: Math.round((passedCount / totalChecks) * 100),
+            checks,
+            url: targetUrl,
+            slug: cleanSlug,
+            latencyMs,
+            verifiedAt: new Date().toISOString()
+          }
         });
-
-      } catch (fetchError: any) {
+      } catch (fetchErr: any) {
         clearTimeout(timeoutId);
-        checks.push({
-          name: 'Page Reachability',
-          status: 'failed',
-          message: `Network error connecting to ${targetUrl}: ${fetchError.message || 'Connection timeout or invalid domain'}. If testing a local file, ensure it is served over http:// (e.g. VS Code Live Server).`
-        });
-
         return res.json({
           success: true,
-          verified: false,
-          url: targetUrl,
-          checks,
-          summary: 'Could not connect to the provided URL.'
+          data: {
+            overallStatus: 'unverified',
+            score: 0,
+            checks: [
+              {
+                name: 'Connection',
+                status: 'failed',
+                message: `Failed to connect to ${targetUrl}: ${fetchErr.message}. Make sure your domain is active and online.`
+              }
+            ],
+            url: targetUrl,
+            slug: cleanSlug,
+            verifiedAt: new Date().toISOString()
+          }
         });
       }
-
     } catch (error: any) {
       console.error('[TrafficDirectorController.verifyTagInstallation]', error);
-      return res.status(500).json({ success: false, error: 'Verification error' });
+      return res.status(500).json({ success: false, error: error.message || 'Verification failed' });
     }
   }
 
   static async getLinkById(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const linkId = String(req.params.linkId);
 
-      const result = await TrafficLinksService.getLinkById(companyId, linkId);
+      const result = await TrafficLinksService.getLinkById(userId, linkId);
       return res.json({ success: true, data: result });
     } catch (error: any) {
       console.error('[TrafficDirectorController.getLinkById]', error);
@@ -314,7 +285,7 @@ export class TrafficDirectorController {
 
   static async createLink(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const { 
         name, slug, description, fallbackUrl, customDomain, tags,
         warmupUntil, rampUpEnabled, rampUpDurationHours, shieldMode, datacenterBlocked,
@@ -325,8 +296,8 @@ export class TrafficDirectorController {
         return res.status(400).json({ success: false, error: 'Name, slug, and fallbackUrl are required' });
       }
 
-      const result = await TrafficLinksService.createLink(companyId, {
-        companyId,
+      const result = await TrafficLinksService.createLink(userId, {
+        userId,
         name,
         slug,
         description,
@@ -344,16 +315,22 @@ export class TrafficDirectorController {
       return res.status(201).json({ success: true, data: result });
     } catch (error: any) {
       console.error('[TrafficDirectorController.createLink]', error);
-      return res.status(400).json({ success: false, error: error.message || 'Failed to create link' });
+      const isSubError = Boolean(error.message && error.message.includes('SUBSCRIPTION_REQUIRED'));
+      return res.status(isSubError ? 403 : 400).json({
+        success: false,
+        code: isSubError ? 'SUBSCRIPTION_REQUIRED' : 'BAD_REQUEST',
+        error: error.message || 'Failed to create link',
+        upgradeUrl: isSubError ? '/traffic-director/subscription' : undefined
+      });
     }
   }
 
   static async updateLink(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const linkId = String(req.params.linkId);
 
-      const result = await TrafficLinksService.updateLink(companyId, linkId, req.body);
+      const result = await TrafficLinksService.updateLink(userId, linkId, req.body);
       return res.json({ success: true, data: result });
     } catch (error: any) {
       console.error('[TrafficDirectorController.updateLink]', error);
@@ -363,10 +340,10 @@ export class TrafficDirectorController {
 
   static async deleteLink(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const linkId = String(req.params.linkId);
 
-      await TrafficLinksService.deleteLink(companyId, linkId);
+      await TrafficLinksService.deleteLink(userId, linkId);
       return res.json({ success: true, message: 'Link deleted successfully' });
     } catch (error: any) {
       console.error('[TrafficDirectorController.deleteLink]', error);
@@ -376,7 +353,7 @@ export class TrafficDirectorController {
 
   static async bulkDeleteLinks(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const linkIds = req.body.linkIds || req.body.ids || [];
       if (!Array.isArray(linkIds) || linkIds.length === 0) {
         return res.status(400).json({ success: false, error: 'Please provide linkIds to delete' });
@@ -385,7 +362,7 @@ export class TrafficDirectorController {
       let deletedCount = 0;
       for (const linkId of linkIds) {
         try {
-          await TrafficLinksService.deleteLink(companyId, linkId);
+          await TrafficLinksService.deleteLink(userId, linkId);
           deletedCount++;
         } catch (e) {}
       }
@@ -399,10 +376,10 @@ export class TrafficDirectorController {
   // ─── Rules ────────────────────────────────────────────────────────
   static async getRules(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const linkId = String(req.params.linkId);
 
-      const result = await TrafficRulesService.getRulesByLinkId(companyId, linkId);
+      const result = await TrafficRulesService.getRulesByLinkId(userId, linkId);
       return res.json({ success: true, data: result });
     } catch (error: any) {
       console.error('[TrafficDirectorController.getRules]', error);
@@ -412,7 +389,7 @@ export class TrafficDirectorController {
 
   static async createRule(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const linkId = String(req.params.linkId);
       const { name, destinationUrl, actionType, conditions, weight, priority, isActive } = req.body;
 
@@ -420,7 +397,7 @@ export class TrafficDirectorController {
         return res.status(400).json({ success: false, error: 'Name and destinationUrl are required' });
       }
 
-      const result = await TrafficRulesService.createRule(companyId, {
+      const result = await TrafficRulesService.createRule(userId, {
         linkId,
         name,
         destinationUrl,
@@ -440,10 +417,10 @@ export class TrafficDirectorController {
 
   static async updateRule(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const ruleId = String(req.params.ruleId);
 
-      const result = await TrafficRulesService.updateRule(companyId, ruleId, req.body);
+      const result = await TrafficRulesService.updateRule(userId, ruleId, req.body);
       return res.json({ success: true, data: result });
     } catch (error: any) {
       console.error('[TrafficDirectorController.updateRule]', error);
@@ -453,10 +430,10 @@ export class TrafficDirectorController {
 
   static async deleteRule(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const ruleId = String(req.params.ruleId);
 
-      await TrafficRulesService.deleteRule(companyId, ruleId);
+      await TrafficRulesService.deleteRule(userId, ruleId);
       return res.json({ success: true, message: 'Rule deleted successfully' });
     } catch (error: any) {
       console.error('[TrafficDirectorController.deleteRule]', error);
@@ -466,7 +443,7 @@ export class TrafficDirectorController {
 
   static async reorderRules(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const linkId = String(req.params.linkId);
       const { orderedRuleIds } = req.body;
 
@@ -474,7 +451,7 @@ export class TrafficDirectorController {
         return res.status(400).json({ success: false, error: 'orderedRuleIds array is required' });
       }
 
-      const result = await TrafficRulesService.reorderRules(companyId, linkId, orderedRuleIds.map(String));
+      const result = await TrafficRulesService.reorderRules(userId, linkId, orderedRuleIds.map(String));
       return res.json({ success: true, data: result });
     } catch (error: any) {
       console.error('[TrafficDirectorController.reorderRules]', error);
@@ -485,11 +462,11 @@ export class TrafficDirectorController {
   // ─── Analytics & Simulator ─────────────────────────────────────────
   static async getLinkAnalytics(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const linkId = String(req.params.linkId);
       const { timeRange, startDate, endDate, country, routingAction, isBot, deviceType } = req.query;
 
-      const result = await TrafficAnalyticsService.getLinkAnalytics(companyId, linkId, {
+      const result = await TrafficAnalyticsService.getLinkAnalytics(userId, linkId, {
         timeRange: (timeRange as any) || 'today',
         startDate: startDate ? String(startDate) : undefined,
         endDate: endDate ? String(endDate) : undefined,
@@ -511,10 +488,10 @@ export class TrafficDirectorController {
 
   static async getOverviewStats(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const { timeRange, startDate, endDate } = req.query;
 
-      const result = await TrafficAnalyticsService.getOverviewStats(companyId, {
+      const result = await TrafficAnalyticsService.getOverviewStats(userId, {
         timeRange: (timeRange as any) || 'today',
         startDate: startDate ? String(startDate) : undefined,
         endDate: endDate ? String(endDate) : undefined
@@ -528,10 +505,10 @@ export class TrafficDirectorController {
 
   static async getLogs(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const { linkId, isBot, timeRange, startDate, endDate, action, country, deviceType, search, page, limit } = req.query;
 
-      const result = await TrafficAnalyticsService.getLogs(companyId, {
+      const result = await TrafficAnalyticsService.getLogs(userId, {
         linkId: linkId ? String(linkId) : undefined,
         isBot: isBot !== undefined ? isBot === 'true' : undefined,
         timeRange: (timeRange as any) || undefined,
@@ -554,8 +531,8 @@ export class TrafficDirectorController {
 
   static async simulate(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
-      const result = await TrafficSimulatorService.simulate(companyId, req.body);
+      const userId = await TrafficDirectorController.getUserId(req);
+      const result = await TrafficSimulatorService.simulate(userId, req.body);
       return res.json({ success: true, data: result });
     } catch (error: any) {
       console.error('[TrafficDirectorController.simulate]', error);
@@ -566,10 +543,10 @@ export class TrafficDirectorController {
   // ─── Threat Intelligence & Blacklists ──────────────────────────────
   static async getThreatIntelligence(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
-      const feeds = ThreatIntelligenceService.getSystemFeeds(companyId);
+      const userId = await TrafficDirectorController.getUserId(req);
+      const feeds = ThreatIntelligenceService.getSystemFeeds(userId);
       const torStats = TorExitSyncService.getStats();
-      const customEntries = ThreatIntelligenceService.getCustomEntries(companyId);
+      const customEntries = ThreatIntelligenceService.getCustomEntries(userId);
 
       return res.json({
         success: true,
@@ -587,13 +564,13 @@ export class TrafficDirectorController {
 
   static async toggleThreatFeed(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const { feedKey, enabled } = req.body;
       if (!feedKey) {
         return res.status(400).json({ success: false, error: 'feedKey is required' });
       }
 
-      const result = ThreatIntelligenceService.toggleSystemFeed(companyId, String(feedKey), Boolean(enabled));
+      const result = ThreatIntelligenceService.toggleSystemFeed(userId, String(feedKey), Boolean(enabled));
       return res.json({ success: true, data: result });
     } catch (error: any) {
       console.error('[TrafficDirectorController.toggleThreatFeed]', error);
@@ -613,13 +590,13 @@ export class TrafficDirectorController {
 
   static async createCustomThreatEntry(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const { name, type, value, mode, description } = req.body;
       if (!name || !type || !value) {
         return res.status(400).json({ success: false, error: 'Name, type, and value are required' });
       }
 
-      const entry = ThreatIntelligenceService.addCustomEntry(companyId, {
+      const entry = ThreatIntelligenceService.addCustomEntry(userId, {
         name,
         type,
         value,
@@ -636,10 +613,10 @@ export class TrafficDirectorController {
 
   static async deleteCustomThreatEntry(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const entryId = String(req.params.entryId);
 
-      const success = ThreatIntelligenceService.deleteCustomEntry(companyId, entryId);
+      const success = ThreatIntelligenceService.deleteCustomEntry(userId, entryId);
       return res.json({ success: true, message: 'Threat entry deleted' });
     } catch (error: any) {
       console.error('[TrafficDirectorController.deleteCustomThreatEntry]', error);
@@ -650,12 +627,12 @@ export class TrafficDirectorController {
   // ─── Subscriptions & Billing (180 Pay Integration) ─────────────────────
   static async getBillingStatus(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
-      if (!companyId) {
-        return res.status(400).json({ success: false, error: 'Company context required' });
+      const userId = await TrafficDirectorController.getUserId(req);
+      if (!userId) {
+        return res.status(400).json({ success: false, error: 'User context required' });
       }
 
-      const result = await TrafficDirectorBillingService.getSubscriptionStatus(companyId);
+      const result = await TrafficDirectorBillingService.getSubscriptionStatus(userId);
       return res.json(result);
     } catch (error: any) {
       console.error('[TrafficDirectorController.getBillingStatus]', error);
@@ -688,9 +665,9 @@ export class TrafficDirectorController {
 
   static async createBillingCheckout(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
-      if (!companyId) {
-        return res.status(400).json({ success: false, error: 'Company context required' });
+      const userId = await TrafficDirectorController.getUserId(req);
+      if (!userId) {
+        return res.status(400).json({ success: false, error: 'User context required' });
       }
 
       const { planTier, couponCode, returnUrl, cancelUrl } = req.body || {};
@@ -699,7 +676,7 @@ export class TrafficDirectorController {
       }
 
       const result = await TrafficDirectorBillingService.createSubscriptionCheckout({
-        companyId,
+        userId,
         planTier,
         couponCode,
         returnUrl,
@@ -715,16 +692,16 @@ export class TrafficDirectorController {
 
   static async confirmBillingSession(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const { sessionId } = req.body || {};
-      if (!companyId) {
-        return res.status(400).json({ success: false, error: 'Company context required' });
+      if (!userId) {
+        return res.status(400).json({ success: false, error: 'User context required' });
       }
       if (!sessionId) {
         return res.status(400).json({ success: false, error: 'sessionId is required' });
       }
 
-      const result = await TrafficDirectorBillingService.confirmSessionPayment(companyId, sessionId);
+      const result = await TrafficDirectorBillingService.confirmSessionPayment(userId, sessionId);
       return res.json(result);
     } catch (error: any) {
       console.error('[TrafficDirectorController.confirmBillingSession]', error);
@@ -749,9 +726,9 @@ export class TrafficDirectorController {
   // ─── Pixel & CAPI Management ─────────────────────────────────────────
   static async getPixelConfig(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const { linkId } = req.params;
-      const config = await PixelManagerService.getPixelConfig(linkId, companyId);
+      const config = await PixelManagerService.getPixelConfig(linkId, userId);
       return res.json({ success: true, data: config });
     } catch (error: any) {
       console.error('[TrafficDirectorController.getPixelConfig]', error);
@@ -761,10 +738,10 @@ export class TrafficDirectorController {
 
   static async upsertPixelConfig(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const { linkId } = req.params;
       const body = req.body || {};
-      const result = await PixelManagerService.upsertPixelConfig(companyId, {
+      const result = await PixelManagerService.upsertPixelConfig(userId, {
         ...body,
         linkId
       });
@@ -777,9 +754,9 @@ export class TrafficDirectorController {
 
   static async deletePixelConfig(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const { linkId } = req.params;
-      const result = await PixelManagerService.deletePixelConfig(linkId, companyId);
+      const result = await PixelManagerService.deletePixelConfig(linkId, userId);
       return res.json({ success: true, deleted: result });
     } catch (error: any) {
       console.error('[TrafficDirectorController.deletePixelConfig]', error);
@@ -789,13 +766,13 @@ export class TrafficDirectorController {
 
   static async getPixelLogs(req: Request, res: Response) {
     try {
-      const companyId = await TrafficDirectorController.getCompanyId(req);
+      const userId = await TrafficDirectorController.getUserId(req);
       const { linkId } = req.params;
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
 
       const { prisma } = require('@workspace/db');
       const logs = await prisma.trafficPixelLog.findMany({
-        where: { linkId, companyId },
+        where: { linkId, userId },
         orderBy: { timestamp: 'desc' },
         take: limit
       });

@@ -85,10 +85,10 @@ export const DEFAULT_TRAFFIC_DIRECTOR_PLANS: Record<TrafficDirectorTier, PlanDef
     price: 0,
     currency: 'USD',
     interval: '7_days',
-    maxLinks: 2,
+    maxLinks: 1, // Free accounts can create only 1 Smart Link
     features: [
       '7-Day Full Platform Trial',
-      'Up to 2 Active Smart Links',
+      '1 Active Smart Link (Free Tier)',
       'Zero-Latency Anycast Routing',
       'Basic Bot & Spider Shields',
       'Standard Traffic Analytics',
@@ -231,34 +231,34 @@ export class TrafficDirectorBillingService {
     return DEFAULT_TRAFFIC_DIRECTOR_PLANS;
   }
 
-
-  static invalidateSubscriptionCache(companyId: string) {
-    if (companyId) {
-      this.activeSubCache.delete(companyId);
+  static invalidateSubscriptionCache(userId: string) {
+    if (userId) {
+      this.activeSubCache.delete(userId);
     }
   }
 
   /**
-   * Fast edge check if tenant has an active subscription or unexpired 7-day free trial.
+   * Fast edge check if user has an active subscription or unexpired 7-day free trial.
    * Cached for 30 seconds for high throughput, invalidated on billing webhooks.
    */
-  static async isCompanySubscriptionActive(companyId: string): Promise<boolean> {
-    if (!companyId) return true;
+  static async isUserSubscriptionActive(userId: string): Promise<boolean> {
+    if (!userId) return true;
     const now = Date.now();
-    const cached = this.activeSubCache.get(companyId);
+    const cached = this.activeSubCache.get(userId);
     if (cached && cached.expiresAt > now) {
       return cached.isActive;
     }
 
     try {
-      const statusRes = await this.getSubscriptionStatus(companyId);
+      const statusRes = await this.getSubscriptionStatus(userId);
       const isActive = Boolean(statusRes?.subscription?.isSubscriptionActive);
-      this.activeSubCache.set(companyId, { isActive, expiresAt: now + 30000 });
+      this.activeSubCache.set(userId, { isActive, expiresAt: now + 30000 });
       return isActive;
     } catch {
       return true; // Fail open if error
     }
   }
+
 
   private static get180PayBaseUrl(): string {
     if (process.env.ONE_EIGHTY_PAY_CORE_URL && !process.env.ONE_EIGHTY_PAY_CORE_URL.includes('core-backend')) {
@@ -280,16 +280,16 @@ export class TrafficDirectorBillingService {
     };
   }
 
-  private static async getSubscriptionRecord(companyId: string): Promise<any> {
+  private static async getSubscriptionRecord(userId: string): Promise<any> {
     try {
       if ((db as any).trafficDirectorSubscription?.findUnique) {
         return await (db as any).trafficDirectorSubscription.findUnique({
-          where: { companyId },
+          where: { userId },
         });
       }
       const rows: any = await (db as any).$queryRawUnsafe(
-        `SELECT * FROM "TrafficDirectorSubscription" WHERE "companyId" = $1 LIMIT 1`,
-        companyId
+        `SELECT * FROM "TrafficDirectorSubscription" WHERE "userId" = $1 LIMIT 1`,
+        userId
       );
       return rows?.[0] || null;
     } catch (err) {
@@ -308,10 +308,10 @@ export class TrafficDirectorBillingService {
       }
       const rows: any = await (db as any).$queryRawUnsafe(
         `INSERT INTO "TrafficDirectorSubscription" 
-         ("id", "companyId", "planTier", "maxLinks", "status", "oneEightySubId", "amountCharged", "currency", "couponApplied", "discountAmount", "trialStartedAt", "trialEndsAt", "currentPeriodStart", "currentPeriodEnd", "nextBillingDate", "autoRenew", "createdAt", "updatedAt")
+         ("id", "userId", "planTier", "maxLinks", "status", "oneEightySubId", "amountCharged", "currency", "couponApplied", "discountAmount", "trialStartedAt", "trialEndsAt", "currentPeriodStart", "currentPeriodEnd", "nextBillingDate", "autoRenew", "createdAt", "updatedAt")
          VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
          RETURNING *`,
-        data.companyId,
+        data.userId,
         data.planTier || 'FREE',
         data.maxLinks !== undefined ? data.maxLinks : 2,
         data.status || 'TRIALING',
@@ -333,21 +333,20 @@ export class TrafficDirectorBillingService {
     }
   }
 
-  private static async upsertSubscriptionRecord(companyId: string, updateData: any, createData: any): Promise<any> {
-    this.invalidateSubscriptionCache(companyId);
+  private static async upsertSubscriptionRecord(userId: string, updateData: any, createData: any): Promise<any> {
+    this.invalidateSubscriptionCache(userId);
     try {
       if ((db as any).trafficDirectorSubscription?.upsert) {
         try {
           return await (db as any).trafficDirectorSubscription.upsert({
-            where: { companyId },
+            where: { userId },
             update: updateData,
             create: createData,
           });
         } catch (upsertErr: any) {
-          // If unique constraint or concurrency collision occurred, update existing record
           try {
             return await (db as any).trafficDirectorSubscription.update({
-              where: { companyId },
+              where: { userId },
               data: updateData,
             });
           } catch (_) {
@@ -357,9 +356,9 @@ export class TrafficDirectorBillingService {
       }
       const rows: any = await (db as any).$queryRawUnsafe(
         `INSERT INTO "TrafficDirectorSubscription"
-         ("id", "companyId", "planTier", "maxLinks", "status", "oneEightySubId", "amountCharged", "currency", "couponApplied", "discountAmount", "trialStartedAt", "trialEndsAt", "currentPeriodStart", "currentPeriodEnd", "nextBillingDate", "autoRenew", "createdAt", "updatedAt")
+         ("id", "userId", "planTier", "maxLinks", "status", "oneEightySubId", "amountCharged", "currency", "couponApplied", "discountAmount", "trialStartedAt", "trialEndsAt", "currentPeriodStart", "currentPeriodEnd", "nextBillingDate", "autoRenew", "createdAt", "updatedAt")
          VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
-         ON CONFLICT ("companyId") DO UPDATE SET
+         ON CONFLICT ("userId") DO UPDATE SET
            "planTier" = EXCLUDED."planTier",
            "maxLinks" = EXCLUDED."maxLinks",
            "status" = EXCLUDED."status",
@@ -376,7 +375,7 @@ export class TrafficDirectorBillingService {
            "autoRenew" = EXCLUDED."autoRenew",
            "updatedAt" = NOW()
          RETURNING *`,
-        companyId,
+        userId,
         createData.planTier || 'STARTER',
         createData.maxLinks !== undefined ? createData.maxLinks : 2,
         createData.status || 'ACTIVE',
@@ -398,27 +397,27 @@ export class TrafficDirectorBillingService {
     }
   }
 
-  private static async updateSubscriptionStatusRecord(companyId: string, status: string, autoRenew?: boolean): Promise<any> {
-    this.invalidateSubscriptionCache(companyId);
+  private static async updateSubscriptionStatusRecord(userId: string, status: string, autoRenew?: boolean): Promise<any> {
+    this.invalidateSubscriptionCache(userId);
     try {
       if ((db as any).trafficDirectorSubscription?.updateMany) {
         return await (db as any).trafficDirectorSubscription.updateMany({
-          where: { companyId },
+          where: { userId },
           data: autoRenew !== undefined ? { status, autoRenew } : { status },
         });
       }
       if (autoRenew !== undefined) {
         return await (db as any).$executeRawUnsafe(
-          `UPDATE "TrafficDirectorSubscription" SET "status" = $1, "autoRenew" = $2, "updatedAt" = NOW() WHERE "companyId" = $3`,
+          `UPDATE "TrafficDirectorSubscription" SET "status" = $1, "autoRenew" = $2, "updatedAt" = NOW() WHERE "userId" = $3`,
           status,
           autoRenew,
-          companyId
+          userId
         );
       }
       return await (db as any).$executeRawUnsafe(
-        `UPDATE "TrafficDirectorSubscription" SET "status" = $1, "updatedAt" = NOW() WHERE "companyId" = $2`,
+        `UPDATE "TrafficDirectorSubscription" SET "status" = $1, "updatedAt" = NOW() WHERE "userId" = $2`,
         status,
-        companyId
+        userId
       );
     } catch (err) {
       return null;
@@ -426,29 +425,26 @@ export class TrafficDirectorBillingService {
   }
 
   /**
-   * Resolve company currency and live FX rate from USD to requested country payment currency
+   * Resolve user currency and live FX rate from USD to requested payment currency
    */
-  static async getCompanyCurrencyInfo(companyId?: string): Promise<{ currency: string; rate: number; country: string; symbol: string }> {
+  static async getUserCurrencyInfo(userId?: string): Promise<{ currency: string; rate: number; country: string; symbol: string }> {
     let currency = 'INR';
     let country = 'IN';
 
-    if (companyId) {
+    if (userId) {
       try {
-        const company = await (db as any).company.findUnique({
-          where: { id: companyId },
-          select: { currency: true, country: true },
-        });
-        if (company?.currency) {
-          currency = company.currency.toUpperCase();
-        }
-        if (company?.country) {
-          country = company.country.toUpperCase();
-          if (!company?.currency && (country === 'IN' || country === 'INDIA')) {
+        const user = await (db as any).user.findUnique({
+          where: { id: userId },
+          select: { country: true },
+        }).catch(() => null);
+        if (user?.country) {
+          country = user.country.toUpperCase();
+          if (!user?.currency && (country === 'IN' || country === 'INDIA')) {
             currency = 'INR';
           }
         }
       } catch (err) {
-        console.warn('[TrafficDirectorBilling] Could not resolve company currency:', err);
+        console.warn('[TrafficDirectorBilling] Could not resolve user currency:', err);
       }
     }
 
@@ -459,26 +455,27 @@ export class TrafficDirectorBillingService {
     return { currency, rate, country, symbol };
   }
 
+
   /**
-   * 1. Get current tenant subscription status & link quota usage
+   * 1. Get current user subscription status & link quota usage
    */
-  static async getSubscriptionStatus(companyId: string) {
-    if (!companyId) {
-      throw new Error('companyId is required');
+  static async getSubscriptionStatus(userId: string) {
+    if (!userId) {
+      throw new Error('userId is required');
     }
 
-    const { currency, rate, country, symbol } = await this.getCompanyCurrencyInfo(companyId);
+    const { currency, rate, country, symbol } = await this.getUserCurrencyInfo(userId);
 
-    let sub = await this.getSubscriptionRecord(companyId);
+    let sub = await this.getSubscriptionRecord(userId);
 
     if (!sub) {
       // Auto-provision 7-Day Free Trial for first-time login
       const now = new Date();
       const trialEndsAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       sub = await this.createSubscriptionRecord({
-        companyId,
+        userId,
         planTier: 'FREE',
-        maxLinks: 2,
+        maxLinks: 1,
         status: 'TRIALING',
         amountCharged: 0,
         currency: 'USD',
@@ -492,9 +489,9 @@ export class TrafficDirectorBillingService {
 
       if (!sub) {
         sub = {
-          companyId,
+          userId,
           planTier: 'FREE',
-          maxLinks: 2,
+          maxLinks: 1,
           status: 'TRIALING',
           amountCharged: 0,
           currency: 'USD',
@@ -520,7 +517,7 @@ export class TrafficDirectorBillingService {
         isTrialExpired = true;
         isTrialing = false;
         if (sub.status !== 'EXPIRED') {
-          await this.updateSubscriptionStatusRecord(companyId, 'EXPIRED');
+          await this.updateSubscriptionStatusRecord(userId, 'EXPIRED');
           sub.status = 'EXPIRED';
         }
       } else if (trialEnds) {
@@ -538,7 +535,7 @@ export class TrafficDirectorBillingService {
         const capturedSession = corePrisma?.checkoutSession ? await (corePrisma as any).checkoutSession.findFirst({
           where: {
             status: 'CAPTURED',
-            metadata: { path: ['companyId'], equals: companyId },
+            metadata: { path: ['userId'], equals: userId },
           },
           orderBy: { completedAt: 'desc' },
         }) : null;
@@ -547,7 +544,7 @@ export class TrafficDirectorBillingService {
           const completedTime = new Date(capturedSession.completedAt).getTime();
           const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
           if (Date.now() - completedTime < thirtyDaysMs) {
-            sub = await this.activateSubscriptionFromSessionRecord(companyId, capturedSession);
+            sub = await this.activateSubscriptionFromSessionRecord(userId, capturedSession);
             isTrialing = false;
             isTrialExpired = false;
           }
@@ -560,17 +557,18 @@ export class TrafficDirectorBillingService {
     const isSubscriptionActive = sub.status === 'ACTIVE' || (sub.status === 'TRIALING' && !isTrialExpired);
 
     const currentLinksCount = await (db as any).trafficLink.count({
-      where: { companyId },
+      where: { userId },
     });
 
     const activeLinksCount = await (db as any).trafficLink.count({
-      where: { companyId, isActive: true },
+      where: { userId, isActive: true },
     });
 
     const planTier = (sub.planTier?.toUpperCase() as TrafficDirectorTier) || 'FREE';
     const dynamicPlans = await this.getPlans();
     const planMeta = dynamicPlans[planTier] || dynamicPlans.STARTER;
-    const maxLinks = sub.maxLinks !== undefined ? sub.maxLinks : planMeta.maxLinks;
+    // Free accounts are strictly capped to 1 Smart Link
+    const maxLinks = planTier === 'FREE' ? 1 : (sub.maxLinks !== undefined ? sub.maxLinks : planMeta.maxLinks);
 
     const isUnlimited = maxLinks === -1;
     const quotaUsedPercent = isUnlimited ? 0 : Math.min(100, Math.round((currentLinksCount / maxLinks) * 100));
@@ -599,7 +597,7 @@ export class TrafficDirectorBillingService {
       success: true,
       subscription: {
         id: sub.id,
-        companyId: sub.companyId,
+        userId: sub.userId,
         planTier,
         planName: planMeta.name,
         price: planMeta.price,
@@ -635,6 +633,42 @@ export class TrafficDirectorBillingService {
       exchangeRate: rate,
       country,
     };
+  }
+
+  /**
+   * Server-side gatekeeper: strictly asserts whether a user is allowed to create a new link.
+   * Prevents any client-side bypass of link limits, quotas, and trial expiration.
+   */
+  static async assertCanCreateLink(userId: string): Promise<void> {
+    if (!userId) {
+      throw new Error('SUBSCRIPTION_REQUIRED: Authentication user context required.');
+    }
+
+    const billingStatus = await this.getSubscriptionStatus(userId);
+    const sub = billingStatus?.subscription;
+
+    if (!sub) {
+      throw new Error('SUBSCRIPTION_REQUIRED: Unable to verify billing account status.');
+    }
+
+    if (sub.isTrialExpired) {
+      throw new Error('SUBSCRIPTION_REQUIRED: Your 7-day free trial has expired. Upgrade your subscription in Billing to create new Smart Links and restore live edge routing.');
+    }
+
+    if (!sub.isSubscriptionActive) {
+      throw new Error('SUBSCRIPTION_REQUIRED: An active subscription is required to create Smart Links. Please select a plan in Billing.');
+    }
+
+    if (!sub.canCreateMoreLinks) {
+      if (sub.planTier === 'FREE') {
+        throw new Error(
+          `SUBSCRIPTION_REQUIRED: Free accounts can create only 1 Smart Link free of cost (${sub.currentLinksCount}/${sub.maxLinks} used). Upgrade to Starter ($25/mo), Pro ($50/mo), or Enterprise to create more links.`
+        );
+      }
+      throw new Error(
+        `SUBSCRIPTION_REQUIRED: Plan link limit reached: Your ${sub.planName || sub.planTier} plan allows a maximum of ${sub.maxLinks} Smart Links (${sub.currentLinksCount}/${sub.maxLinks} used). Please upgrade your subscription in Billing to create more links.`
+      );
+    }
   }
 
   /**
@@ -730,16 +764,16 @@ export class TrafficDirectorBillingService {
 
   /**
    * 3. Create a 180 Pay Subscription Checkout Session via REST API with live currency conversion
-   * Automatically converts USD base price into the requested country payment currency.
+   * Automatically converts USD base price into the requested payment currency.
    */
   static async createSubscriptionCheckout(options: {
-    companyId: string;
+    userId: string;
     planTier: TrafficDirectorTier;
     couponCode?: string;
     returnUrl?: string;
     cancelUrl?: string;
   }) {
-    const { companyId, planTier, couponCode, returnUrl, cancelUrl } = options;
+    const { userId, planTier, couponCode, returnUrl, cancelUrl } = options;
 
     const dynamicPlans = await this.getPlans();
     const planMeta = dynamicPlans[planTier];
@@ -763,7 +797,7 @@ export class TrafficDirectorBillingService {
     }
 
     // ─── Live Currency Conversion: Convert USD to Requested Country Payment Currency ───
-    const { currency, rate, country, symbol } = await this.getCompanyCurrencyInfo(companyId);
+    const { currency, rate, country, symbol } = await this.getUserCurrencyInfo(userId);
     const convertedAmount = currency === 'INR'
       ? Math.round(finalAmountUsd * rate)
       : Number((finalAmountUsd * rate).toFixed(2));
@@ -784,7 +818,7 @@ export class TrafficDirectorBillingService {
       returnUrl: returnUrl || 'http://localhost:3006/traffic-director/subscription?status=success',
       cancelUrl: cancelUrl || 'http://localhost:3006/traffic-director/subscription?status=cancelled',
       metadata: {
-        companyId,
+        userId,
         planTier,
         couponCode: appliedCoupon,
         discountAmount,
@@ -880,7 +914,7 @@ export class TrafficDirectorBillingService {
   /**
    * Helper to activate and update subscription record from a CAPTURED 180 Pay session
    */
-  static async activateSubscriptionFromSessionRecord(companyId: string, session: any): Promise<any> {
+  static async activateSubscriptionFromSessionRecord(userId: string, session: any): Promise<any> {
     const metadata = (session.metadata as any) || {};
     let planTier: TrafficDirectorTier = 'STARTER';
     const rawTier = metadata.planTier || metadata.tier;
@@ -906,16 +940,6 @@ export class TrafficDirectorBillingService {
     const dynamicPlans = await this.getPlans();
     const planMeta = dynamicPlans[planTier] || dynamicPlans.STARTER;
 
-    // Ensure company exists before creating foreign key relation
-    try {
-      await (db as any).$executeRawUnsafe(
-        `INSERT INTO "Company" ("id", "name", "createdAt", "updatedAt") 
-         VALUES ($1, 'Enterprise Subscriber Organization', NOW(), NOW()) 
-         ON CONFLICT ("id") DO NOTHING`,
-        companyId
-      );
-    } catch (_) {}
-
     const startDate = session.completedAt ? new Date(session.completedAt) : new Date();
     const endDate = new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000);
     const nextBilling = endDate;
@@ -936,12 +960,12 @@ export class TrafficDirectorBillingService {
     };
 
     const createFields = {
-      companyId,
+      userId,
       ...updateFields,
     };
 
-    const record = await this.upsertSubscriptionRecord(companyId, updateFields, createFields);
-    this.invalidateSubscriptionCache(companyId);
+    const record = await this.upsertSubscriptionRecord(userId, updateFields, createFields);
+    this.invalidateSubscriptionCache(userId);
     return record || { ...createFields, id: session.id };
   }
 
@@ -949,9 +973,9 @@ export class TrafficDirectorBillingService {
    * Synchronously verify and activate subscription using a CAPTURED 180 Pay checkout session.
    * Provides immediate, fail-safe entitlement without waiting for asynchronous webhooks.
    */
-  static async confirmSessionPayment(companyId: string, sessionId: string) {
-    if (!companyId || !sessionId) {
-      throw new Error('companyId and sessionId are required');
+  static async confirmSessionPayment(userId: string, sessionId: string) {
+    if (!userId || !sessionId) {
+      throw new Error('userId and sessionId are required');
     }
 
     const corePrisma = getCorePrisma();
@@ -970,12 +994,12 @@ export class TrafficDirectorBillingService {
 
     if (!session) {
       if (sessionId.startsWith('dev_sub_')) {
-        const updatedRecord = await this.activateSubscriptionFromSessionRecord(companyId, {
+        const updatedRecord = await this.activateSubscriptionFromSessionRecord(userId, {
           id: sessionId,
           status: 'CAPTURED',
           amount: 50,
           currency: 'USD',
-          metadata: { companyId, planTier: 'PRO' }
+          metadata: { userId, planTier: 'PRO' }
         });
         return {
           success: true,
@@ -992,11 +1016,12 @@ export class TrafficDirectorBillingService {
     }
 
     const meta = (session.metadata as any) || {};
-    if (meta.companyId && meta.companyId !== companyId) {
-      throw new Error('Checkout session does not belong to this organization');
+    const sessionOwner = meta.userId;
+    if (sessionOwner && sessionOwner !== userId) {
+      throw new Error('Checkout session does not belong to this user');
     }
 
-    const updatedRecord = await this.activateSubscriptionFromSessionRecord(companyId, session);
+    const updatedRecord = await this.activateSubscriptionFromSessionRecord(userId, session);
 
     return {
       success: true,
@@ -1064,13 +1089,13 @@ export class TrafficDirectorBillingService {
     if (!event || !data) return { received: false, error: 'Malformed payload' };
 
     const metadata = data.metadata || {};
-    const companyId = metadata.companyId;
+    const userId = metadata.userId;
 
-    if (!companyId) {
-      return { received: true, ignored: true, reason: 'No companyId in metadata' };
+    if (!userId) {
+      return { received: true, ignored: true, reason: 'No userId in metadata' };
     }
 
-    this.invalidateSubscriptionCache(companyId);
+    this.invalidateSubscriptionCache(userId);
 
     if (
       event === 'subscription.activated' ||
@@ -1102,16 +1127,6 @@ export class TrafficDirectorBillingService {
       const dynamicPlans = await this.getPlans();
       const planMeta = dynamicPlans[planTier] || dynamicPlans.STARTER;
 
-      // Ensure company exists before creating foreign key relation
-      try {
-        await (db as any).$executeRawUnsafe(
-          `INSERT INTO "Company" ("id", "name", "createdAt", "updatedAt") 
-           VALUES ($1, 'Enterprise Subscriber Organization', NOW(), NOW()) 
-           ON CONFLICT ("id") DO NOTHING`,
-          companyId
-        );
-      } catch (_) {}
-
       const startDate = data.currentPeriodStart
         ? new Date(data.currentPeriodStart)
         : data.timestamp
@@ -1138,23 +1153,23 @@ export class TrafficDirectorBillingService {
       };
 
       const createFields = {
-        companyId,
+        userId,
         ...updateFields,
       };
 
-      await this.upsertSubscriptionRecord(companyId, updateFields, createFields);
+      await this.upsertSubscriptionRecord(userId, updateFields, createFields);
 
-      return { received: true, updated: true, companyId, planTier };
+      return { received: true, updated: true, userId, planTier };
     }
 
     if (event === 'subscription.payment_failed') {
-      await this.updateSubscriptionStatusRecord(companyId, 'PAST_DUE');
-      return { received: true, updated: true, companyId, status: 'PAST_DUE' };
+      await this.updateSubscriptionStatusRecord(userId, 'PAST_DUE');
+      return { received: true, updated: true, userId, status: 'PAST_DUE' };
     }
 
     if (event === 'subscription.cancelled') {
-      await this.updateSubscriptionStatusRecord(companyId, 'CANCELLED', false);
-      return { received: true, updated: true, companyId, status: 'CANCELLED' };
+      await this.updateSubscriptionStatusRecord(userId, 'CANCELLED', false);
+      return { received: true, updated: true, userId, status: 'CANCELLED' };
     }
 
     return { received: true, unhandled: true, event };

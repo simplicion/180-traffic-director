@@ -11,7 +11,7 @@ import {
  * Universal Meta Pixel & Conversions API (CAPI) Service
  * 
  * Manages multi-pixel configurations, cryptographic access token encryption (AES-256-GCM),
- * user data hashing conforming to Meta Graph API v19.0+, and company-scoped configuration.
+ * user data hashing conforming to Meta Graph API v19.0+, and user-scoped configuration.
  */
 export class PixelManagerService {
   private static readonly ALGORITHM = 'aes-256-gcm';
@@ -188,14 +188,14 @@ export class PixelManagerService {
   }
 
   /**
-   * Retrieves the pixel configuration for a link, guaranteeing multi-tenant company isolation.
+   * Retrieves the pixel configuration for a link, guaranteeing user isolation.
    */
-  static async getPixelConfig(linkId: string, companyId: string): Promise<PixelConfigResponse | null> {
+  static async getPixelConfig(linkId: string, userId: string): Promise<PixelConfigResponse | null> {
     if (!linkId) return null;
 
     // Multi-tenant check on link ownership
     const link = await prisma.trafficLink.findFirst({
-      where: { id: linkId, companyId },
+      where: { id: linkId, userId },
       include: {
         pixelConfig: {
           include: {
@@ -216,7 +216,7 @@ export class PixelManagerService {
     return {
       id: cfg.id,
       linkId: cfg.linkId,
-      companyId: cfg.companyId,
+      userId: cfg.userId,
       masterPixelId: cfg.masterPixelId,
       backupPixelIds: cfg.backupPixelIds || [],
       hasCapiToken: Boolean(cfg.capiTokenEnc && cfg.capiTokenEnc.length > 0),
@@ -243,8 +243,8 @@ export class PixelManagerService {
   /**
    * Upserts the pixel configuration for a link, encrypting any newly provided CAPI token.
    */
-  static async upsertPixelConfig(companyId: string, dto: UpsertPixelConfigDto): Promise<PixelConfigResponse> {
-    if (!companyId) throw new Error('Company ID is required');
+  static async upsertPixelConfig(userId: string, dto: UpsertPixelConfigDto): Promise<PixelConfigResponse> {
+    if (!userId) throw new Error('User ID is required');
     if (!dto.linkId) throw new Error('Link ID is required');
 
     // 1. Validate master pixel format
@@ -255,7 +255,7 @@ export class PixelManagerService {
 
     // 2. Validate multi-tenant access to link
     const link = await prisma.trafficLink.findFirst({
-      where: { id: dto.linkId, companyId }
+      where: { id: dto.linkId, userId }
     });
 
     if (!link) {
@@ -304,7 +304,7 @@ export class PixelManagerService {
       savedConfig = await prisma.trafficPixelConfig.create({
         data: {
           linkId: dto.linkId,
-          companyId,
+          userId,
           masterPixelId: cleanMaster,
           backupPixelIds: cleanBackups,
           capiTokenEnc: capiTokenEnc || null,
@@ -349,7 +349,7 @@ export class PixelManagerService {
     return {
       id: savedConfig.id,
       linkId: savedConfig.linkId,
-      companyId: savedConfig.companyId,
+      userId: savedConfig.userId,
       masterPixelId: savedConfig.masterPixelId,
       backupPixelIds: savedConfig.backupPixelIds || [],
       hasCapiToken: Boolean(savedConfig.capiTokenEnc && savedConfig.capiTokenEnc.length > 0),
@@ -376,9 +376,9 @@ export class PixelManagerService {
   /**
    * Deletes pixel configuration for a link.
    */
-  static async deletePixelConfig(linkId: string, companyId: string): Promise<boolean> {
+  static async deletePixelConfig(linkId: string, userId: string): Promise<boolean> {
     const link = await prisma.trafficLink.findFirst({
-      where: { id: linkId, companyId },
+      where: { id: linkId, userId },
       include: { pixelConfig: true }
     });
 

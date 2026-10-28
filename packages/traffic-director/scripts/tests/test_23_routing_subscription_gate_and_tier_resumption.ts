@@ -8,7 +8,7 @@ async function runEdgeCloakingSubscriptionGateTest() {
   console.log('🧪 Test 23: Edge Cloaking Subscription Locking & Automatic Resume');
   console.log('========================================================================\n');
 
-  const testCompanyId = `test-gate-co-${Date.now()}`;
+  const testUserId = `test-gate-user-${Date.now()}`;
   let passedAssertions = 0;
   let totalAssertions = 0;
 
@@ -25,30 +25,31 @@ async function runEdgeCloakingSubscriptionGateTest() {
 
   try {
     // -------------------------------------------------------------
-    // Setup: Ensure Company Record Exists
+    // Setup: Ensure User Record Exists for Foreign Key Constraints
     // -------------------------------------------------------------
     await (db as any).$executeRawUnsafe(
-      `INSERT INTO "Company" ("id", "name", "createdAt", "updatedAt") 
-       VALUES ($1, 'Gate Test Company', NOW(), NOW())
+      `INSERT INTO "User" ("id", "name", "email", "createdAt", "updatedAt") 
+       VALUES ($1, 'Gate Test User', $2, NOW(), NOW())
        ON CONFLICT ("id") DO NOTHING`,
-      testCompanyId
+      testUserId,
+      `gate-${Date.now()}@example.com`
     );
 
     // -------------------------------------------------------------
     // 1. First-Time Auto Provisioned Trial -> Active Cloaking
     // -------------------------------------------------------------
     console.log('1️⃣ Verifying Trial Active Cloaking Evaluation...');
-    const statusTrial = await TrafficDirectorBillingService.getSubscriptionStatus(testCompanyId);
-    assert(statusTrial.subscription.status === 'TRIALING', 'Tenant auto-provisioned in TRIALING status');
+    const statusTrial = await TrafficDirectorBillingService.getSubscriptionStatus(testUserId);
+    assert(statusTrial.subscription.status === 'TRIALING', 'User auto-provisioned in TRIALING status');
     assert(statusTrial.subscription.cloakingEnabled === true, 'Cloaking enabled during 7-day trial');
 
-    const { link } = await TrafficLinksService.createLink(testCompanyId, {
+    const { link } = await TrafficLinksService.createLink(testUserId, {
       name: 'Money Offer Alpha',
       slug: `gate-link-${Date.now()}`,
       fallbackUrl: 'https://safepage.example.com/clean',
       cloakedUrl: 'https://moneyoffer.example.com/convert',
       rampUpEnabled: false,
-      companyId: testCompanyId,
+      userId: testUserId,
     });
     assert(Boolean(link?.id), 'Created test link');
 
@@ -77,8 +78,8 @@ async function runEdgeCloakingSubscriptionGateTest() {
     };
 
     // Edge check with trial active
-    const isSubActiveTrial = await TrafficDirectorBillingService.isCompanySubscriptionActive(testCompanyId);
-    assert(isSubActiveTrial === true, 'isCompanySubscriptionActive is TRUE during trial');
+    const isSubActiveTrial = await TrafficDirectorBillingService.isUserSubscriptionActive(testUserId);
+    assert(isSubActiveTrial === true, 'isUserSubscriptionActive is TRUE during trial');
 
     const evalTrial = DecisionEngine.evaluate(
       {
@@ -100,13 +101,13 @@ async function runEdgeCloakingSubscriptionGateTest() {
     await (db as any).$executeRawUnsafe(
       `UPDATE "TrafficDirectorSubscription" 
        SET "trialEndsAt" = NOW() - INTERVAL '2 days', "status" = 'EXPIRED', "updatedAt" = NOW()
-       WHERE "companyId" = $1`,
-      testCompanyId
+       WHERE "userId" = $1`,
+      testUserId
     );
-    TrafficDirectorBillingService.invalidateSubscriptionCache(testCompanyId);
+    TrafficDirectorBillingService.invalidateSubscriptionCache(testUserId);
 
-    const isSubActiveExpired = await TrafficDirectorBillingService.isCompanySubscriptionActive(testCompanyId);
-    assert(isSubActiveExpired === false, 'isCompanySubscriptionActive is FALSE when trial expires');
+    const isSubActiveExpired = await TrafficDirectorBillingService.isUserSubscriptionActive(testUserId);
+    assert(isSubActiveExpired === false, 'isUserSubscriptionActive is FALSE when trial expires');
 
     const evalExpired = DecisionEngine.evaluate(
       {
@@ -133,20 +134,20 @@ async function runEdgeCloakingSubscriptionGateTest() {
         amount: 50,
         currency: 'USD',
         metadata: {
-          companyId: testCompanyId,
+          userId: testUserId,
           planTier: 'PRO'
         }
       }
     });
 
-    const statusAfterUpgrade = await TrafficDirectorBillingService.getSubscriptionStatus(testCompanyId);
+    const statusAfterUpgrade = await TrafficDirectorBillingService.getSubscriptionStatus(testUserId);
     assert(statusAfterUpgrade.subscription.status === 'ACTIVE', 'Subscription status updated to ACTIVE');
     assert(statusAfterUpgrade.subscription.planTier === 'PRO', 'Plan tier updated to PRO ($50 Armor)');
     assert(statusAfterUpgrade.subscription.cloakingEnabled === true, 'Cloaking enabled is TRUE after upgrade');
     assert(statusAfterUpgrade.subscription.hasAdvancedAnalytics === true, 'hasAdvancedAnalytics is TRUE for PRO tier');
 
-    const isSubActiveUpgraded = await TrafficDirectorBillingService.isCompanySubscriptionActive(testCompanyId);
-    assert(isSubActiveUpgraded === true, 'isCompanySubscriptionActive is TRUE after upgrade');
+    const isSubActiveUpgraded = await TrafficDirectorBillingService.isUserSubscriptionActive(testUserId);
+    assert(isSubActiveUpgraded === true, 'isUserSubscriptionActive is TRUE after upgrade');
 
     // Automatic resume: Same link, same rules, zero manual intervention
     const evalUpgraded = DecisionEngine.evaluate(
@@ -173,13 +174,13 @@ async function runEdgeCloakingSubscriptionGateTest() {
         amount: 25,
         currency: 'USD',
         metadata: {
-          companyId: testCompanyId,
+          userId: testUserId,
           planTier: 'STARTER'
         }
       }
     });
 
-    const statusStarter = await TrafficDirectorBillingService.getSubscriptionStatus(testCompanyId);
+    const statusStarter = await TrafficDirectorBillingService.getSubscriptionStatus(testUserId);
     assert(statusStarter.subscription.planTier === 'STARTER', 'Plan tier is STARTER');
     assert(statusStarter.subscription.hasAdvancedAnalytics === false, 'hasAdvancedAnalytics is FALSE for STARTER ($25 basic plan)');
     assert(statusStarter.subscription.cloakingEnabled === true, 'Cloaking enabled is TRUE on STARTER');
@@ -187,9 +188,9 @@ async function runEdgeCloakingSubscriptionGateTest() {
 
     // Cleanup
     await (db as any).$executeRawUnsafe(`DELETE FROM "TrafficRule" WHERE "linkId" = $1`, link.id);
-    await (db as any).$executeRawUnsafe(`DELETE FROM "TrafficLink" WHERE "companyId" = $1`, testCompanyId);
-    await (db as any).$executeRawUnsafe(`DELETE FROM "TrafficDirectorSubscription" WHERE "companyId" = $1`, testCompanyId);
-    await (db as any).$executeRawUnsafe(`DELETE FROM "Company" WHERE "id" = $1`, testCompanyId);
+    await (db as any).$executeRawUnsafe(`DELETE FROM "TrafficLink" WHERE "userId" = $1`, testUserId);
+    await (db as any).$executeRawUnsafe(`DELETE FROM "TrafficDirectorSubscription" WHERE "userId" = $1`, testUserId);
+    await (db as any).$executeRawUnsafe(`DELETE FROM "User" WHERE "id" = $1`, testUserId);
 
     console.log('\n========================================================================');
     console.log(`🎉 ALL ASSERTIONS PASSED: ${passedAssertions}/${totalAssertions} Verified!`);
@@ -197,9 +198,9 @@ async function runEdgeCloakingSubscriptionGateTest() {
   } catch (error: any) {
     console.error('\n❌ Test failed with error:', error);
     try {
-      await (db as any).$executeRawUnsafe(`DELETE FROM "TrafficLink" WHERE "companyId" = $1`, testCompanyId);
-      await (db as any).$executeRawUnsafe(`DELETE FROM "TrafficDirectorSubscription" WHERE "companyId" = $1`, testCompanyId);
-      await (db as any).$executeRawUnsafe(`DELETE FROM "Company" WHERE "id" = $1`, testCompanyId);
+      await (db as any).$executeRawUnsafe(`DELETE FROM "TrafficLink" WHERE "userId" = $1`, testUserId);
+      await (db as any).$executeRawUnsafe(`DELETE FROM "TrafficDirectorSubscription" WHERE "userId" = $1`, testUserId);
+      await (db as any).$executeRawUnsafe(`DELETE FROM "User" WHERE "id" = $1`, testUserId);
     } catch (_) {}
     process.exit(1);
   }

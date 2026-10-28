@@ -5,7 +5,7 @@ import api from './api';
 
 export interface SubscriptionData {
   id?: string;
-  companyId?: string;
+  userId?: string;
   planTier: 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE';
   planName: string;
   price: number;
@@ -104,7 +104,6 @@ export function useSubscription() {
     refresh: () => fetchStatus(true),
     // Platform compatibility
     hasApp: (appId?: string) => true,
-    enabledApps: ['traffic-director'],
-    companyConfig: { enabledApps: ['traffic-director'] },
+    enabledApps: ['traffic-director']
   };
 }

@@ -86,7 +86,7 @@ export class CapiDispatcherService {
           await prisma.trafficPixelLog.create({
             data: {
               linkId: link.id,
-              companyId: link.companyId,
+              userId: link.userId,
               pixelId: cfg.masterPixelId,
               eventId,
               eventName,
@@ -202,7 +202,7 @@ export class CapiDispatcherService {
         await prisma.trafficPixelLog.create({
           data: {
             linkId: link.id,
-            companyId: link.companyId,
+            userId: link.userId,
             pixelId: cfg.masterPixelId,
             eventId,
             eventName,

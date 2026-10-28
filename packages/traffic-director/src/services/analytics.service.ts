@@ -165,8 +165,8 @@ function computeDateRange(timeRange: AnalyticsTimeRange = 'today', customStart?:
 }
 
 export class TrafficAnalyticsService {
-  private static resolveCompanyId(providedCompanyId?: string): string | undefined {
-    return providedCompanyId || requestContext.getStore()?.companyId;
+  private static resolveUserId(providedUserId?: string): string | undefined {
+    return providedUserId || requestContext.getStore()?.userId;
   }
 
   static async recordTrafficLog(linkId: string, result: EvaluationResult, signals: ExtractedSignals) {
@@ -221,16 +221,16 @@ export class TrafficAnalyticsService {
    * Comprehensive Link-Specific Analytics Suite
    */
   static async getLinkAnalytics(
-    companyId: string | undefined,
+    userId: string | undefined,
     linkId: string,
     options: TrafficAnalyticsQueryOptions = {}
   ): Promise<LinkAnalyticsResponse> {
-    const effectiveCompanyId = this.resolveCompanyId(companyId);
+    const effectiveUserId = this.resolveUserId(userId);
     
     // 1. Validate Link Existence & Ownership
     const linkWhere: any = { id: linkId };
-    if (effectiveCompanyId) {
-      linkWhere.companyId = effectiveCompanyId;
+    if (effectiveUserId) {
+      linkWhere.userId = effectiveUserId;
     }
 
     const link = await db.trafficLink.findFirst({
@@ -646,11 +646,11 @@ export class TrafficAnalyticsService {
   /**
    * Cross-Link Global Overview Analytics
    */
-  static async getOverviewStats(companyId?: string, options: TrafficAnalyticsQueryOptions = {}) {
-    const effectiveCompanyId = this.resolveCompanyId(companyId);
+  static async getOverviewStats(userId?: string, options: TrafficAnalyticsQueryOptions = {}) {
+    const effectiveUserId = this.resolveUserId(userId);
     const whereLink: any = {};
-    if (effectiveCompanyId) {
-      whereLink.companyId = effectiveCompanyId;
+    if (effectiveUserId) {
+      whereLink.userId = effectiveUserId;
     }
 
     const totalLinks = await db.trafficLink.count({ where: whereLink });
@@ -896,7 +896,7 @@ export class TrafficAnalyticsService {
    * Filtered Live Logs Stream & Inspection Service
    */
   static async getLogs(
-    companyId?: string, 
+    userId?: string, 
     options: { 
       linkId?: string; 
       isBot?: boolean; 
@@ -918,11 +918,11 @@ export class TrafficAnalyticsService {
     const limit = options.limit || 50;
     const skip = (page - 1) * limit;
 
-    const effectiveCompanyId = this.resolveCompanyId(companyId);
+    const effectiveUserId = this.resolveUserId(userId);
     const where: any = {};
 
-    if (effectiveCompanyId && !options.linkId) {
-      where.link = { companyId: effectiveCompanyId };
+    if (effectiveUserId && !options.linkId) {
+      where.link = { userId: effectiveUserId };
     }
 
     if (options.linkId) {

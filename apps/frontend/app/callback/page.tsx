@@ -119,7 +119,7 @@ export default function CallbackPage() {
         document.cookie = `platform_auth_token=${token}${cookieFlags}`;
 
         toast.success('Successfully authenticated!');
-        router.replace('/traffic-director');
+        router.replace('/traffic-director/links');
       } catch (e: any) {
         console.error('Callback error:', e);
         setError(e.message || 'Failed to complete authentication.');

@@ -106,7 +106,7 @@ export interface EvaluationResult {
 }
 
 export interface CreateTrafficLinkDTO {
-  companyId: string;
+  userId?: string;
   name: string;
   slug: string;
   description?: string;
@@ -284,7 +284,7 @@ export interface UpsertPixelConfigDto {
 export interface PixelConfigResponse {
   id: string;
   linkId: string;
-  companyId: string;
+  userId: string;
   masterPixelId: string;
   backupPixelIds: string[];
   hasCapiToken: boolean;

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { PlatformModal } from '@/components/shared/PlatformModal';
+import { Drawer } from '@/components/ui/Drawer';
 import { LogoLoader } from '@workspace/ui';
 import { useSubscription } from '@/lib/useSubscription';
 import { ensureExternalUrl } from '@/lib/url';
@@ -19,7 +19,7 @@ interface CreateLinkModalProps {
   onSuccess: (newLink: any) => void;
 }
 
-export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLinkModalProps) {
+export function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLinkModalProps) {
   const router = useRouter();
   const { 
     canCreateMoreLinks, 
@@ -160,20 +160,18 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
     : (process.env.NEXT_PUBLIC_APP_URL || '');
 
   return (
-    <PlatformModal
+    <Drawer
       isOpen={isOpen}
       onClose={onClose}
       title="Create Smart Link"
-      icon={LinkIcon}
-      iconColorClass="text-indigo-600 dark:text-indigo-400"
-      iconBgClass="bg-indigo-50 dark:bg-indigo-950/50"
-      subHeader={
-        <p className="px-6 text-xs text-gray-500 dark:text-gray-400 -mt-2 pb-2">
-          Define dynamic routing rules and multi-variant landing targets
-        </p>
+      description="Define dynamic routing rules and multi-variant landing targets"
+      icon={
+        <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+          <LinkIcon className="w-5 h-5" />
+        </div>
       }
-      maxWidthClass="max-w-lg"
-      onSubmit={handleSubmit}
+      maxWidth="max-w-xl"
+      position="right"
       footer={
         <div className="flex items-center justify-end gap-3 w-full">
           <button
@@ -203,7 +201,7 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
         </div>
       }
     >
-      <div className="space-y-4 p-1">
+      <form onSubmit={handleSubmit} className="space-y-5 p-1">
         {!canCreateMoreLinks && (
           <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-start gap-3">
             <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -430,7 +428,11 @@ export default function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLi
             className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
           />
         </div>
-      </div>
-    </PlatformModal>
+      </form>
+    </Drawer>
   );
 }
+
+export default CreateLinkModal;
+export { CreateLinkModal as CreateLinkDrawer };
+

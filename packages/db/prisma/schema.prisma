@@ -11,71 +11,8 @@ datasource db {
 }
 
 // ==========================================
-// 180 TRAFFIC DIRECTOR SCHEMA
+// 180 TRAFFIC DIRECTOR SCHEMA (USER-SCOPED)
 // ==========================================
-
-model Company {
-  id                   String                       @id @default(uuid())
-  name                 String
-  slug                 String?                      @unique
-  logoUrl              String?
-  bannerUrl            String?
-  oneLineDescription   String?
-  industry             String?
-  startupStage         String?
-  teamSize             String?
-  country              String?
-  website              String?
-  customDomain         String?                      @unique
-  foundedDate          DateTime?
-  companyType          String?
-  tagline              String?
-  headquarters         String?
-  otherOffices         String?
-  aboutUs              String?
-  vision               String?
-  mission              String?
-  story                String?
-  coreValues           Json?                        @default("[]")
-  socialLinks          Json?                        @default("{}")
-  productsBuilt        String?
-  happyClients         String?
-  countriesActive      String?
-  awardsCount          String?
-  topRecognition       String?
-  companyHighlights    Json?                        @default("[]")
-  profileViews         Int                          @default(0)
-  followersCount       Int                          @default(0)
-  privacySettings      Json?                        @default("{}")
-  adminName            String?
-  adminEmail           String?                      @unique
-  adminPhone           String?
-  adminPasswordHash    String?
-  adminRole            String                       @default("admin")
-  databaseConfigured   Boolean                      @default(false)
-  isOnboardingComplete Boolean                      @default(false)
-  subscriptionStatus   String                       @default("trial")
-  accountStatus        String                       @default("active")
-  totalUsers           Int                          @default(0)
-  currency             String?                      @default("USD")
-  currencySymbol       String?                      @default("$")
-  metadata             Json?                        @default("{}")
-  trialStartDate       DateTime?
-  trialEndDate         DateTime?
-  nextChargeDate       DateTime?
-  autopayEnabled       Boolean                      @default(false)
-  mandateStatus        String?
-  createdAt            DateTime                     @default(now())
-  updatedAt            DateTime                     @updatedAt
-
-  users                                          User[]
-  trafficLinks                                   TrafficLink[]
-  trafficDirectorSubscription                    TrafficDirectorSubscription?
-  trafficRules_CompanyTrafficRules               TrafficRule[]                 @relation("CompanyTrafficRules")
-  trafficLogs_CompanyTrafficLogs                 TrafficLog[]                  @relation("CompanyTrafficLogs")
-  trafficPixelConfigs_CompanyTrafficPixelConfigs TrafficPixelConfig[]          @relation("CompanyTrafficPixelConfigs")
-  trafficPixelLogs_CompanyTrafficPixelLogs       TrafficPixelLog[]             @relation("CompanyTrafficPixelLogs")
-}
 
 model User {
   id               String    @id @default(uuid())
@@ -92,7 +29,7 @@ model User {
   isEmailVerified  Boolean   @default(false)
   isPhoneVerified  Boolean   @default(false)
   otpExpiresAt     DateTime?
-  role             String    @default("employee")
+  role             String    @default("admin")
   designationId    String?
   permissions      String[]  @default([])
   image            String?
@@ -107,7 +44,6 @@ model User {
   headline         String?
   title            String?
   signatureImage   String?
-  companyName      String?
   bio              String?
   city             String?
   country          String?
@@ -134,25 +70,22 @@ model User {
   isFirstLogin     Boolean   @default(true)
   apiKey           String?
   apiKeyEnabled    Boolean   @default(false)
-  companyId        String?
   deletedAt        DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  company          Company?  @relation(fields: [companyId], references: [id])
+  trafficLinks                TrafficLink[]
+  trafficDirectorSubscription TrafficDirectorSubscription?
 
-  @@unique([companyId, employeeId])
-  @@index([companyId])
-  @@index([companyId, id])
-  @@index([companyId, createdAt])
+  @@index([email])
 }
 
 model DomainRegistry {
   id               String    @id @default(uuid())
   domain           String    @unique
-  type             String    // 'ADVERTISING_WEBSITE' | 'TRAFFIC_LINK' | 'COMPANY_PROFILE'
-  targetId         String    // websiteId, linkId, or companyId
-  companyId        String?
+  type             String    // 'ADVERTISING_WEBSITE' | 'TRAFFIC_LINK' | 'USER_PROFILE'
+  targetId         String    // websiteId, linkId, or userId
+  userId           String?
   status           String    @default("PENDING_VERIFICATION") // 'PENDING_VERIFICATION' | 'ACTIVE' | 'FAILED' | 'REMOVED'
   sslStatus        String    @default("PENDING")              // 'PENDING' | 'ACTIVE' | 'FAILED'
   isApex           Boolean   @default(false)
@@ -163,13 +96,13 @@ model DomainRegistry {
   updatedAt        DateTime  @updatedAt
 
   @@index([domain])
-  @@index([companyId])
+  @@index([userId])
   @@index([type, targetId])
 }
 
 model TrafficLink {
   id                  String             @id @default(uuid())
-  companyId           String
+  userId              String
   name                String
   slug                String             @unique
   description         String?
@@ -191,17 +124,17 @@ model TrafficLink {
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
-  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user                User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([companyId])
+  @@index([userId])
   @@index([slug])
 }
 
 model TrafficDirectorSubscription {
   id                 String    @id @default(uuid())
-  companyId          String    @unique
+  userId             String    @unique
   planTier           String    @default("FREE") // FREE, STARTER, PRO, ENTERPRISE
-  maxLinks           Int       @default(2)
+  maxLinks           Int       @default(1)
   status             String    @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELLED
   oneEightySubId     String?
   amountCharged      Float     @default(0)
@@ -217,14 +150,15 @@ model TrafficDirectorSubscription {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  company            Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user               User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([companyId, status])
+  @@index([userId, status])
 }
 
 model TrafficRule {
   id             String      @id @default(uuid())
   linkId         String
+  userId         String?
   name           String
   priority       Int         @default(0)
   isActive       Boolean     @default(true)
@@ -237,17 +171,16 @@ model TrafficRule {
   updatedAt      DateTime    @updatedAt
 
   link           TrafficLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
-  companyId      String?
-  company        Company?    @relation("CompanyTrafficRules", fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([linkId])
   @@index([priority])
-  @@index([companyId])
+  @@index([userId])
 }
 
 model TrafficLog {
   id             String      @id @default(uuid())
   linkId         String
+  userId         String?
   ruleId         String?
   ipAddress      String?
   country        String?
@@ -270,18 +203,16 @@ model TrafficLog {
   timestamp      DateTime    @default(now())
 
   link           TrafficLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
-  companyId      String?
-  company        Company?    @relation("CompanyTrafficLogs", fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([linkId, timestamp])
   @@index([timestamp])
-  @@index([companyId])
+  @@index([userId])
 }
 
 model TrafficPixelConfig {
   id             String              @id @default(uuid())
   linkId         String              @unique
-  companyId      String
+  userId         String
   masterPixelId  String
   backupPixelIds String[]            @default([])
   capiTokenEnc   String?
@@ -295,10 +226,9 @@ model TrafficPixelConfig {
   updatedAt      DateTime            @updatedAt
 
   link           TrafficLink         @relation(fields: [linkId], references: [id], onDelete: Cascade)
-  company        Company             @relation("CompanyTrafficPixelConfigs", fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([linkId])
-  @@index([companyId])
+  @@index([userId])
 }
 
 model TrafficPixelEvent {
@@ -322,7 +252,7 @@ model TrafficPixelEvent {
 model TrafficPixelLog {
   id             String      @id @default(uuid())
   linkId         String
-  companyId      String?
+  userId         String?
   pixelId        String
   eventId        String
   eventName      String
@@ -339,9 +269,8 @@ model TrafficPixelLog {
   timestamp      DateTime    @default(now())
 
   link           TrafficLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
-  company        Company?    @relation("CompanyTrafficPixelLogs", fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([linkId, timestamp])
   @@index([eventId])
-  @@index([companyId])
+  @@index([userId])
 }

@@ -20,8 +20,6 @@ interface UserProfile {
   role: string;
   isVerified: boolean;
   isOnboarded?: boolean;
-  companyId?: string;
-  companyName?: string;
   createdAt?: string;
 }
 
@@ -69,8 +67,6 @@ export default function ProfilePage() {
           avatarUrl: payload.avatar || cachedUser.avatar || '',
           role: payload.role || cachedUser.role || 'OWNER',
           isVerified: payload.isVerified !== undefined ? payload.isVerified : true,
-          companyId: payload.companyId || cachedUser.companyId || 'cmp_traffic_sovereign',
-          companyName: cachedUser.companyName || '180 Traffic Operations',
           createdAt: cachedUser.createdAt || new Date().toISOString(),
         });
       }
@@ -243,9 +239,9 @@ export default function ProfilePage() {
 
           <div className="space-y-3 text-xs">
             <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-              <span className="text-zinc-400">Company ID</span>
+              <span className="text-zinc-400">Account ID</span>
               <span className="font-mono text-zinc-900 dark:text-white truncate max-w-[200px]">
-                {profile?.companyId}
+                {profile?.id}
               </span>
             </div>
 

@@ -4,15 +4,15 @@ import { CreateTrafficRuleDTO, UpdateTrafficRuleDTO } from '../types';
 const db = prisma as any;
 
 export class TrafficRulesService {
-  private static resolveCompanyId(providedCompanyId?: string): string | undefined {
-    return providedCompanyId || requestContext.getStore()?.companyId;
+  private static resolveUserId(providedUserId?: string): string | undefined {
+    return providedUserId || requestContext.getStore()?.userId;
   }
 
-  static async getRulesByLinkId(companyId: string | undefined, linkId: string) {
-    const effectiveCompanyId = this.resolveCompanyId(companyId);
+  static async getRulesByLinkId(userId: string | undefined, linkId: string) {
+    const effectiveUserId = this.resolveUserId(userId);
     const where: any = { id: linkId };
-    if (effectiveCompanyId) {
-      where.companyId = effectiveCompanyId;
+    if (effectiveUserId) {
+      where.userId = effectiveUserId;
     }
 
     const link = await db.trafficLink.findFirst({ where });
@@ -30,11 +30,11 @@ export class TrafficRulesService {
     return { rules };
   }
 
-  static async createRule(companyId: string | undefined, data: CreateTrafficRuleDTO) {
-    const effectiveCompanyId = this.resolveCompanyId(companyId);
+  static async createRule(userId: string | undefined, data: CreateTrafficRuleDTO) {
+    const effectiveUserId = this.resolveUserId(userId);
     const where: any = { id: data.linkId };
-    if (effectiveCompanyId) {
-      where.companyId = effectiveCompanyId;
+    if (effectiveUserId) {
+      where.userId = effectiveUserId;
     }
 
     const link = await db.trafficLink.findFirst({
@@ -73,14 +73,14 @@ export class TrafficRulesService {
     return { rule };
   }
 
-  static async updateRule(companyId: string | undefined, ruleId: string, data: UpdateTrafficRuleDTO) {
-    const effectiveCompanyId = this.resolveCompanyId(companyId);
+  static async updateRule(userId: string | undefined, ruleId: string, data: UpdateTrafficRuleDTO) {
+    const effectiveUserId = this.resolveUserId(userId);
     const rule = await db.trafficRule.findUnique({
       where: { id: ruleId },
       include: { link: true }
     });
 
-    if (!rule || (effectiveCompanyId && rule.link.companyId !== effectiveCompanyId)) {
+    if (!rule || (effectiveUserId && rule.link.userId !== effectiveUserId)) {
       throw new Error('Traffic rule not found or unauthorized');
     }
 
@@ -100,14 +100,14 @@ export class TrafficRulesService {
     return { rule: updated };
   }
 
-  static async deleteRule(companyId: string | undefined, ruleId: string) {
-    const effectiveCompanyId = this.resolveCompanyId(companyId);
+  static async deleteRule(userId: string | undefined, ruleId: string) {
+    const effectiveUserId = this.resolveUserId(userId);
     const rule = await db.trafficRule.findUnique({
       where: { id: ruleId },
       include: { link: true }
     });
 
-    if (!rule || (effectiveCompanyId && rule.link.companyId !== effectiveCompanyId)) {
+    if (!rule || (effectiveUserId && rule.link.userId !== effectiveUserId)) {
       throw new Error('Traffic rule not found or unauthorized');
     }
 
@@ -118,11 +118,11 @@ export class TrafficRulesService {
     return { success: true };
   }
 
-  static async reorderRules(companyId: string | undefined, linkId: string, orderedRuleIds: string[]) {
-    const effectiveCompanyId = this.resolveCompanyId(companyId);
+  static async reorderRules(userId: string | undefined, linkId: string, orderedRuleIds: string[]) {
+    const effectiveUserId = this.resolveUserId(userId);
     const where: any = { id: linkId };
-    if (effectiveCompanyId) {
-      where.companyId = effectiveCompanyId;
+    if (effectiveUserId) {
+      where.userId = effectiveUserId;
     }
 
     const link = await db.trafficLink.findFirst({ where });

@@ -12,7 +12,7 @@ import { OneEightyPay } from '@/lib/pay';
 
 interface SubscriptionData {
   id: string;
-  companyId: string;
+  userId: string;
   planTier: 'STARTER' | 'PRO' | 'ENTERPRISE';
   planName: string;
   price: number;
@@ -348,7 +348,7 @@ export default function SubscriptionPage() {
               <span className="font-bold text-zinc-900 dark:text-white">
                 {subData?.isUnlimited
                   ? `${subData.currentLinksCount} (Unlimited)`
-                  : `${subData?.currentLinksCount || 0} / ${subData?.maxLinks || 2} Links`}
+                  : `${subData?.currentLinksCount || 0} / ${subData?.maxLinks || 1} Links`}
               </span>
             </div>
             <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden">
@@ -364,7 +364,7 @@ export default function SubscriptionPage() {
               />
             </div>
             <span className="text-[10px] text-zinc-500 block">
-              {(subData?.canCreateMoreLinks ?? ((subData?.currentLinksCount || 0) < (subData?.maxLinks || 2)))
+              {(subData?.canCreateMoreLinks ?? ((subData?.currentLinksCount || 0) < (subData?.maxLinks || 1)))
                 ? 'Link quota healthy. You can create additional links.'
                 : 'Quota reached. Upgrade tier to launch more smart links.'}
             </span>

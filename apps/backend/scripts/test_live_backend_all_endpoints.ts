@@ -370,16 +370,16 @@ async function runMasterTestBattery() {
   });
   assert(unauthRes.status === 401 || unauthRes.status === 403, 'Security', 'Unauthenticated request rejected with 401/403');
 
-  // Attempt to access with forged companyId header
+  // Attempt to access with forged userId header
   const forgedRes = await req({
     path: `/api/v1/traffic-director/links/${linkId}`,
     method: 'GET',
     headers: {
       ...authHeaders,
-      'x-company-id': '00000000-0000-0000-0000-000000000000'
+      'x-user-id': '00000000-0000-0000-0000-000000000000'
     }
   });
-  assert(forgedRes.status === 200 || forgedRes.status === 403 || forgedRes.status === 404, 'Security', 'Forged company header cannot hijack token tenant context');
+  assert(forgedRes.status === 200 || forgedRes.status === 403 || forgedRes.status === 404, 'Security', 'Forged user header cannot hijack token context');
 
   // --- SUITE 12: Cleanup & Tear-down ------------------------------------------
   console.log('\n[SUITE 12: Cleanup & Tear-down]');

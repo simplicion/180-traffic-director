@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Settings, Sparkles, ArrowRightLeft, Eye, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { PlatformModal } from '@/components/shared/PlatformModal';
+import { Drawer } from '@/components/ui/Drawer';
 import { LogoLoader } from '@workspace/ui';
 import { ensureExternalUrl } from '@/lib/url';
 
@@ -15,7 +15,7 @@ interface EditLinkModalProps {
   onSuccess: () => void;
 }
 
-export default function EditLinkModal({ isOpen, onClose, link, onSuccess }: EditLinkModalProps) {
+export function EditLinkModal({ isOpen, onClose, link, onSuccess }: EditLinkModalProps) {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'invalid'>('idle');
@@ -131,20 +131,18 @@ export default function EditLinkModal({ isOpen, onClose, link, onSuccess }: Edit
     : (process.env.NEXT_PUBLIC_APP_URL || '');
 
   return (
-    <PlatformModal
+    <Drawer
       isOpen={isOpen}
       onClose={onClose}
       title="Edit Smart Link"
-      icon={Settings}
-      iconColorClass="text-indigo-600 dark:text-indigo-400"
-      iconBgClass="bg-indigo-50 dark:bg-indigo-950/50"
-      subHeader={
-        <p className="px-6 text-xs text-gray-500 dark:text-gray-400 -mt-2 pb-2">
-          Update campaign metadata and safe page destination
-        </p>
+      description="Update campaign metadata and safe page destination"
+      icon={
+        <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+          <Settings className="w-5 h-5" />
+        </div>
       }
-      maxWidthClass="max-w-lg"
-      onSubmit={handleSubmit}
+      maxWidth="max-w-xl"
+      position="right"
       footer={
         <div className="flex items-center justify-end gap-3 w-full">
           <button
@@ -174,7 +172,7 @@ export default function EditLinkModal({ isOpen, onClose, link, onSuccess }: Edit
         </div>
       }
     >
-      <div className="space-y-4 p-1">
+      <form onSubmit={handleSubmit} className="space-y-5 p-1">
         <div>
           <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5">
             Link Name <span className="text-rose-500">*</span>
@@ -328,7 +326,11 @@ export default function EditLinkModal({ isOpen, onClose, link, onSuccess }: Edit
             className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
           />
         </div>
-      </div>
-    </PlatformModal>
+      </form>
+    </Drawer>
   );
 }
+
+export default EditLinkModal;
+export { EditLinkModal as EditLinkDrawer };
+
