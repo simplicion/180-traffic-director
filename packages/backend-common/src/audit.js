@@ -10,18 +10,22 @@ const db_1 = require("@workspace/db");
  */
 async function logAction(userId, action, resourceType = '', resourceId = '', details = {}, context = {}) {
     try {
-        await db_1.prisma.auditLog.create({
-            data: {
-                userId,
-                action,
-                resourceType,
-                resourceId: resourceId ? String(resourceId) : '',
-                details: (details || {}),
-                ipAddress: context.ipAddress || '',
-                userAgent: context.userAgent || '',
-                companyId: context.companyId ?? null,
-            },
-        });
+        if (!userId || typeof userId !== 'string')
+            return;
+        const userExists = await db_1.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+        if (!userExists)
+            return;
+        const data = {
+            user: { connect: { id: userExists.id } },
+            action,
+            resourceType,
+            resourceId: resourceId ? String(resourceId) : '',
+            details: (details || {}),
+            ipAddress: context.ipAddress || '',
+            userAgent: context.userAgent || '',
+            companyId: context.companyId ?? null,
+        };
+        await db_1.prisma.auditLog.create({ data });
     }
     catch (err) {
         // Never throw — audit logging should never break the main flow

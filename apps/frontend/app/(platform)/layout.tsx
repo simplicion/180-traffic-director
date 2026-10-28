@@ -106,52 +106,16 @@ export default function PlatformLayout({
             : 'lg:ml-[80px] lg:w-[calc(100%-80px)]'
         } flex flex-col min-w-0 min-h-screen overflow-y-auto transition-all duration-300 ease-in-out`}
       >
-        {/* Top Header conforming to 180 Workspace design */}
-        <header className="h-16 border-b border-gray-200/60 dark:border-white/10 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-md px-4 sm:px-8 flex items-center justify-between shrink-0 sticky top-0 z-20">
-          <div className="flex items-center space-x-3">
-            {/* Mobile Hamburger Menu Toggle */}
-            <button
-              type="button"
-              onClick={() => setIsMobileOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer"
-              title="Open Navigation Menu"
-              aria-label="Open Navigation Menu"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">180 Traffic Director</span>
-            <ChevronRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600" />
-            <span className="text-xs font-bold text-gray-900 dark:text-white">{currentNav.name}</span>
-            <div className="hidden sm:flex items-center gap-1.5 ml-4 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Anycast Live</span>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            {/* Dark / Light Mode Switcher in Header */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-xl border border-gray-200/80 dark:border-white/10 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-gray-700 dark:text-zinc-300 transition-all shadow-sm cursor-pointer"
-              title={isDark ? "Switch to Clean Light Mode" : "Switch to Obsidian Dark Mode"}
-              aria-label="Toggle Theme"
-            >
-              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600 dark:text-zinc-400" />}
-            </button>
-
-            <Link
-              href="/traffic-director/subscription"
-              className="hidden sm:inline-flex items-center space-x-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-gray-200 dark:border-white/10 px-3 py-2 text-xs font-semibold text-gray-700 dark:text-zinc-300 transition-all cursor-pointer"
-            >
-              <CreditCard className="h-3.5 w-3.5 text-blue-500" />
-              <span>Plans & Billing</span>
-            </Link>
-          </div>
-        </header>
-
-        {/* Global Trial & Subscription Status Banner */}
-        <TrialBanner />
+        {/* Mobile-only Hamburger Menu Toggle */}
+        <button
+          type="button"
+          onClick={() => setIsMobileOpen(true)}
+          className="lg:hidden fixed top-3.5 left-3.5 z-40 p-2.5 rounded-xl bg-white/90 dark:bg-zinc-900/90 border border-zinc-200/80 dark:border-white/10 shadow-md text-zinc-700 dark:text-zinc-300 backdrop-blur-md cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+          title="Open Navigation Menu"
+          aria-label="Open Navigation Menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
 
         {/* Page Body */}
         <div className="p-6 md:p-8 max-w-7xl w-full mx-auto">

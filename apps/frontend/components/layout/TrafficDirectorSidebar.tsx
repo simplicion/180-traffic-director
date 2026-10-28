@@ -12,11 +12,17 @@ import {
   User, 
   Sparkles,
   ChevronLeft, 
+  ChevronRight,
   X, 
-  LogOut 
+  LogOut,
+  Sun,
+  Moon,
+  Zap
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import clsx from 'clsx';
 import { getAuthToken, clearAuthTokens } from '@/lib/api';
+import { useSubscription } from '@/lib/useSubscription';
 
 export interface TrafficDirectorSidebarProps {
   isMobileOpen: boolean;
@@ -43,6 +49,7 @@ export function TrafficDirectorSidebar({
   // Sidebar collapse & hover states (matching 180workspace and Developers platform behavior)
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
+  const [isDark, setIsDark] = useState<boolean>(true);
   const [advertisingUrl, setAdvertisingUrl] = useState('http://localhost:3000/advertising');
   const [userProfile, setUserProfile] = useState<{
     name: string;
@@ -54,8 +61,25 @@ export function TrafficDirectorSidebar({
     initial: 'A',
   });
 
-  // Initialize collapse preference from localStorage
+  const {
+    planName,
+    planTier,
+    isPaidPlan,
+    isTrialing,
+    trialDaysLeft,
+    isTrialExpired,
+    maxLinks,
+    isUnlimited
+  } = useSubscription();
+
+  // Initialize collapse preference and theme from localStorage
   useEffect(() => {
+    try {
+      const storedTheme = localStorage.getItem('180_theme');
+      const isDarkMode = storedTheme ? storedTheme === 'dark' : document.documentElement.classList.contains('dark');
+      setIsDark(isDarkMode);
+    } catch (_) {}
+
     try {
       const saved = localStorage.getItem('traffic_director_sidebar_collapsed');
       if (saved !== null) {
@@ -132,6 +156,18 @@ export function TrafficDirectorSidebar({
     clearAuthTokens();
     toast.success('Logged out successfully');
     window.location.href = '/';
+  };
+
+  const toggleTheme = () => {
+    const nextDark = !isDark;
+    setIsDark(nextDark);
+    if (nextDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('180_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('180_theme', 'light');
+    }
   };
 
   const navItems: NavItem[] = [
@@ -297,7 +333,110 @@ export function TrafficDirectorSidebar({
         </div>
       </nav>
 
-      {/* 3. Account / Profile Widget */}
+      {/* 3. Subscription / Plan Status Widget */}
+      <div className="border-t border-zinc-200/80 dark:border-white/10 shrink-0">
+        {isExpanded ? (
+          <div className="p-2.5">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-blue-500/10 border border-indigo-500/20 dark:border-indigo-500/30 shadow-xs space-y-2">
+              <div className="flex items-center justify-between gap-1.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Zap className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-zinc-950 dark:text-white truncate block">
+                      {isPaidPlan ? planName : 'Free + 7-Day Trial Plan'}
+                    </span>
+                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium block truncate">
+                      {isPaidPlan
+                        ? `${isUnlimited ? 'Unlimited' : maxLinks} Links Capacity`
+                        : isTrialExpired
+                        ? 'Trial Ended'
+                        : `${trialDaysLeft} days remaining`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <Link
+                href="/traffic-director/subscription"
+                onClick={onMobileClose}
+                className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition shadow-xs cursor-pointer group"
+              >
+                <span>{isPaidPlan ? 'Manage Plan' : 'Upgrade Plan ($25+)'}</span>
+                <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="py-2.5 flex justify-center">
+            <Link
+              href="/traffic-director/subscription"
+              onClick={onMobileClose}
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/15 to-purple-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 hover:scale-105 transition-all cursor-pointer relative shadow-xs"
+              title={`Plan: ${isPaidPlan ? planName : 'Free + 7-Day Trial Plan'} (${isTrialExpired ? 'Expired' : `${trialDaysLeft}d left`})`}
+            >
+              <Zap className="w-4 h-4" />
+              {!isPaidPlan && (
+                <span className="w-2 h-2 rounded-full bg-amber-500 absolute top-1.5 right-1.5 ring-2 ring-white dark:ring-zinc-900" />
+              )}
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Dark & Light (White) Mode Switcher */}
+      <div className="border-t border-zinc-200/80 dark:border-white/10 shrink-0">
+        {isExpanded ? (
+          <div className="px-2.5 py-2">
+            <div className="flex items-center justify-between p-1 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/10">
+              <button
+                type="button"
+                onClick={() => isDark && toggleTheme()}
+                className={clsx(
+                  "flex items-center justify-center gap-1.5 flex-1 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer",
+                  !isDark
+                    ? "bg-white text-zinc-950 shadow-xs font-bold"
+                    : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                )}
+                title="Switch to Clean Light (White) Mode"
+              >
+                <Sun className="w-3.5 h-3.5 text-amber-500" />
+                <span>Light</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => !isDark && toggleTheme()}
+                className={clsx(
+                  "flex items-center justify-center gap-1.5 flex-1 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer",
+                  isDark
+                    ? "bg-zinc-800 text-white shadow-xs font-bold"
+                    : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                )}
+                title="Switch to Obsidian Dark Mode"
+              >
+                <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Dark</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="py-2 flex justify-center">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/10 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:scale-105 transition-all cursor-pointer shadow-xs"
+              title={isDark ? "Switch to Clean Light (White) Mode" : "Switch to Obsidian Dark Mode"}
+              aria-label="Toggle Theme"
+            >
+              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600 dark:text-zinc-400" />}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 5. Account / Profile Widget */}
       <div className="p-3 border-t border-zinc-200/80 dark:border-white/10 bg-zinc-50/50 dark:bg-zinc-950/50 shrink-0">
         {isExpanded ? (
           <div className="flex items-center gap-2.5 p-2 rounded-2xl bg-white dark:bg-zinc-900/80 border border-zinc-200/80 dark:border-white/10 shadow-xs">

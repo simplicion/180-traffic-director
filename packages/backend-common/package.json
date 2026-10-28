@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
+    "bullmq": "^6.5.0",
     "ioredis": "^5.3.2"
   },
   "devDependencies": {
