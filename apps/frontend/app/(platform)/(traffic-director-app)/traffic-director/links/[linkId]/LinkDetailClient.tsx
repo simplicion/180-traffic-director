@@ -5,13 +5,14 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   ArrowLeft, Plus, Play, Layers, Power, Check, Copy, Code, 
-  BarChart3, Lock, Sparkles, ChevronLeft, ChevronRight, Pin 
+  BarChart3, Lock, Sparkles 
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { LogoLoader, ConfirmModal } from '@workspace/ui';
 import { useSubscription } from '@/lib/useSubscription';
 import { ensureExternalUrl } from '@/lib/url';
+import { useLinkDetailNav } from '@/context/LinkDetailNavContext';
 import CreateRuleModal from '../../../_components/CreateRuleModal';
 import EditRuleModal from '../../../_components/EditRuleModal';
 import EmbedTagModal from '../../../_components/EmbedTagModal';
@@ -45,17 +46,11 @@ export default function SmartLinkRuleCanvasPage() {
   }, [params?.linkId]);
 
   const { cloakingEnabled, isSubscriptionActive, isTrialExpired } = useSubscription();
+  const { activeTab, setActiveTab, setMetadata, updateMetadata } = useLinkDetailNav();
 
   const [linkData, setLinkData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'rules' | 'pixel' | 'analytics'>('rules');
-  const [isNavCollapsed, setIsNavCollapsed] = useState(true);
-  const [isNavHovered, setIsNavHovered] = useState(false);
-  const isNavExpanded = !isNavCollapsed || isNavHovered;
 
-  const toggleNavCollapse = () => {
-    setIsNavCollapsed(prev => !prev);
-  };
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<any>(null);
   const [isEmbedModalOpen, setIsEmbedModalOpen] = useState(false);
@@ -106,6 +101,18 @@ export default function SmartLinkRuleCanvasPage() {
       setRampUpEnabled(lk.rampUpEnabled !== undefined && lk.rampUpEnabled !== null ? (lk.rampUpDurationHours === 24 && !lk.rampUpEnabled ? true : lk.rampUpEnabled) : true);
       setRampUpDurationHours((lk.rampUpDurationHours && lk.rampUpDurationHours !== 24) ? lk.rampUpDurationHours : 12);
       setShieldMode(lk.shieldMode || 'server');
+
+      // Synchronize metadata with Platform Sidebar
+      setMetadata({
+        id: lk.id,
+        name: lk.name,
+        slug: lk.slug,
+        rulesCount: lk.rules?.length || 0,
+        totalClicks: lk.totalClicks || 0,
+        isActive: lk.isActive,
+        shieldMode: lk.shieldMode || 'server',
+        customDomain: lk.customDomain,
+      });
     } catch (error: any) {
       console.error('Failed to fetch link details:', error);
       toast.error('Failed to load link details');
@@ -132,6 +139,7 @@ export default function SmartLinkRuleCanvasPage() {
         safePageProxyMode
       });
       toast.success('Shield & Warmup settings saved!');
+      updateMetadata({ shieldMode });
       fetchLinkDetails();
     } catch (error) {
       toast.error('Failed to update shield settings');
@@ -140,42 +148,43 @@ export default function SmartLinkRuleCanvasPage() {
     }
   };
 
-  useEffect(() => {
-    if (linkId && linkId !== 'default') {
-      fetchLinkDetails(linkId);
-    }
-  }, [linkId]);
-
   const handleUpdateFallback = async () => {
-    if (savingFallback) return;
     try {
       setSavingFallback(true);
-      const cleanFallback = ensureExternalUrl(fallbackUrl);
-      await api.put(`/api/v1/traffic-director/links/${linkId}`, { 
-        fallbackUrl: cleanFallback,
-        safePageProxyMode
+      const formattedFallback = ensureExternalUrl(fallbackUrl);
+      await api.put(`/api/v1/traffic-director/links/${linkId}`, {
+        fallbackUrl: formattedFallback,
+        safePageProxyMode: safePageProxyMode
       });
-      setFallbackUrl(cleanFallback);
-      toast.success('Safe page settings saved!');
-      fetchLinkDetails();
+      setFallbackUrl(formattedFallback);
+      setLinkData((prev: any) => ({ ...prev, fallbackUrl: formattedFallback, safePageProxyMode }));
+      toast.success('Compliant Safe Page updated!');
     } catch (error) {
-      toast.error('Failed to update fallback settings');
+      toast.error('Failed to update safe page');
     } finally {
       setSavingFallback(false);
     }
   };
 
+  useEffect(() => {
+    if (linkId && linkId !== 'default') {
+      fetchLinkDetails();
+    }
+  }, [linkId]);
+
   const handleToggleRuleActive = async (rule: any) => {
     try {
-      const updated = !rule.isActive;
-      await api.put(`/api/v1/traffic-director/rules/${rule.id}`, { isActive: updated });
+      const nextActive = !rule.isActive;
+      await api.put(`/api/v1/traffic-director/links/${linkId}/rules/${rule.id}`, {
+        isActive: nextActive
+      });
       setLinkData((prev: any) => ({
         ...prev,
-        rules: prev.rules.map((r: any) => r.id === rule.id ? { ...r, isActive: updated } : r)
+        rules: prev.rules.map((r: any) => r.id === rule.id ? { ...r, isActive: nextActive } : r)
       }));
-      toast.success(`Rule is now ${updated ? 'Active' : 'Disabled'}`);
+      toast.success(`Rule "${rule.name}" is now ${nextActive ? 'Active' : 'Paused'}`);
     } catch (error) {
-      toast.error('Failed to toggle rule');
+      toast.error('Failed to update rule status');
     }
   };
 
@@ -183,12 +192,16 @@ export default function SmartLinkRuleCanvasPage() {
     if (!deleteRuleConfirm.rule) return;
     try {
       setDeleteRuleConfirm(prev => ({ ...prev, loading: true }));
-      await api.delete(`/api/v1/traffic-director/rules/${deleteRuleConfirm.rule.id}`);
-      setLinkData((prev: any) => ({
-        ...prev,
-        rules: prev.rules.filter((r: any) => r.id !== deleteRuleConfirm.rule.id)
-      }));
-      toast.success('Rule removed');
+      await api.delete(`/api/v1/traffic-director/links/${linkId}/rules/${deleteRuleConfirm.rule.id}`);
+      setLinkData((prev: any) => {
+        const remainingRules = prev.rules.filter((r: any) => r.id !== deleteRuleConfirm.rule.id);
+        updateMetadata({ rulesCount: remainingRules.length });
+        return {
+          ...prev,
+          rules: remainingRules
+        };
+      });
+      toast.success('Rule deleted successfully');
       setDeleteRuleConfirm({ isOpen: false, rule: null, loading: false });
     } catch (error) {
       toast.error('Failed to delete rule');
@@ -235,8 +248,29 @@ export default function SmartLinkRuleCanvasPage() {
     );
   }
 
+  const navItems = [
+    {
+      id: 'rules' as const,
+      name: 'Routing Rules & Setup',
+      icon: Layers,
+      badge: String(linkData?.rules?.length || 0),
+    },
+    {
+      id: 'pixel' as const,
+      name: 'Universal Meta Pixel & CAPI',
+      icon: Sparkles,
+      badge: 'CAPI',
+    },
+    {
+      id: 'analytics' as const,
+      name: 'Traffic Analytics',
+      icon: BarChart3,
+      badge: `${linkData?.totalClicks || 0} views`,
+    }
+  ];
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300 w-full">
       <CreateRuleModal
         isOpen={isRuleModalOpen}
         onClose={() => setIsRuleModalOpen(false)}
@@ -282,12 +316,13 @@ export default function SmartLinkRuleCanvasPage() {
         variant="danger"
       />
 
-      {/* Top Breadcrumb & Actions */}
+      {/* Top Header & Actions Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
             href="/traffic-director/links"
-            className="p-2.5 rounded-xl border border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition"
+            className="p-2.5 rounded-xl border border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-indigo-600 transition"
+            title="Back to Smart Links"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
@@ -303,14 +338,14 @@ export default function SmartLinkRuleCanvasPage() {
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-xs text-gray-400 font-mono">/r/{linkData.slug}</span>
-              <button onClick={handleCopyUrl} className="text-gray-400 hover:text-indigo-600 transition text-xs flex items-center gap-1">
+              <button onClick={handleCopyUrl} className="text-gray-400 hover:text-indigo-600 transition text-xs flex items-center gap-1 cursor-pointer">
                 {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
               </button>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button
             onClick={async () => {
               if (!linkData.isActive && !cloakingEnabled) {
@@ -326,6 +361,7 @@ export default function SmartLinkRuleCanvasPage() {
                 const nextActive = !linkData.isActive;
                 await api.put(`/api/v1/traffic-director/links/${linkId}`, { isActive: nextActive });
                 setLinkData((prev: any) => ({ ...prev, isActive: nextActive }));
+                updateMetadata({ isActive: nextActive });
                 toast.success(`Link is now ${nextActive ? 'Active' : 'Paused'}`);
               } catch (err: any) {
                 toast.error(err.response?.data?.error || 'Failed to update link status');
@@ -352,7 +388,7 @@ export default function SmartLinkRuleCanvasPage() {
 
           <button
             onClick={() => setIsEditModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold transition"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold transition cursor-pointer"
           >
             Edit Details
           </button>
@@ -391,275 +427,75 @@ export default function SmartLinkRuleCanvasPage() {
         </div>
       </div>
 
-      {/* Navigation Items definition */}
-      {(() => {
-        const navItems = [
-          {
-            id: 'rules' as const,
-            name: 'Routing Rules & Setup',
-            subtitle: 'Priorities, evasion & fallback',
-            icon: Layers,
-            badge: String(linkData?.rules?.length || 0),
-          },
-          {
-            id: 'pixel' as const,
-            name: 'Universal Meta Pixel',
-            subtitle: 'Server-side CAPI & backup pixels',
-            icon: Sparkles,
-            badge: 'CAPI',
-          },
-          {
-            id: 'analytics' as const,
-            name: 'Traffic Analytics',
-            subtitle: 'Live breakdown & bot logs',
-            icon: BarChart3,
-            badge: `${linkData?.totalClicks || 0}`,
-          }
-        ];
+      {/* Mobile Horizontal Tabs (< lg screens for instant touch switching) */}
+      <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setActiveTab(item.id)}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer ${
+              activeTab === item.id
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                : 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            <item.icon className="w-3.5 h-3.5" />
+            <span>{item.name}</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              activeTab === item.id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400'
+            }`}>
+              {item.badge}
+            </span>
+          </button>
+        ))}
+      </div>
 
-        return (
-          <>
-            {/* Mobile Horizontal Tabs (< lg screens) */}
-            <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer ${
-                    activeTab === item.id
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                      : 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300'
-                  }`}
-                >
-                  <item.icon className="w-3.5 h-3.5" />
-                  <span>{item.name}</span>
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                    activeTab === item.id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400'
-                  }`}>
-                    {item.badge}
-                  </span>
-                </button>
-              ))}
-            </div>
+      {/* Main Full-Space Workspace Canvas (100% width, No right sidebar) */}
+      <div className="w-full min-w-0 transition-all duration-300">
+        {activeTab === 'rules' && (
+          <LinkRoutingRulesTab
+            linkId={linkId}
+            linkData={linkData}
+            shieldMode={shieldMode}
+            setShieldMode={setShieldMode}
+            datacenterBlocked={datacenterBlocked}
+            setDatacenterBlocked={setDatacenterBlocked}
+            blockSpyServices={blockSpyServices}
+            setBlockSpyServices={setBlockSpyServices}
+            blockVpn={blockVpn}
+            setBlockVpn={setBlockVpn}
+            warmupUntil={warmupUntil}
+            setWarmupUntil={setWarmupUntil}
+            rampUpEnabled={rampUpEnabled}
+            setRampUpEnabled={setRampUpEnabled}
+            rampUpDurationHours={rampUpDurationHours}
+            setRampUpDurationHours={setRampUpDurationHours}
+            savingShield={savingShield}
+            handleUpdateShieldSettings={handleUpdateShieldSettings}
+            fallbackUrl={fallbackUrl}
+            setFallbackUrl={setFallbackUrl}
+            safePageProxyMode={safePageProxyMode}
+            setSafePageProxyMode={setSafePageProxyMode}
+            savingFallback={savingFallback}
+            handleUpdateFallback={handleUpdateFallback}
+            handleMoveRule={handleMoveRule}
+            handleToggleRuleActive={handleToggleRuleActive}
+            setEditingRule={setEditingRule}
+            setDeleteRuleConfirm={setDeleteRuleConfirm}
+            setIsRuleModalOpen={setIsRuleModalOpen}
+            setIsEmbedModalOpen={setIsEmbedModalOpen}
+          />
+        )}
 
-            {/* Main Full-Space Workspace with Animated Collapsible Side Rail */}
-            <div className="flex items-start gap-5 relative min-w-0 w-full">
-              {/* Full-Space Content Canvas */}
-              <div className="flex-1 min-w-0 transition-all duration-300">
-                {activeTab === 'rules' && (
-                  <LinkRoutingRulesTab
-                    linkId={linkId}
-                    linkData={linkData}
-                    shieldMode={shieldMode}
-                    setShieldMode={setShieldMode}
-                    datacenterBlocked={datacenterBlocked}
-                    setDatacenterBlocked={setDatacenterBlocked}
-                    blockSpyServices={blockSpyServices}
-                    setBlockSpyServices={setBlockSpyServices}
-                    blockVpn={blockVpn}
-                    setBlockVpn={setBlockVpn}
-                    warmupUntil={warmupUntil}
-                    setWarmupUntil={setWarmupUntil}
-                    rampUpEnabled={rampUpEnabled}
-                    setRampUpEnabled={setRampUpEnabled}
-                    rampUpDurationHours={rampUpDurationHours}
-                    setRampUpDurationHours={setRampUpDurationHours}
-                    savingShield={savingShield}
-                    handleUpdateShieldSettings={handleUpdateShieldSettings}
-                    fallbackUrl={fallbackUrl}
-                    setFallbackUrl={setFallbackUrl}
-                    safePageProxyMode={safePageProxyMode}
-                    setSafePageProxyMode={setSafePageProxyMode}
-                    savingFallback={savingFallback}
-                    handleUpdateFallback={handleUpdateFallback}
-                    handleMoveRule={handleMoveRule}
-                    handleToggleRuleActive={handleToggleRuleActive}
-                    setEditingRule={setEditingRule}
-                    setDeleteRuleConfirm={setDeleteRuleConfirm}
-                    setIsRuleModalOpen={setIsRuleModalOpen}
-                    setIsEmbedModalOpen={setIsEmbedModalOpen}
-                  />
-                )}
+        {activeTab === 'pixel' && (
+          <LinkPixelTab linkId={linkId} linkData={linkData} onUpdated={fetchLinkDetails} />
+        )}
 
-                {activeTab === 'pixel' && (
-                  <LinkPixelTab linkId={linkId} linkData={linkData} onUpdated={fetchLinkDetails} />
-                )}
-
-                {activeTab === 'analytics' && (
-                  <LinkAnalyticsTab linkId={linkId} linkData={linkData} />
-                )}
-              </div>
-
-              {/* Desktop Collapsible Animated Side Navigation Rail */}
-              <div className="hidden lg:block shrink-0 relative">
-                {/* Layout spacer to preserve full-width spacing without layout shift */}
-                <div
-                  className={`transition-all duration-300 ease-in-out ${
-                    !isNavCollapsed ? 'w-[280px]' : 'w-[68px]'
-                  }`}
-                />
-
-                {/* Elevated Floating / Sticky Rail */}
-                <aside
-                  onMouseEnter={() => setIsNavHovered(true)}
-                  onMouseLeave={() => setIsNavHovered(false)}
-                  className={`absolute top-0 right-0 z-30 transition-all duration-300 ease-in-out select-none ${
-                    isNavExpanded ? 'w-[280px] shadow-2xl' : 'w-[68px] shadow-sm'
-                  }`}
-                >
-                  <div className="rounded-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-gray-200/90 dark:border-white/10 p-2.5 space-y-3">
-                    {/* Header with Title and Expand/Pin Toggle */}
-                    <div className="flex items-center justify-between pb-2 border-b border-gray-200/80 dark:border-white/10 min-h-[36px]">
-                      {isNavExpanded ? (
-                        <>
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400 truncate">
-                              Link Navigation
-                            </span>
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50 font-semibold shrink-0">
-                              3 Views
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={toggleNavCollapse}
-                            className="p-1 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer shrink-0"
-                            title={isNavCollapsed ? 'Pin open' : 'Collapse to icon rail'}
-                          >
-                            {isNavCollapsed ? <Pin className="w-3.5 h-3.5" /> : <ChevronRight className="w-4 h-4" />}
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={toggleNavCollapse}
-                          className="w-full flex items-center justify-center p-1 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
-                          title="Click to pin expanded"
-                        >
-                          <ChevronLeft className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Navigation Items */}
-                    <nav className="space-y-1.5">
-                      {navItems.map((item) => {
-                        const isActive = activeTab === item.id;
-                        const Icon = item.icon;
-
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => setActiveTab(item.id)}
-                            className={`w-full transition cursor-pointer relative group ${
-                              isNavExpanded
-                                ? `text-left p-2.5 rounded-xl flex items-start gap-3 ${
-                                    isActive
-                                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                                      : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800/60'
-                                  }`
-                                : `h-11 rounded-xl flex items-center justify-center mx-auto ${
-                                    isActive
-                                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 ring-2 ring-indigo-500/30'
-                                      : 'text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800'
-                                  }`
-                            }`}
-                            title={!isNavExpanded ? `${item.name} (${item.badge})` : undefined}
-                          >
-                            {isNavExpanded ? (
-                              <>
-                                <div
-                                  className={`p-2 rounded-lg shrink-0 mt-0.5 ${
-                                    isActive
-                                      ? 'bg-white/20 text-white'
-                                      : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 group-hover:text-indigo-500'
-                                  }`}
-                                >
-                                  <Icon className="w-4 h-4" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between gap-1.5">
-                                    <span className="text-xs font-bold truncate">{item.name}</span>
-                                    <span
-                                      className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold shrink-0 ${
-                                        isActive
-                                          ? 'bg-indigo-500 text-white'
-                                          : 'bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300'
-                                      }`}
-                                    >
-                                      {item.badge}
-                                    </span>
-                                  </div>
-                                  <p
-                                    className={`text-[11px] mt-0.5 line-clamp-1 ${
-                                      isActive ? 'text-indigo-100' : 'text-gray-400 dark:text-zinc-500'
-                                    }`}
-                                  >
-                                    {item.subtitle}
-                                  </p>
-                                </div>
-                                {isActive && (
-                                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-white rounded-full" />
-                                )}
-                              </>
-                            ) : (
-                              <div className="relative flex items-center justify-center w-full h-full">
-                                <Icon className="w-4 h-4" />
-                                {item.badge && item.badge !== '0' && (
-                                  <span
-                                    className={`absolute -top-1 -right-1 px-1 min-w-[16px] h-4 text-[9px] font-bold rounded-full flex items-center justify-center font-mono ${
-                                      isActive
-                                        ? 'bg-white text-indigo-600 shadow-xs'
-                                        : 'bg-indigo-500 text-white'
-                                    }`}
-                                  >
-                                    {item.badge}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </nav>
-
-                    {/* Quick Link Info (Only visible when expanded) */}
-                    {isNavExpanded && (
-                      <div className="pt-2 border-t border-gray-200/80 dark:border-white/10 space-y-2 text-xs animate-in fade-in duration-200">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500 px-1">
-                          Quick Info
-                        </span>
-                        <div className="p-2.5 rounded-xl bg-gray-50/70 dark:bg-zinc-800/40 border border-gray-200/60 dark:border-white/5 space-y-1.5 text-[11px]">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-500 dark:text-zinc-400">Mode</span>
-                            <span className="font-semibold text-gray-900 dark:text-white capitalize">
-                              {shieldMode === 'server' ? 'Smart Link' : 'JS Tag'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-500 dark:text-zinc-400">Status</span>
-                            <span className={`font-semibold ${linkData.isActive ? 'text-emerald-500' : 'text-gray-400'}`}>
-                              {linkData.isActive ? 'Active' : 'Paused'}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-500 dark:text-zinc-400">Custom Domain</span>
-                            <span className="font-mono text-[10px] text-gray-900 dark:text-white truncate max-w-[120px]">
-                              {linkData.customDomain || 'Default'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </aside>
-              </div>
-            </div>
-          </>
-        );
-      })()}
+        {activeTab === 'analytics' && (
+          <LinkAnalyticsTab linkId={linkId} linkData={linkData} />
+        )}
+      </div>
     </div>
   );
 }

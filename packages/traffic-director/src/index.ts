@@ -1,4 +1,4 @@
-export * from './types';
+export * from './types/index';
 export * from './evaluator/signal-extractor';
 export * from './evaluator/decision-engine';
 export * from './evaluator/client-shield-generator';

@@ -19,17 +19,15 @@ import toast from 'react-hot-toast';
 import { getAuthToken, clearAuthTokens } from '@/lib/api';
 import { TrialBanner } from '@/components/shared/TrialBanner';
 import { TrafficDirectorSidebar } from '@/components/layout/TrafficDirectorSidebar';
+import { LinkDetailNavProvider, useLinkDetailNav } from '@/context/LinkDetailNavContext';
 
-export default function PlatformLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function PlatformLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isDark, setIsDark] = useState<boolean>(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const { isLinkDetail } = useLinkDetailNav();
 
   useEffect(() => {
     // Read theme
@@ -64,31 +62,6 @@ export default function PlatformLayout({
     } catch (_) {}
   }, [router]);
 
-  const toggleTheme = () => {
-    const nextDark = !isDark;
-    setIsDark(nextDark);
-    if (nextDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('180_theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('180_theme', 'light');
-    }
-  };
-
-  const navItems = [
-    { name: 'Smart Links', href: '/traffic-director/links', icon: LinkIcon },
-    { name: 'Traffic Logs', href: '/traffic-director/logs', icon: Layers },
-    { name: 'Edge Simulator', href: '/traffic-director/simulator', icon: Terminal },
-    { name: 'Threat Intelligence', href: '/traffic-director/threats', icon: ShieldCheck },
-    { name: 'Subscriptions', href: '/traffic-director/subscription', icon: CreditCard },
-    { name: 'Profile', href: '/traffic-director/profile', icon: User },
-  ];
-
-  const currentNav = navItems.find((n) => 
-    pathname.startsWith(n.href)
-  ) || { name: 'Smart Links' };
-
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-black text-gray-900 dark:text-zinc-100 transition-colors duration-200">
       {/* 180 Workspace & Developers Platform Standard Sidebar with Hover Expand/Collapse */}
@@ -117,8 +90,8 @@ export default function PlatformLayout({
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Page Body */}
-        <div className="p-6 md:p-8 max-w-7xl w-full mx-auto">
+        {/* Page Body - Expands gracefully for link detail page */}
+        <div className={`p-6 md:p-8 w-full ${isLinkDetail ? 'max-w-[1680px]' : 'max-w-7xl'} mx-auto transition-all duration-300`}>
           {children}
         </div>
       </main>
@@ -126,3 +99,14 @@ export default function PlatformLayout({
   );
 }
 
+export default function PlatformLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <LinkDetailNavProvider>
+      <PlatformLayoutInner>{children}</PlatformLayoutInner>
+    </LinkDetailNavProvider>
+  );
+}
