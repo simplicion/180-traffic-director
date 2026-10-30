@@ -55,6 +55,18 @@ const nextConfig = {
         source: '/evaluate/:path*',
         destination: `${backendUrl}/evaluate/:path*`,
       },
+      {
+        source: '/api/v1/traffic-director/:path*',
+        destination: `${backendUrl}/api/v1/traffic-director/:path*`,
+      },
+      {
+        source: '/pixel/event',
+        destination: `${backendUrl}/pixel/event`,
+      },
+      {
+        source: '/oauth/:path*',
+        destination: `${backendUrl}/oauth/:path*`,
+      },
     ];
   },
   async redirects() {

@@ -6,16 +6,11 @@ const router = Router();
 // Overview & Analytics
 router.get('/overview', TrafficDirectorController.getOverviewStats);
 router.get('/logs', TrafficDirectorController.getLogs);
-router.post('/simulate', TrafficDirectorController.simulate);
 router.get('/check-slug', TrafficDirectorController.checkSlug);
 router.post('/verify-tag', TrafficDirectorController.verifyTagInstallation);
 
-// Centralized Threat Intelligence & Blacklists
-router.get('/threats', TrafficDirectorController.getThreatIntelligence);
-router.post('/threats/toggle-feed', TrafficDirectorController.toggleThreatFeed);
+// Tor Exit Node Directory Sync
 router.post('/threats/sync-tor', TrafficDirectorController.syncTorExitNodes);
-router.post('/threats/custom', TrafficDirectorController.createCustomThreatEntry);
-router.delete('/threats/custom/:entryId', TrafficDirectorController.deleteCustomThreatEntry);
 
 // Links CRUD
 router.get('/links', TrafficDirectorController.getLinks);

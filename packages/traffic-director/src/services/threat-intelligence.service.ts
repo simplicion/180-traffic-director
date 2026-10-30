@@ -1,4 +1,4 @@
-import { ExtractedSignals } from '../types';
+import { ExtractedSignals, DEFAULT_LINK_THREAT_FEEDS, LinkThreatFeedsConfig, CustomThreatEntry } from '../types';
 import { TorExitSyncService } from './tor-exit-sync.service';
 
 export interface SystemThreatFeed {
@@ -12,16 +12,7 @@ export interface SystemThreatFeed {
   signatureCount: number;
 }
 
-export interface CustomThreatEntry {
-  id: string;
-  userId: string;
-  name: string;
-  type: 'ip' | 'cidr' | 'asn' | 'user_agent';
-  value: string;
-  mode: 'blacklist' | 'whitelist';
-  description?: string;
-  createdAt: string;
-}
+export { CustomThreatEntry, DEFAULT_LINK_THREAT_FEEDS };
 
 function ipToLong(ip: string): number {
   const parts = ip.split('.');
@@ -277,52 +268,70 @@ export class ThreatIntelligenceService {
   }
 
   /**
-   * Evaluates visitor signals against enabled global threat intelligence feeds
-   * and custom user blacklists/whitelists in < 1ms.
+   * Evaluates visitor signals against enabled threat intelligence feeds
+   * and custom blacklists/whitelists in < 1ms.
+   * Supports per-link configuration (threatFeeds & customThreatList).
    */
   static checkThreat(
     signals: ExtractedSignals,
-    userId?: string
+    threatFeedsOrUserId?: Record<string, boolean> | string | null,
+    customThreatList?: CustomThreatEntry[] | null
   ): { isThreat: boolean; isWhitelisted?: boolean; matchedFeed?: string; reason?: string } {
-    const effectiveUserId = userId || 'default';
-    const enabledSet = this.userEnabledFeeds.get(effectiveUserId);
+    let isFeedEnabled: (key: string) => boolean;
+    let customEntries: CustomThreatEntry[] = [];
 
-    const isFeedEnabled = (key: string) => (enabledSet ? enabledSet.has(key) : true);
+    if (typeof threatFeedsOrUserId === 'string') {
+      // Legacy global / user-scoped call
+      const effectiveUserId = threatFeedsOrUserId || 'default';
+      const enabledSet = this.userEnabledFeeds.get(effectiveUserId);
+      isFeedEnabled = (key: string) => (enabledSet ? enabledSet.has(key) : true);
+      customEntries = this.userCustomEntries.get(effectiveUserId) || [];
+    } else {
+      // Per-link threat intelligence configuration
+      const feeds = (threatFeedsOrUserId || {}) as Record<string, boolean>;
+      isFeedEnabled = (key: string) => feeds[key] !== false; // Enabled by default if undefined or true
+      customEntries = Array.isArray(customThreatList) ? customThreatList : [];
+    }
 
-    const ip = (signals.ipAddress || '').split(':')[0].trim();
+    const rawIp = signals.ipAddress || '';
+    const ip = rawIp.includes('::ffff:') ? rawIp.split('::ffff:')[1].trim() : rawIp.split(':')[0].trim();
     const ua = signals.userAgent || '';
-    const asn = signals.asnOrg ? parseInt(signals.asnOrg.replace(/\D/g, ''), 10) : undefined;
+    const asn = signals.asnOrg ? parseInt(signals.asnOrg.replace(/\D/g, ''), 10) : (signals.asn ? parseInt(String(signals.asn).replace(/\D/g, ''), 10) : undefined);
 
-    // 1. Check Custom User Whitelists first (Whitelist bypasses all firewalls)
-    const customEntries = this.userCustomEntries.get(effectiveUserId) || [];
+    // 1. Check Custom Whitelists first (Whitelist bypasses all firewalls & cloaks)
     for (const item of customEntries) {
-      if (item.mode === 'whitelist') {
+      const isWhitelist = item.mode === 'whitelist' || item.action === 'allow';
+      if (isWhitelist) {
         if (item.type === 'ip' && item.value === ip) {
-          return { isThreat: false, isWhitelisted: true, matchedFeed: 'Custom Whitelist', reason: `IP matched custom whitelist: ${item.name}` };
+          return { isThreat: false, isWhitelisted: true, matchedFeed: 'Custom Whitelist', reason: `IP matched custom whitelist: ${item.name || item.value}` };
         }
         if (item.type === 'cidr' && isIpInCidr(ip, item.value)) {
-          return { isThreat: false, isWhitelisted: true, matchedFeed: 'Custom Whitelist', reason: `Subnet matched custom whitelist: ${item.name}` };
+          return { isThreat: false, isWhitelisted: true, matchedFeed: 'Custom Whitelist', reason: `Subnet matched custom whitelist: ${item.name || item.value}` };
         }
         if (item.type === 'user_agent' && ua.toLowerCase().includes(item.value.toLowerCase())) {
-          return { isThreat: false, isWhitelisted: true, matchedFeed: 'Custom Whitelist', reason: `User-Agent matched custom whitelist: ${item.name}` };
+          return { isThreat: false, isWhitelisted: true, matchedFeed: 'Custom Whitelist', reason: `User-Agent matched custom whitelist: ${item.name || item.value}` };
+        }
+        if (item.type === 'asn' && (String(signals.asnOrg || '').toLowerCase().includes(item.value.toLowerCase()) || String(signals.asn || '') === item.value)) {
+          return { isThreat: false, isWhitelisted: true, matchedFeed: 'Custom Whitelist', reason: `ASN matched custom whitelist: ${item.name || item.value}` };
         }
       }
     }
 
-    // 2. Check Custom User Blacklists
+    // 2. Check Custom Blacklists
     for (const item of customEntries) {
-      if (item.mode === 'blacklist') {
+      const isBlacklist = item.mode === 'blacklist' || item.action === 'block' || (!item.mode && !item.action);
+      if (isBlacklist) {
         if (item.type === 'ip' && item.value === ip) {
-          return { isThreat: true, matchedFeed: 'Custom Blacklist', reason: `IP matched custom blacklist: ${item.name} (${item.value})` };
+          return { isThreat: true, matchedFeed: 'Custom Blacklist', reason: `IP matched custom blacklist: ${item.name || item.value} (${item.value})` };
         }
         if (item.type === 'cidr' && isIpInCidr(ip, item.value)) {
-          return { isThreat: true, matchedFeed: 'Custom Blacklist', reason: `IP in blacklisted subnet: ${item.name} (${item.value})` };
+          return { isThreat: true, matchedFeed: 'Custom Blacklist', reason: `IP in blacklisted subnet: ${item.name || item.value} (${item.value})` };
         }
         if (item.type === 'user_agent' && ua.toLowerCase().includes(item.value.toLowerCase())) {
-          return { isThreat: true, matchedFeed: 'Custom Blacklist', reason: `Blacklisted User-Agent signature: ${item.name}` };
+          return { isThreat: true, matchedFeed: 'Custom Blacklist', reason: `Blacklisted User-Agent signature: ${item.name || item.value}` };
         }
-        if (item.type === 'asn' && (signals.asnOrg || '').toLowerCase().includes(item.value.toLowerCase())) {
-          return { isThreat: true, matchedFeed: 'Custom Blacklist', reason: `Blacklisted ASN: ${item.name}` };
+        if (item.type === 'asn' && (String(signals.asnOrg || '').toLowerCase().includes(item.value.toLowerCase()) || String(signals.asn || '') === item.value)) {
+          return { isThreat: true, matchedFeed: 'Custom Blacklist', reason: `Blacklisted ASN: ${item.name || item.value}` };
         }
       }
     }
@@ -408,10 +417,26 @@ export class ThreatIntelligenceService {
     if (isFeedEnabled('cloud_datacenters')) {
       const feed = this.SYSTEM_FEEDS.cloud_datacenters;
       if (signals.networkType === 'datacenter') {
-        return { isThreat: true, matchedFeed: feed.name, reason: `Request originated from cloud hosting datacenter (${signals.asnOrg || 'Cloud Datacenter'})` };
+        if ((signals.asnOrg?.includes('Google') || asn === 15169 || asn === 396982) && !isFeedEnabled('google_compliance')) {
+          // Permitted because Google compliance was explicitly disabled
+        } else if ((signals.asnOrg?.includes('Meta') || asn === 32934 || asn === 63293) && !isFeedEnabled('meta_reviewers')) {
+          // Permitted because Meta compliance was explicitly disabled
+        } else if ((signals.asnOrg?.includes('ByteDance') || asn === 138699 || asn === 396986) && !isFeedEnabled('tiktok_qa')) {
+          // Permitted because TikTok compliance was explicitly disabled
+        } else {
+          return { isThreat: true, matchedFeed: feed.name, reason: `Request originated from cloud hosting datacenter (${signals.asnOrg || 'Cloud Datacenter'})` };
+        }
       }
       if (asn && feed.asns.includes(asn)) {
-        return { isThreat: true, matchedFeed: feed.name, reason: `Datacenter ASN flagged (AS${asn})` };
+        if ((asn === 15169 || asn === 396982) && !isFeedEnabled('google_compliance')) {
+          // Permitted because Google compliance was explicitly disabled
+        } else if ((asn === 32934 || asn === 63293) && !isFeedEnabled('meta_reviewers')) {
+          // Permitted because Meta compliance was explicitly disabled
+        } else if ((asn === 138699 || asn === 396986) && !isFeedEnabled('tiktok_qa')) {
+          // Permitted because TikTok compliance was explicitly disabled
+        } else {
+          return { isThreat: true, matchedFeed: feed.name, reason: `Datacenter ASN flagged (AS${asn})` };
+        }
       }
     }
 

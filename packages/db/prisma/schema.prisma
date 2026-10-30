@@ -117,6 +117,8 @@ model TrafficLink {
   shieldMode          String             @default("server") // server, client_shield, hybrid
   datacenterBlocked   Boolean            @default(true)
   safePageProxyMode   Boolean            @default(false)
+  threatFeeds         Json?
+  customThreatList    Json?
   rules               TrafficRule[]
   logs                TrafficLog[]
   pixelConfig         TrafficPixelConfig?
@@ -210,22 +212,36 @@ model TrafficLog {
 }
 
 model TrafficPixelConfig {
-  id             String              @id @default(uuid())
-  linkId         String              @unique
-  userId         String
-  masterPixelId  String
-  backupPixelIds String[]            @default([])
-  capiTokenEnc   String?
-  testEventCode  String?
-  enableCapi     Boolean             @default(true)
-  fireOnBots     Boolean             @default(false)
-  trackPageViews Boolean             @default(true)
-  trackOutbound  Boolean             @default(true)
-  events         TrafficPixelEvent[]
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  id                              String              @id @default(uuid())
+  linkId                          String              @unique
+  userId                          String
+  // Platform Selector: 'meta' | 'google' | 'both'
+  activePlatform                  String              @default("both")
+  
+  // Meta Ads Configuration
+  masterPixelId                   String?
+  backupPixelIds                  String[]            @default([])
+  capiTokenEnc                    String?
+  testEventCode                   String?
+  enableCapi                      Boolean             @default(true)
+  enableLdu                       Boolean             @default(false)     // Limited Data Use for CCPA/CPRA
 
-  link           TrafficLink         @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  // Google Ads Configuration
+  googleConversionId              String?             // e.g. "AW-123456789"
+  googleConversionLabels          Json?               // { "PageView": "AW-XXX/abc", "Lead": "AW-XXX/def" }
+  enableGoogleEnhancedConversions Boolean             @default(true)
+  enableGoogleConsentMode         Boolean             @default(true)
+  googleDefaultConsent            String              @default("granted") // "granted" | "denied"
+
+  // Shared Behaviors & Triggers
+  fireOnBots                      Boolean             @default(false)
+  trackPageViews                  Boolean             @default(true)
+  trackOutbound                   Boolean             @default(true)
+  events                          TrafficPixelEvent[]
+  createdAt                       DateTime            @default(now())
+  updatedAt                       DateTime            @updatedAt
+
+  link                            TrafficLink         @relation(fields: [linkId], references: [id], onDelete: Cascade)
 
   @@index([linkId])
   @@index([userId])
@@ -253,6 +269,7 @@ model TrafficPixelLog {
   id             String      @id @default(uuid())
   linkId         String
   userId         String?
+  platform       String      @default("meta") // 'meta' | 'google' | 'hybrid'
   pixelId        String
   eventId        String
   eventName      String
@@ -273,4 +290,5 @@ model TrafficPixelLog {
   @@index([linkId, timestamp])
   @@index([eventId])
   @@index([userId])
+  @@index([platform])
 }

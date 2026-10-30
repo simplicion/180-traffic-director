@@ -280,13 +280,6 @@ export default function SmartLinksDirectoryPage() {
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <Link
-              href="/traffic-director/simulator"
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-700/60 text-gray-700 dark:text-gray-200 text-xs font-semibold border border-gray-200 dark:border-zinc-700 transition active:scale-95"
-            >
-              <span>Simulator</span>
-            </Link>
-
-            <Link
               href="/traffic-director/logs"
               className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-700/60 text-gray-700 dark:text-gray-200 text-xs font-semibold border border-gray-200 dark:border-zinc-700 transition active:scale-95"
             >

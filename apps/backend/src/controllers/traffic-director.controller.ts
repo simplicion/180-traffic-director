@@ -3,7 +3,6 @@ import {
   TrafficLinksService, 
   TrafficRulesService, 
   TrafficAnalyticsService, 
-  TrafficSimulatorService,
   ThreatIntelligenceService,
   TorExitSyncService,
   TrafficDirectorBillingService,
@@ -289,7 +288,7 @@ export class TrafficDirectorController {
       const { 
         name, slug, description, fallbackUrl, customDomain, tags,
         warmupUntil, rampUpEnabled, rampUpDurationHours, shieldMode, datacenterBlocked,
-        safePageProxyMode
+        safePageProxyMode, threatFeeds, customThreatList
       } = req.body;
 
       if (!name || !slug || !fallbackUrl) {
@@ -309,7 +308,9 @@ export class TrafficDirectorController {
         rampUpDurationHours,
         shieldMode,
         datacenterBlocked,
-        safePageProxyMode
+        safePageProxyMode,
+        threatFeeds,
+        customThreatList
       });
 
       return res.status(201).json({ success: true, data: result });
@@ -526,17 +527,6 @@ export class TrafficDirectorController {
     } catch (error: any) {
       console.error('[TrafficDirectorController.getLogs]', error);
       return res.status(500).json({ success: false, error: error.message || 'Failed to fetch logs' });
-    }
-  }
-
-  static async simulate(req: Request, res: Response) {
-    try {
-      const userId = await TrafficDirectorController.getUserId(req);
-      const result = await TrafficSimulatorService.simulate(userId, req.body);
-      return res.json({ success: true, data: result });
-    } catch (error: any) {
-      console.error('[TrafficDirectorController.simulate]', error);
-      return res.status(400).json({ success: false, error: error.message || 'Simulation failed' });
     }
   }
 

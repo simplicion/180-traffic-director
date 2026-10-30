@@ -58,7 +58,7 @@ export default function CallbackPage() {
           window.location.hostname === '127.0.0.1';
         const apiBase = isLocal 
           ? 'http://localhost:4005'
-          : (process.env.NEXT_PUBLIC_API_URL || 'https://api.180trafficdirector.pro');
+          : (process.env.NEXT_PUBLIC_API_URL || 'https://edge.180trafficdirector.pro');
         const redirectUri = window.location.origin + '/callback';
         const pkceVerifier = sessionStorage.getItem('180_pkce_verifier') || undefined;
 

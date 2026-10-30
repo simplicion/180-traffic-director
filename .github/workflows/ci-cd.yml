@@ -254,7 +254,7 @@ jobs:
             const dnsRecords = await cfRequest(`/zones/${zoneId}/dns_records`);
             const records = dnsRecords.result || [];
 
-            const subdomains = ['edge', 'api'];
+            const subdomains = ['edge', 'api', 'trk'];
             for (const sub of subdomains) {
               const fullRecordName = `${sub}.${rootDomain}`;
               const existing = records.find(r => r.name === fullRecordName && r.type === 'A');

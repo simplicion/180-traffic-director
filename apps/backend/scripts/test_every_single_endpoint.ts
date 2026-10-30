@@ -366,22 +366,7 @@ async function runFullEndpointVerification() {
     enableCapi: true
   });
 
-  // 26. Simulator - POST /simulate
-  const sim = await req({ path: '/api/v1/traffic-director/simulate', method: 'POST', headers: authHeaders }, {
-    linkId,
-    simulatedCountry: 'CA',
-    simulatedNetworkType: 'residential',
-    simulatedUserAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-  });
-  logResult({
-    endpoint: '/api/v1/traffic-director/simulate',
-    method: 'POST',
-    status: sim.status,
-    passed: sim.status === 200 && sim.data?.success === true,
-    notes: `Simulation matched rule: ${sim.data?.data?.simulationResult?.matchedRuleName || 'none'}, destination: ${sim.data?.data?.simulationResult?.destinationUrl || sim.data?.data?.destinationUrl}`
-  });
-
-  // 27. Verify Tag - POST /verify-tag
+  // 26. Verify Tag - POST /verify-tag
   const verifyTag = await req({ path: '/api/v1/traffic-director/verify-tag', method: 'POST', headers: authHeaders }, {
     slug: testSlug,
     url: 'https://example.com'

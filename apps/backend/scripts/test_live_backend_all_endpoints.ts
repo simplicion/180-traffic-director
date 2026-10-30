@@ -327,38 +327,49 @@ async function runMasterTestBattery() {
   assert(logsRes.data?.success === true, 'Analytics', 'Logs payload success is true');
   assert(Array.isArray(logsRes.data?.data?.logs), 'Analytics', 'Logs returned as array');
 
-  // --- SUITE 10: Threat Intelligence & Centralized Blacklists ----------------
-  console.log('\n[SUITE 10: Threat Intelligence & Centralized Blacklists]');
-  const threatsRes = await req({
-    path: '/api/v1/traffic-director/threats',
-    method: 'GET',
-    headers: authHeaders
-  });
-  assert(threatsRes.status === 200, 'Threats', 'GET /threats returns 200');
-  assert(threatsRes.data?.success === true, 'Threats', 'Threat intelligence active');
-
-  // Add custom IP blacklist entry
-  const customThreat = await req({
-    path: '/api/v1/traffic-director/threats/custom',
+  // --- SUITE 10: Per-Link Threat Intelligence & Tor Sync -------------------
+  console.log('\n[SUITE 10: Per-Link Threat Intelligence & Tor Sync]');
+  
+  // 1. Sync Tor exit nodes
+  const torSyncRes = await req({
+    path: '/api/v1/traffic-director/threats/sync-tor',
     method: 'POST',
     headers: authHeaders
-  }, {
-    name: 'E2E Malicious Scraper Test',
-    type: 'IP_ADDRESS',
-    value: '198.51.100.99',
-    description: 'Malicious scraper IP detected during production test',
-    action: 'BLOCK'
   });
-  assert(customThreat.status === 200 || customThreat.status === 201, 'Threats', 'POST /threats/custom creates entry', customThreat.data);
-  const entryId = customThreat.data?.data?.id;
+  assert(torSyncRes.status === 200, 'Threats', 'POST /threats/sync-tor returns 200');
+  assert(torSyncRes.data?.success === true || Boolean(torSyncRes.data?.count), 'Threats', 'Tor sync completed');
 
-  if (entryId) {
-    const deleteThreat = await req({
-      path: `/api/v1/traffic-director/threats/custom/${entryId}`,
-      method: 'DELETE',
+  // 2. Verify per-link threat intelligence configuration and custom rules
+  if (createdLink && createdLink.id) {
+    const updateThreatsRes = await req({
+      path: `/api/v1/traffic-director/links/${createdLink.id}`,
+      method: 'PUT',
       headers: authHeaders
+    }, {
+      threatFeeds: {
+        meta_reviewers: true,
+        google_compliance: false,
+        tiktok_qa: true,
+        spy_scrapers: true,
+        tor_network: true,
+        cloud_datacenters: true
+      },
+      customThreatList: [
+        {
+          id: 'custom_threat_test_1',
+          type: 'ip',
+          value: '198.51.100.99',
+          action: 'block',
+          note: 'E2E Malicious Scraper Test',
+          createdAt: new Date().toISOString()
+        }
+      ]
     });
-    assert(deleteThreat.status === 200, 'Threats', 'DELETE /threats/custom/:id removes entry');
+
+    assert(updateThreatsRes.status === 200, 'Threats', 'PUT /links/:id updates per-link threat feeds', updateThreatsRes.data);
+    const updated = updateThreatsRes.data?.data?.link || updateThreatsRes.data?.data;
+    assert(updated?.threatFeeds?.google_compliance === false, 'Threats', 'Link threatFeeds.google_compliance updated to false');
+    assert(updated?.customThreatList?.length === 1, 'Threats', 'Link customThreatList persisted 1 rule');
   }
 
   // --- SUITE 11: Multi-Tenant Boundary Security ------------------------------

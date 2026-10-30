@@ -105,6 +105,45 @@ export interface EvaluationResult {
   rampUpApplied?: boolean;
 }
 
+export interface LinkThreatFeedsConfig {
+  meta_reviewers: boolean;
+  google_compliance: boolean;
+  tiktok_qa: boolean;
+  spy_scrapers: boolean;
+  tor_network: boolean;
+  cloud_datacenters: boolean;
+  [key: string]: boolean;
+}
+
+export const DEFAULT_LINK_THREAT_FEEDS: LinkThreatFeedsConfig = {
+  meta_reviewers: true,
+  google_compliance: true,
+  tiktok_qa: true,
+  spy_scrapers: true,
+  tor_network: true,
+  cloud_datacenters: true,
+};
+
+export interface CustomThreatEntry {
+  id: string;
+  userId?: string;
+  name?: string;
+  type: 'ip' | 'cidr' | 'asn' | 'user_agent';
+  value: string;
+  action?: 'block' | 'allow';
+  mode?: 'blacklist' | 'whitelist';
+  note?: string;
+  description?: string;
+  createdAt: string;
+}
+
+export interface ThreatCheckResult {
+  isThreat: boolean;
+  isWhitelisted?: boolean;
+  matchedFeed?: string;
+  reason?: string;
+}
+
 export interface CreateTrafficLinkDTO {
   userId?: string;
   name: string;
@@ -119,6 +158,8 @@ export interface CreateTrafficLinkDTO {
   shieldMode?: 'server' | 'client_shield' | 'hybrid';
   datacenterBlocked?: boolean;
   safePageProxyMode?: boolean;
+  threatFeeds?: LinkThreatFeedsConfig | Record<string, boolean>;
+  customThreatList?: CustomThreatEntry[];
 }
 
 export interface UpdateTrafficLinkDTO {
@@ -135,6 +176,8 @@ export interface UpdateTrafficLinkDTO {
   shieldMode?: 'server' | 'client_shield' | 'hybrid';
   datacenterBlocked?: boolean;
   safePageProxyMode?: boolean;
+  threatFeeds?: LinkThreatFeedsConfig | Record<string, boolean>;
+  customThreatList?: CustomThreatEntry[];
 }
 
 export interface CreateTrafficRuleDTO {
@@ -252,8 +295,10 @@ export interface LinkAnalyticsResponse {
 }
 
 // ==========================================
-// UNIVERSAL META PIXEL & CAPI TYPES
+// UNIVERSAL MULTI-PLATFORM PIXEL & CAPI TYPES
 // ==========================================
+
+export type AdvertisingPlatformMode = 'meta' | 'google' | 'both';
 
 export type PixelTriggerType = 'form_submit' | 'click' | 'element_visible' | 'url_match' | 'custom_js';
 
@@ -270,11 +315,24 @@ export interface PixelEventDto {
 
 export interface UpsertPixelConfigDto {
   linkId: string;
-  masterPixelId: string;
+  activePlatform?: AdvertisingPlatformMode;
+  
+  // Meta Ads Configuration
+  masterPixelId?: string | null;
   backupPixelIds?: string[];
   capiToken?: string;
   testEventCode?: string;
   enableCapi?: boolean;
+  enableLdu?: boolean;
+
+  // Google Ads Configuration
+  googleConversionId?: string | null;
+  googleConversionLabels?: Record<string, string> | null;
+  enableGoogleEnhancedConversions?: boolean;
+  enableGoogleConsentMode?: boolean;
+  googleDefaultConsent?: 'granted' | 'denied';
+
+  // Shared Behaviors & Triggers
   fireOnBots?: boolean;
   trackPageViews?: boolean;
   trackOutbound?: boolean;
@@ -285,11 +343,24 @@ export interface PixelConfigResponse {
   id: string;
   linkId: string;
   userId: string;
-  masterPixelId: string;
+  activePlatform: AdvertisingPlatformMode;
+
+  // Meta Ads Configuration
+  masterPixelId: string | null;
   backupPixelIds: string[];
   hasCapiToken: boolean;
   testEventCode?: string | null;
   enableCapi: boolean;
+  enableLdu: boolean;
+
+  // Google Ads Configuration
+  googleConversionId: string | null;
+  googleConversionLabels: Record<string, string> | null;
+  enableGoogleEnhancedConversions: boolean;
+  enableGoogleConsentMode: boolean;
+  googleDefaultConsent: string;
+
+  // Shared Behaviors & Triggers
   fireOnBots: boolean;
   trackPageViews: boolean;
   trackOutbound: boolean;
@@ -306,10 +377,24 @@ export interface CapiUserData {
   fbp?: string;
   fbc?: string;
   country?: string[];
-  fn?: string[];
-  ln?: string[];
-  ct?: string[];
-  zp?: string[];
+  fn?: string[]; // First Name
+  ln?: string[]; // Last Name
+  ct?: string[]; // City
+  st?: string[]; // State / Province
+  zp?: string[]; // Postal Code
+  external_id?: string[];
+}
+
+export interface GoogleEnhancedUserData {
+  email?: string;
+  phone_number?: string;
+  first_name?: string;
+  last_name?: string;
+  street?: string;
+  city?: string;
+  region?: string;
+  postal_code?: string;
+  country?: string;
 }
 
 export interface CapiCustomData {
@@ -334,5 +419,3 @@ export interface CapiEventPayload {
   custom_data?: CapiCustomData;
   opt_out?: boolean;
 }
-
-

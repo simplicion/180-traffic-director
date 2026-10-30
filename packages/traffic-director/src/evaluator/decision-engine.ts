@@ -117,8 +117,12 @@ export class DecisionEngine {
       };
     }
 
-    // 5. Global Threat Intelligence Check (Meta Dublin QA, Google Policy Scanners, TikTok QA, Custom Blacklists)
-    const threatCheck = ThreatIntelligenceService.checkThreat(signals);
+    // 5. Per-Link Threat Intelligence & Cloaking Check (Meta Dublin QA, Google Policy Scanners, TikTok QA, Tor, Datacenters, Custom Blacklists)
+    const threatCheck = ThreatIntelligenceService.checkThreat(
+      signals,
+      (link as any).threatFeeds as Record<string, boolean> | undefined,
+      (link as any).customThreatList as any[] | undefined
+    );
     if (threatCheck.isThreat) {
       const elapsed = Math.round(performance.now() - startTime);
       return {
@@ -177,7 +181,7 @@ export class DecisionEngine {
       }
 
       // Check if ALL conditions match (AND logic)
-      const allMatched = conditions.length === 0 || conditions.every(cond => this.evaluateCondition(cond, signals));
+      const allMatched = conditions.length === 0 || conditions.every(cond => this.evaluateCondition(cond, signals, link));
 
       if (allMatched) {
         // Weighted check if weight is specified (< 100)
@@ -214,7 +218,7 @@ export class DecisionEngine {
     };
   }
 
-  static evaluateCondition(cond: RuleCondition, signals: ExtractedSignals): boolean {
+  static evaluateCondition(cond: RuleCondition, signals: ExtractedSignals, link?: any): boolean {
     let actualValue: any;
 
     switch (cond.type) {
@@ -294,7 +298,11 @@ export class DecisionEngine {
         break;
       }
       case 'threat_list': {
-        const threatCheck = ThreatIntelligenceService.checkThreat(signals);
+        const threatCheck = ThreatIntelligenceService.checkThreat(
+          signals,
+          link?.threatFeeds,
+          link?.customThreatList
+        );
         const isThreat = Boolean(threatCheck.isThreat || signals.isBot || signals.isSpyService || signals.isTor || signals.networkType === 'datacenter');
         const exp = String(cond.value || '').toLowerCase().trim();
         if (exp === 'clean' || exp === 'false' || exp === 'safe') {

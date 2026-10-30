@@ -35,7 +35,7 @@ interface MockEdgeRequest {
 
 const mockEdgeRequests: MockEdgeRequest[] = [
   {
-    host: 'trk.180traffic.com',
+    host: 'edge.180trafficdirector.pro',
     url: '/tag/summer-sale.js',
     slug: 'summer-sale',
     expectedDomainType: 'dedicated_platform'
@@ -56,7 +56,7 @@ const mockEdgeRequests: MockEdgeRequest[] = [
 
 mockEdgeRequests.forEach((req) => {
   runTest(`Resolves tag request on host: ${req.host} (${req.expectedDomainType})`, () => {
-    const isDedicated = req.host === 'trk.180traffic.com';
+    const isDedicated = req.host === 'edge.180trafficdirector.pro' || req.host === 'trk.180trafficdirector.pro';
     const domainType = isDedicated ? 'dedicated_platform' : 'custom_cname';
     assert.strictEqual(domainType, req.expectedDomainType);
 

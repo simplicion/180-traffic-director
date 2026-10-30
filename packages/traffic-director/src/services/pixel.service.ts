@@ -8,10 +8,12 @@ import {
 } from '../types';
 
 /**
- * Universal Meta Pixel & Conversions API (CAPI) Service
+ * Universal Multi-Platform Advertising Pixel & Conversions API (CAPI) Service
  * 
- * Manages multi-pixel configurations, cryptographic access token encryption (AES-256-GCM),
- * user data hashing conforming to Meta Graph API v19.0+, and user-scoped configuration.
+ * Manages:
+ * 1. Meta Pixel & Meta Conversions API (CAPI v19.0+) with AES-256-GCM token encryption
+ * 2. Google Ads (gtag.js) Conversion IDs, Labels, Enhanced Conversions, and Consent Mode v2
+ * 3. Dynamic platform switching ('meta' | 'google' | 'both') with multi-tenant user isolation.
  */
 export class PixelManagerService {
   private static readonly ALGORITHM = 'aes-256-gcm';
@@ -128,15 +130,22 @@ export class PixelManagerService {
 
   /**
    * Prepares and normalizes client user data for Meta Graph API v19.0 Conversions API.
+   * Maximizes Event Match Quality (EMQ) by mapping all available customer identity keys.
    */
   static normalizeUserData(raw: {
     email?: string;
     phone?: string;
+    firstName?: string;
+    lastName?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+    externalId?: string;
     ipAddress?: string;
     userAgent?: string;
     fbp?: string;
     fbc?: string;
-    country?: string;
   }): CapiUserData {
     const result: CapiUserData = {};
 
@@ -148,6 +157,41 @@ export class PixelManagerService {
     if (raw.phone) {
       const hashedPh = this.normalizePhone(raw.phone);
       if (hashedPh) result.ph = [hashedPh];
+    }
+
+    if (raw.firstName) {
+      const hashedFn = this.hashSha256(raw.firstName.trim().toLowerCase().replace(/[^a-z]/g, ''));
+      if (hashedFn) result.fn = [hashedFn];
+    }
+
+    if (raw.lastName) {
+      const hashedLn = this.hashSha256(raw.lastName.trim().toLowerCase().replace(/[^a-z]/g, ''));
+      if (hashedLn) result.ln = [hashedLn];
+    }
+
+    if (raw.city) {
+      const hashedCt = this.hashSha256(raw.city.trim().toLowerCase().replace(/[^a-z]/g, ''));
+      if (hashedCt) result.ct = [hashedCt];
+    }
+
+    if (raw.state) {
+      const hashedSt = this.hashSha256(raw.state.trim().toLowerCase());
+      if (hashedSt) result.st = [hashedSt];
+    }
+
+    if (raw.postalCode) {
+      const hashedZp = this.hashSha256(raw.postalCode.trim().toLowerCase().replace(/\s/g, ''));
+      if (hashedZp) result.zp = [hashedZp];
+    }
+
+    if (raw.country) {
+      const hashedCountry = this.hashSha256(raw.country.trim().toLowerCase());
+      if (hashedCountry) result.country = [hashedCountry];
+    }
+
+    if (raw.externalId) {
+      const hashedExt = this.hashSha256(raw.externalId.trim());
+      if (hashedExt) result.external_id = [hashedExt];
     }
 
     if (raw.ipAddress) {
@@ -166,11 +210,6 @@ export class PixelManagerService {
       result.fbc = raw.fbc.trim();
     }
 
-    if (raw.country) {
-      const hashedCountry = this.hashSha256(raw.country.trim().toLowerCase());
-      if (hashedCountry) result.country = [hashedCountry];
-    }
-
     return result;
   }
 
@@ -179,12 +218,31 @@ export class PixelManagerService {
   // ==========================================
 
   /**
-   * Validates if a string looks like a standard Meta Pixel ID (numeric, 14-17 digits).
+   * Validates if a string looks like a standard Meta Pixel ID (numeric, 12-18 digits).
    */
   static validatePixelId(pixelId: string): boolean {
     if (!pixelId || typeof pixelId !== 'string') return false;
     const clean = pixelId.trim();
     return /^\d{12,18}$/.test(clean);
+  }
+
+  /**
+   * Validates if a string matches Google Conversion ID format (AW-XXXXXXXXX or digits).
+   */
+  static validateGoogleConversionId(googleId: string): boolean {
+    if (!googleId || typeof googleId !== 'string') return false;
+    const clean = googleId.trim().toUpperCase();
+    return /^AW-\d{6,15}$/.test(clean) || /^\d{6,15}$/.test(clean);
+  }
+
+  /**
+   * Validates if a string matches a Google Ads conversion action label.
+   * e.g. "AW-123456789/AbC_DeFg123" or action label suffix "AbC_DeFg123"
+   */
+  static validateConversionLabel(label: string): boolean {
+    if (!label || typeof label !== 'string') return false;
+    const clean = label.trim();
+    return /^(AW-\d{6,15}\/)?[A-Za-z0-9_-]{3,50}$/.test(clean);
   }
 
   /**
@@ -217,11 +275,18 @@ export class PixelManagerService {
       id: cfg.id,
       linkId: cfg.linkId,
       userId: cfg.userId,
+      activePlatform: (cfg.activePlatform as any) || 'both',
       masterPixelId: cfg.masterPixelId,
       backupPixelIds: cfg.backupPixelIds || [],
       hasCapiToken: Boolean(cfg.capiTokenEnc && cfg.capiTokenEnc.length > 0),
       testEventCode: cfg.testEventCode,
       enableCapi: cfg.enableCapi,
+      enableLdu: cfg.enableLdu,
+      googleConversionId: cfg.googleConversionId,
+      googleConversionLabels: (cfg.googleConversionLabels as any) || null,
+      enableGoogleEnhancedConversions: cfg.enableGoogleEnhancedConversions,
+      enableGoogleConsentMode: cfg.enableGoogleConsentMode,
+      googleDefaultConsent: cfg.googleDefaultConsent,
       fireOnBots: cfg.fireOnBots,
       trackPageViews: cfg.trackPageViews,
       trackOutbound: cfg.trackOutbound,
@@ -247,10 +312,23 @@ export class PixelManagerService {
     if (!userId) throw new Error('User ID is required');
     if (!dto.linkId) throw new Error('Link ID is required');
 
-    // 1. Validate master pixel format
-    const cleanMaster = (dto.masterPixelId || '').trim();
-    if (!cleanMaster) {
-      throw new Error('Master Meta Pixel ID is required');
+    const activePlatform = dto.activePlatform || 'both';
+
+    // 1. Validate platform-specific IDs
+    let cleanMaster = (dto.masterPixelId || '').trim();
+    let cleanGoogleId = (dto.googleConversionId || '').trim();
+    if (cleanGoogleId && !cleanGoogleId.toUpperCase().startsWith('AW-') && /^\d+$/.test(cleanGoogleId)) {
+      cleanGoogleId = `AW-${cleanGoogleId}`;
+    }
+
+    if (activePlatform === 'meta' && !cleanMaster) {
+      throw new Error('Master Meta Pixel ID is required for Meta Ads');
+    }
+    if (activePlatform === 'google' && !cleanGoogleId) {
+      throw new Error('Google Conversion ID (AW-XXXXX) is required for Google Ads');
+    }
+    if (activePlatform === 'both' && !cleanMaster && !cleanGoogleId) {
+      throw new Error('Please configure at least one Meta Pixel ID or Google Conversion ID');
     }
 
     // 2. Validate multi-tenant access to link
@@ -282,10 +360,17 @@ export class PixelManagerService {
 
     if (existing) {
       const updateData: any = {
-        masterPixelId: cleanMaster,
+        activePlatform,
+        masterPixelId: cleanMaster || null,
         backupPixelIds: cleanBackups,
         testEventCode: dto.testEventCode !== undefined ? (dto.testEventCode?.trim() || null) : existing.testEventCode,
         enableCapi: dto.enableCapi !== undefined ? dto.enableCapi : existing.enableCapi,
+        enableLdu: dto.enableLdu !== undefined ? dto.enableLdu : existing.enableLdu,
+        googleConversionId: cleanGoogleId || null,
+        googleConversionLabels: dto.googleConversionLabels !== undefined ? dto.googleConversionLabels : existing.googleConversionLabels,
+        enableGoogleEnhancedConversions: dto.enableGoogleEnhancedConversions !== undefined ? dto.enableGoogleEnhancedConversions : existing.enableGoogleEnhancedConversions,
+        enableGoogleConsentMode: dto.enableGoogleConsentMode !== undefined ? dto.enableGoogleConsentMode : existing.enableGoogleConsentMode,
+        googleDefaultConsent: dto.googleDefaultConsent || existing.googleDefaultConsent || 'granted',
         fireOnBots: dto.fireOnBots !== undefined ? dto.fireOnBots : existing.fireOnBots,
         trackPageViews: dto.trackPageViews !== undefined ? dto.trackPageViews : existing.trackPageViews,
         trackOutbound: dto.trackOutbound !== undefined ? dto.trackOutbound : existing.trackOutbound
@@ -305,11 +390,18 @@ export class PixelManagerService {
         data: {
           linkId: dto.linkId,
           userId,
-          masterPixelId: cleanMaster,
+          activePlatform,
+          masterPixelId: cleanMaster || null,
           backupPixelIds: cleanBackups,
           capiTokenEnc: capiTokenEnc || null,
           testEventCode: dto.testEventCode?.trim() || null,
           enableCapi: dto.enableCapi !== undefined ? dto.enableCapi : true,
+          enableLdu: dto.enableLdu !== undefined ? dto.enableLdu : false,
+          googleConversionId: cleanGoogleId || null,
+          googleConversionLabels: dto.googleConversionLabels || null,
+          enableGoogleEnhancedConversions: dto.enableGoogleEnhancedConversions !== undefined ? dto.enableGoogleEnhancedConversions : true,
+          enableGoogleConsentMode: dto.enableGoogleConsentMode !== undefined ? dto.enableGoogleConsentMode : true,
+          googleDefaultConsent: dto.googleDefaultConsent || 'granted',
           fireOnBots: dto.fireOnBots !== undefined ? dto.fireOnBots : false,
           trackPageViews: dto.trackPageViews !== undefined ? dto.trackPageViews : true,
           trackOutbound: dto.trackOutbound !== undefined ? dto.trackOutbound : true
@@ -320,7 +412,6 @@ export class PixelManagerService {
 
     // 6. Handle event definitions if provided
     if (Array.isArray(dto.events)) {
-      // Replace existing events with new set
       await prisma.trafficPixelEvent.deleteMany({
         where: { configId: savedConfig.id }
       });
@@ -350,11 +441,18 @@ export class PixelManagerService {
       id: savedConfig.id,
       linkId: savedConfig.linkId,
       userId: savedConfig.userId,
+      activePlatform: (savedConfig.activePlatform as any) || 'both',
       masterPixelId: savedConfig.masterPixelId,
       backupPixelIds: savedConfig.backupPixelIds || [],
       hasCapiToken: Boolean(savedConfig.capiTokenEnc && savedConfig.capiTokenEnc.length > 0),
       testEventCode: savedConfig.testEventCode,
       enableCapi: savedConfig.enableCapi,
+      enableLdu: savedConfig.enableLdu,
+      googleConversionId: savedConfig.googleConversionId,
+      googleConversionLabels: (savedConfig.googleConversionLabels as any) || null,
+      enableGoogleEnhancedConversions: savedConfig.enableGoogleEnhancedConversions,
+      enableGoogleConsentMode: savedConfig.enableGoogleConsentMode,
+      googleDefaultConsent: savedConfig.googleDefaultConsent,
       fireOnBots: savedConfig.fireOnBots,
       trackPageViews: savedConfig.trackPageViews,
       trackOutbound: savedConfig.trackOutbound,

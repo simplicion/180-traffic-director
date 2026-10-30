@@ -26,7 +26,7 @@ console.log('🧪 1. Testing Dynamic Tag Compilation & Multi-Pixel Injection...'
 
 const mockConfig = {
   slug: 'promo-summer-2026',
-  apiBaseUrl: 'https://trk.180traffic.com',
+  apiBaseUrl: 'https://edge.180trafficdirector.pro',
   masterPixelId: '112233445566778',
   backupPixelIds: ['998877665544332', '554433221100998'],
   fireOnBots: false,

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   ArrowLeft, Plus, Play, Layers, Power, Check, Copy, Code, 
-  BarChart3, Lock, Sparkles 
+  BarChart3, Lock, Sparkles, ShieldCheck 
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -17,6 +17,7 @@ import CreateRuleModal from '../../../_components/CreateRuleModal';
 import EditRuleModal from '../../../_components/EditRuleModal';
 import EmbedTagModal from '../../../_components/EmbedTagModal';
 import EditLinkModal from '../../../_components/EditLinkModal';
+import LinkThreatDrawer from './_components/LinkThreatDrawer';
 import LinkAnalyticsTab from './_components/LinkAnalyticsTab';
 import LinkPixelTab from './_components/LinkPixelTab';
 import LinkRoutingRulesTab from './_components/LinkRoutingRulesTab';
@@ -55,6 +56,7 @@ export default function SmartLinkRuleCanvasPage() {
   const [editingRule, setEditingRule] = useState<any>(null);
   const [isEmbedModalOpen, setIsEmbedModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isThreatDrawerOpen, setIsThreatDrawerOpen] = useState(false);
   const [deleteRuleConfirm, setDeleteRuleConfirm] = useState<{ isOpen: boolean; rule: any; loading: boolean }>({
     isOpen: false,
     rule: null,
@@ -251,19 +253,19 @@ export default function SmartLinkRuleCanvasPage() {
   const navItems = [
     {
       id: 'rules' as const,
-      name: 'Routing Rules & Setup',
+      name: 'Rules',
       icon: Layers,
       badge: String(linkData?.rules?.length || 0),
     },
     {
       id: 'pixel' as const,
-      name: 'Universal Meta Pixel & CAPI',
+      name: 'Pixel Manager',
       icon: Sparkles,
       badge: 'CAPI',
     },
     {
       id: 'analytics' as const,
-      name: 'Traffic Analytics',
+      name: 'Analytics',
       icon: BarChart3,
       badge: `${linkData?.totalClicks || 0} views`,
     }
@@ -302,6 +304,14 @@ export default function SmartLinkRuleCanvasPage() {
         onClose={() => setIsEditModalOpen(false)}
         link={linkData}
         onSuccess={() => fetchLinkDetails()}
+      />
+
+      <LinkThreatDrawer
+        isOpen={isThreatDrawerOpen}
+        onClose={() => setIsThreatDrawerOpen(false)}
+        linkId={linkId}
+        linkData={linkData}
+        onUpdated={() => fetchLinkDetails()}
       />
 
       <ConfirmModal
@@ -387,6 +397,15 @@ export default function SmartLinkRuleCanvasPage() {
           </button>
 
           <button
+            onClick={() => setIsThreatDrawerOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/50 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition cursor-pointer"
+            title="Configure Per-Link Threat Shields & Custom Blacklists"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Threat Shield ({linkData?.threatFeeds && typeof linkData.threatFeeds === 'object' ? Object.values(linkData.threatFeeds).filter(Boolean).length : 6} Feeds)</span>
+          </button>
+
+          <button
             onClick={() => setIsEditModalOpen(true)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold transition cursor-pointer"
           >
@@ -399,13 +418,6 @@ export default function SmartLinkRuleCanvasPage() {
             <Code className="w-3.5 h-3.5" />
             <span>{shieldMode === 'client_shield' ? 'Get Embed Snippets' : 'Smart Link Setup'}</span>
           </button>
-          <Link
-            href={`/traffic-director/simulator?linkId=${linkId}`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-900/50 text-xs font-semibold hover:bg-purple-100 transition"
-          >
-            <Play className="w-3.5 h-3.5" />
-            Simulate
-          </Link>
           <button
             onClick={() => {
               if (!cloakingEnabled) {
@@ -427,17 +439,17 @@ export default function SmartLinkRuleCanvasPage() {
         </div>
       </div>
 
-      {/* Mobile Horizontal Tabs (< lg screens for instant touch switching) */}
-      <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+      {/* Canvas Navigation Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-gray-200 dark:border-zinc-800 pb-3">
         {navItems.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => setActiveTab(item.id)}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer ${
               activeTab === item.id
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                : 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300'
+                : 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800'
             }`}
           >
             <item.icon className="w-3.5 h-3.5" />

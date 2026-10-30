@@ -1,5 +1,5 @@
 import { prisma, requestContext } from '@workspace/db';
-import { CreateTrafficLinkDTO, UpdateTrafficLinkDTO } from '../types';
+import { CreateTrafficLinkDTO, UpdateTrafficLinkDTO, DEFAULT_LINK_THREAT_FEEDS } from '../types';
 import { TrafficDirectorBillingService } from './billing.service';
 
 const db = prisma as any;
@@ -123,6 +123,10 @@ export class TrafficLinksService {
     (link as any).blockSpyServices = tags.length === 0 ? true : tags.includes('block_spy');
     (link as any).blockVpn = tags.length === 0 ? true : tags.includes('block_vpn');
 
+    if (link) {
+      if (!link.threatFeeds) link.threatFeeds = DEFAULT_LINK_THREAT_FEEDS;
+      if (!link.customThreatList) link.customThreatList = [];
+    }
     return { link };
   }
 
@@ -160,6 +164,10 @@ export class TrafficLinksService {
       } catch (e) {}
     }
 
+    if (link) {
+      if (!link.threatFeeds) link.threatFeeds = DEFAULT_LINK_THREAT_FEEDS;
+      if (!link.customThreatList) link.customThreatList = [];
+    }
     return link;
   }
 
@@ -280,7 +288,9 @@ export class TrafficLinksService {
         rampUpEnabled: data.rampUpEnabled !== undefined ? data.rampUpEnabled : true,
         rampUpDurationHours: data.rampUpDurationHours !== undefined ? Number(data.rampUpDurationHours) : 12,
         shieldMode: data.shieldMode || 'server',
-        datacenterBlocked: data.datacenterBlocked ?? true
+        datacenterBlocked: data.datacenterBlocked ?? true,
+        threatFeeds: data.threatFeeds !== undefined ? data.threatFeeds : DEFAULT_LINK_THREAT_FEEDS,
+        customThreatList: data.customThreatList !== undefined ? data.customThreatList : []
       },
       include: {
         rules: true
@@ -385,6 +395,8 @@ export class TrafficLinksService {
     if (data.rampUpDurationHours !== undefined) updateData.rampUpDurationHours = Number(data.rampUpDurationHours);
     if (data.shieldMode !== undefined) updateData.shieldMode = data.shieldMode;
     if (data.datacenterBlocked !== undefined) updateData.datacenterBlocked = data.datacenterBlocked;
+    if (data.threatFeeds !== undefined) updateData.threatFeeds = data.threatFeeds;
+    if (data.customThreatList !== undefined) updateData.customThreatList = data.customThreatList;
 
     const updated = await db.trafficLink.update({
       where: { id: linkId },

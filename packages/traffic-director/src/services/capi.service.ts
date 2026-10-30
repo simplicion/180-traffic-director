@@ -11,7 +11,13 @@ export interface IngestPixelEventParams {
   userData?: {
     email?: string;
     phone?: string;
+    firstName?: string;
+    lastName?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
     country?: string;
+    externalId?: string;
     fbp?: string;
     fbc?: string;
   };
@@ -78,6 +84,16 @@ export class CapiDispatcherService {
 
     const cfg = link.pixelConfig;
 
+    // If Meta is not active on this link, skip Meta CAPI
+    if (cfg.activePlatform === 'google' || !cfg.masterPixelId) {
+      return {
+        success: true,
+        eventId,
+        capiFired: false,
+        isBotFiltered: false
+      };
+    }
+
     // 2. Bot Shield Check (Preserve Meta Ads Machine Learning)
     if (isBot && !cfg.fireOnBots) {
       // Record suppressed event in pixel log for audit transparency
@@ -87,7 +103,8 @@ export class CapiDispatcherService {
             data: {
               linkId: link.id,
               userId: link.userId,
-              pixelId: cfg.masterPixelId,
+              platform: cfg.activePlatform === 'google' ? 'google' : 'meta',
+              pixelId: (cfg.activePlatform === 'google' ? cfg.googleConversionId : cfg.masterPixelId) || 'pixel',
               eventId,
               eventName,
               deliverySource: 'server_capi',
@@ -109,6 +126,40 @@ export class CapiDispatcherService {
         capiFired: false,
         isBotFiltered: true,
         error: 'Event filtered: bot/emulated traffic suppressed'
+      };
+    }
+
+    // 2b. If Google Only platform mode, record Google Ads Enhanced telemetry
+    if (cfg.activePlatform === 'google') {
+      setImmediate(async () => {
+        try {
+          await prisma.trafficPixelLog.create({
+            data: {
+              linkId: link.id,
+              userId: link.userId,
+              platform: 'google',
+              pixelId: cfg.googleConversionId || 'AW-GOOGLE',
+              eventId,
+              eventName,
+              deliverySource: 'gtag_enhanced',
+              browserFired: true,
+              capiFired: false,
+              capiStatus: 'gtag_dispatched',
+              capiLatencyMs: Date.now() - startTime,
+              isBotFiltered: false,
+              ipAddress: clientIp || null,
+              userAgent: userAgent || null
+            }
+          });
+        } catch (err) {}
+      });
+
+      return {
+        success: true,
+        eventId,
+        browserFired: true,
+        capiFired: false,
+        isBotFiltered: false
       };
     }
 
@@ -134,11 +185,17 @@ export class CapiDispatcherService {
       };
     }
 
-    // 5. Assemble Normalized Meta CAPI Payload
+    // 5. Assemble Normalized Meta CAPI Payload (Advanced Matching)
     const normalizedUserData: CapiUserData = PixelManagerService.normalizeUserData({
       email: userData.email,
       phone: userData.phone,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      city: userData.city,
+      state: userData.state,
+      postalCode: userData.postalCode,
       country: userData.country,
+      externalId: userData.externalId,
       ipAddress: clientIp,
       userAgent,
       fbp: userData.fbp,
@@ -161,6 +218,12 @@ export class CapiDispatcherService {
 
     if (cfg.testEventCode) {
       requestBody.test_event_code = cfg.testEventCode;
+    }
+
+    if (cfg.enableLdu) {
+      requestBody.data_processing_options = ['LDU'];
+      requestBody.data_processing_options_country = 1;
+      requestBody.data_processing_options_state = 1000;
     }
 
     // 6. Execute Dispatch to Meta Graph API
@@ -197,13 +260,39 @@ export class CapiDispatcherService {
     const latencyMs = Date.now() - startTime;
 
     // 7. Non-blocking Asynchronous Log Persistence
+    if (cfg.activePlatform === 'both' && cfg.googleConversionId) {
+      setImmediate(async () => {
+        try {
+          await prisma.trafficPixelLog.create({
+            data: {
+              linkId: link.id,
+              userId: link.userId,
+              platform: 'google',
+              pixelId: cfg.googleConversionId,
+              eventId,
+              eventName,
+              deliverySource: 'gtag_enhanced',
+              browserFired: true,
+              capiFired: false,
+              capiStatus: 'gtag_dispatched',
+              capiLatencyMs: 0,
+              isBotFiltered: false,
+              ipAddress: clientIp || null,
+              userAgent: userAgent || null
+            }
+          });
+        } catch (err) {}
+      });
+    }
+
     setImmediate(async () => {
       try {
         await prisma.trafficPixelLog.create({
           data: {
             linkId: link.id,
             userId: link.userId,
-            pixelId: cfg.masterPixelId,
+            platform: 'meta',
+            pixelId: cfg.masterPixelId || 'meta_pixel',
             eventId,
             eventName,
             deliverySource: 'hybrid_dedup',

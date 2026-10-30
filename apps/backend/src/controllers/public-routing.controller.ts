@@ -313,17 +313,24 @@ export class PublicRoutingController {
         scriptJs = cached.scriptJs;
       } else {
         const pixelCfg = (link as any).pixelConfig;
-        if (pixelCfg && pixelCfg.masterPixelId) {
+        if (pixelCfg && (pixelCfg.masterPixelId || pixelCfg.googleConversionId)) {
           scriptJs = ClientShieldGenerator.generateUniversalPixelTag({
             slug: link.slug,
             apiBaseUrl,
+            activePlatform: pixelCfg.activePlatform || 'both',
             masterPixelId: pixelCfg.masterPixelId,
             backupPixelIds: pixelCfg.backupPixelIds || [],
+            enableCapi: pixelCfg.enableCapi,
+            enableLdu: pixelCfg.enableLdu,
+            googleConversionId: pixelCfg.googleConversionId,
+            googleConversionLabels: pixelCfg.googleConversionLabels,
+            enableGoogleEnhancedConversions: pixelCfg.enableGoogleEnhancedConversions,
+            enableGoogleConsentMode: pixelCfg.enableGoogleConsentMode,
+            googleDefaultConsent: pixelCfg.googleDefaultConsent,
             fireOnBots: pixelCfg.fireOnBots,
             trackPageViews: pixelCfg.trackPageViews,
             trackOutbound: pixelCfg.trackOutbound,
-            events: pixelCfg.events || [],
-            enableCapi: pixelCfg.enableCapi
+            events: pixelCfg.events || []
           });
         } else {
           scriptJs = ClientShieldGenerator.generateSelfHostedPixelJs({

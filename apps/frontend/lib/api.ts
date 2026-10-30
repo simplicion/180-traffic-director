@@ -6,7 +6,7 @@ export const getApiBase = () => {
     return envUrl && envUrl.includes('localhost') ? envUrl : 'http://localhost:4005';
   }
   if (typeof window === 'undefined') return envUrl || 'http://localhost:4005';
-  return envUrl || 'https://api.180trafficdirector.pro';
+  return envUrl || 'https://edge.180trafficdirector.pro';
 };
 
 export const getAuthToken = (): string | null => {

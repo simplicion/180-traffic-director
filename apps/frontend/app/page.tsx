@@ -790,7 +790,7 @@ export default function TrafficDirectorLandingPage() {
             <Link href="/traffic-director/links" className="hover:text-blue-600 transition">Smart Links</Link>
             <Link href="/traffic-director/threats" className="hover:text-blue-600 transition">Threat Intelligence</Link>
             <Link href="/traffic-director/logs" className="hover:text-blue-600 transition">Traffic Logs</Link>
-            <Link href="/traffic-director/simulator" className="hover:text-blue-600 transition">Simulator</Link>
+            
           </div>
 
           <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600">

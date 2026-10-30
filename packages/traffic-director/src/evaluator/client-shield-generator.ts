@@ -613,11 +613,31 @@ export default async function middleware(request) {
    * 3. Automated form submission & SPA navigation tracking.
    * 4. Bot-gated conversion suppression (preserves Meta machine learning).
    */
+  /**
+   * Generates a stealth, dual-engine Universal Pixel Tag supporting:
+   * 1. Meta Pixel & Conversions API (CAPI v19.0+) with Advanced Matching & Deduplication
+   * 2. Google Ads (gtag.js) with Enhanced Conversions & Consent Mode v2
+   * 3. Hardware-level bot suppression shielding machine learning models
+   */
+  /**
+   * Generates a stealth, dual-engine Universal Pixel Tag supporting:
+   * 1. Meta Pixel & Conversions API (CAPI v19.0+) with Advanced Matching & Deduplication
+   * 2. Google Ads (gtag.js) with Enhanced Conversions & Consent Mode v2
+   * 3. Hardware-level bot suppression shielding machine learning models
+   */
   static generateUniversalPixelTag(config: {
     slug: string;
     apiBaseUrl: string;
-    masterPixelId: string;
+    activePlatform?: 'meta' | 'google' | 'both';
+    masterPixelId?: string | null;
     backupPixelIds?: string[];
+    enableCapi?: boolean;
+    enableLdu?: boolean;
+    googleConversionId?: string | null;
+    googleConversionLabels?: Record<string, string> | null;
+    enableGoogleEnhancedConversions?: boolean;
+    enableGoogleConsentMode?: boolean;
+    googleDefaultConsent?: 'granted' | 'denied';
     fireOnBots?: boolean;
     trackPageViews?: boolean;
     trackOutbound?: boolean;
@@ -629,39 +649,82 @@ export default async function middleware(request) {
       eventValueKey?: string;
       currency?: string;
     }>;
-    enableCapi?: boolean;
   }): string {
     const {
       slug,
       apiBaseUrl,
+      activePlatform = 'both',
       masterPixelId,
       backupPixelIds = [],
+      enableCapi = true,
+      enableLdu = false,
+      googleConversionId,
+      googleConversionLabels = {},
+      enableGoogleEnhancedConversions = true,
+      enableGoogleConsentMode = true,
+      googleDefaultConsent = 'granted',
       fireOnBots = false,
       trackPageViews = true,
       trackOutbound = true,
-      events = [],
-      enableCapi = true
+      events = []
     } = config;
 
-    const allPixelIds = [masterPixelId, ...backupPixelIds.filter(id => id && id !== masterPixelId)];
+    const allPixelIds = masterPixelId 
+      ? [masterPixelId, ...backupPixelIds.filter(id => id && id !== masterPixelId)]
+      : backupPixelIds.filter(Boolean);
+
+    const hasMeta = (activePlatform === 'meta' || activePlatform === 'both') && allPixelIds.length > 0;
+    const hasGoogle = (activePlatform === 'google' || activePlatform === 'both') && Boolean(googleConversionId);
+
     const safeBaseUrl = JSON.stringify(apiBaseUrl.replace(/\/+$/, ''));
     const safeSlug = JSON.stringify(slug);
     const safePixelIds = JSON.stringify(allPixelIds);
+    const safeGId = JSON.stringify(googleConversionId || '');
+    const safeGLabels = JSON.stringify(googleConversionLabels || {});
+    const safeGConsent = JSON.stringify(googleDefaultConsent || 'granted');
     const safeEvents = JSON.stringify(events);
 
-    return `/** 180workspace Universal Meta Pixel & CAPI Engine **/
-(function(w, d, s) {
-  'use strict';
-  try {
-    var _bUrl = ${safeBaseUrl};
-    var _slug = ${safeSlug};
-    var _pixels = ${safePixelIds};
-    var _rules = ${safeEvents};
-    var _fireOnBots = ${fireOnBots ? 'true' : 'false'};
-    var _trackPv = ${trackPageViews ? 'true' : 'false'};
-    var _enableCapi = ${enableCapi ? 'true' : 'false'};
+    // Dynamic Meta Code Block (Only included if Meta is active)
+    const metaInitBlock = hasMeta ? `
+    // --- Meta Pixel (fbevents.js) & Attribution Cookies ---
+    function getCookie(name) {
+      var parts = (d.cookie || '').split('; ');
+      for (var i = 0; i < parts.length; i++) {
+        var c = parts[i].split('=');
+        if (c[0] === name) return decodeURIComponent(c.slice(1).join('='));
+      }
+      return '';
+    }
+    function setCookie(name, val, days) {
+      try {
+        var exp = new Date(Date.now() + (days || 90) * 864e5).toUTCString();
+        var host = w.location.hostname.replace(/^www\./, '');
+        d.cookie = name + '=' + encodeURIComponent(val) + '; expires=' + exp + '; path=/; domain=.' + host + '; SameSite=Lax';
+      } catch(e) {}
+    }
 
-    // 1. Meta Pixel Base Loader
+    var _fbc = getCookie('_fbc');
+    try {
+      var searchStr = w.location.search.substring(1);
+      if (searchStr) {
+        var pairs = searchStr.split('&');
+        for (var p = 0; p < pairs.length; p++) {
+          var kv = pairs[p].split('=');
+          if (kv[0] === 'fbclid') {
+            _fbc = 'fb.1.' + Date.now() + '.' + decodeURIComponent(kv[1] || '');
+            setCookie('_fbc', _fbc, 90);
+            break;
+          }
+        }
+      }
+    } catch(e) {}
+
+    var _fbp = getCookie('_fbp');
+    if (!_fbp) {
+      _fbp = 'fb.1.' + Date.now() + '.' + Math.floor(Math.random() * 1e10);
+      setCookie('_fbp', _fbp, 730);
+    }
+
     if (!w.fbq) {
       var n = w.fbq = function() {
         n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
@@ -678,7 +741,133 @@ export default async function middleware(request) {
       if (f && f.parentNode) f.parentNode.insertBefore(t, f);
     }
 
-    // 2. Hardware Telemetry & Bot Detection
+    ${enableLdu ? "try { w.fbq('dataProcessingOptions', ['LDU'], 0, 0); } catch(e) {}" : ''}
+
+    for (var i = 0; i < _pixels.length; i++) {
+      w.fbq('init', _pixels[i]);
+    }
+` : '';
+
+    // Dynamic Google Tag Code Block (Only included if Google is active)
+    const googleInitBlock = hasGoogle ? `
+    // --- Google Tag (gtag.js) & Consent Mode v2 ---
+    w.dataLayer = w.dataLayer || [];
+    if (!w.gtag) {
+      w.gtag = function() { w.dataLayer.push(arguments); };
+    }
+
+    ${enableGoogleConsentMode ? `
+    w.gtag('consent', 'default', {
+      'ad_storage': ${safeGConsent},
+      'analytics_storage': ${safeGConsent},
+      'ad_user_data': ${safeGConsent},
+      'ad_personalization': ${safeGConsent}
+    });` : ''}
+
+    var gt = d.createElement(s);
+    gt.async = true;
+    gt.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(_gId);
+    var gf = d.getElementsByTagName(s)[0];
+    if (gf && gf.parentNode) gf.parentNode.insertBefore(gt, gf);
+
+    w.gtag('js', new Date());
+    w.gtag('config', _gId, { send_page_view: _trackPv });
+` : '';
+
+        // Dynamic Meta Dispatch Block
+    const metaDispatchBlock = hasMeta ? `
+      try {
+        w.fbq('track', eventName, customData, { eventID: eventId });
+      } catch(err) {}
+` : '';
+
+    // Dynamic S2S Telemetry Beacon (Meta CAPI & Google Ads Logging)
+    const telemetryBeaconBlock = (hasMeta || hasGoogle) ? `
+      try {
+        var beaconPayload = {
+          slug: _slug,
+          eventName: eventName,
+          eventId: eventId,
+          eventSourceUrl: w.location.href,
+          customData: customData,
+          userData: {
+            email: extractedUser.email,
+            phone: extractedUser.phone,
+            firstName: extractedUser.firstName,
+            lastName: extractedUser.lastName,
+            city: extractedUser.city,
+            postalCode: extractedUser.postalCode,
+            country: extractedUser.country,
+            fbp: _fbp,
+            fbc: _fbc,
+            gclid: _gcl_aw,
+            wbraid: _gcl_wb,
+            gbraid: _gcl_gb
+          },
+          isBot: isBot
+        };
+
+        if (nav.sendBeacon) {
+          nav.sendBeacon(_bUrl + '/api/v1/traffic-director/pixel/event', JSON.stringify(beaconPayload));
+        } else {
+          fetch(_bUrl + '/api/v1/traffic-director/pixel/event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(beaconPayload),
+            keepalive: true
+          }).catch(function() {});
+        }
+      } catch(bErr) {}
+    ` : '';
+
+    // Dynamic Google Dispatch Block
+    const googleDispatchBlock = hasGoogle ? `
+      if (w.gtag) {
+        try {
+          ${enableGoogleEnhancedConversions ? `
+          if (extractedUser.email || extractedUser.phone || extractedUser.postalCode) {
+            w.gtag('set', 'user_data', {
+              email: extractedUser.email || undefined,
+              phone_number: extractedUser.phone || undefined,
+              address: {
+                first_name: extractedUser.firstName || undefined,
+                last_name: extractedUser.lastName || undefined,
+                city: extractedUser.city || undefined,
+                postal_code: extractedUser.postalCode || undefined,
+                country: extractedUser.country || undefined
+              }
+            });
+          }` : ''}
+
+          var sendToLabel = _gLabels[eventName] || _gLabels['default'] || '';
+          var gPayload = {
+            value: customData.value || 0,
+            currency: customData.currency || 'USD',
+            transaction_id: eventId
+          };
+          if (sendToLabel) {
+            gPayload.send_to = sendToLabel;
+          }
+
+          w.gtag('event', 'conversion', gPayload);
+        } catch(gErr) {}
+      }
+` : '';
+
+    return `/** 180workspace Universal Advertising Pixel & Conversion Engine **/
+(function(w, d, s) {
+  'use strict';
+  try {
+    var _bUrl = ${safeBaseUrl};
+    var _slug = ${safeSlug};
+    var _pixels = ${safePixelIds};
+    var _gId = ${safeGId};
+    var _gLabels = ${safeGLabels};
+    var _rules = ${safeEvents};
+    var _fireOnBots = ${fireOnBots ? 'true' : 'false'};
+    var _trackPv = ${trackPageViews ? 'true' : 'false'};
+
+    // 1. Hardware Telemetry & Bot Detection Shield
     var nav = navigator || {};
     var ua = (nav.userAgent || '').toLowerCase();
     var isMobile = /iphone|ipad|ipod|android|mobile/.test(ua);
@@ -686,7 +875,6 @@ export default async function middleware(request) {
     var hasTouch = ('ontouchstart' in w) || (tp > 0);
     var isWd = (navigator.webdriver === true) || nav.webdriver === true || !!w.__nightmare || !!w._phantom || !!w.callPhantom;
     
-    // WebGL software renderer verification
     var isEmulatedGpu = false;
     try {
       var cv = d.createElement('canvas');
@@ -703,89 +891,152 @@ export default async function middleware(request) {
     } catch(e) {}
 
     var isBot = isWd || isEmulatedGpu || (isMobile && !hasTouch && tp === 0);
-
-    // 3. Initialize all configured pixels
-    for (var i = 0; i < _pixels.length; i++) {
-      w.fbq('init', _pixels[i]);
+    if (isBot && !_fireOnBots) {
+      return; // Bot detected -> suppress conversion engines to protect ML
     }
 
-    // Helper: Generate deterministic event ID for browser/server deduplication
+    // --- First-Party Attribution & Cookie Persistence ---
+    function getCookie(name) {
+      var parts = (d.cookie || '').split('; ');
+      for (var i = 0; i < parts.length; i++) {
+        var c = parts[i].split('=');
+        if (c[0] === name) return decodeURIComponent(c.slice(1).join('='));
+      }
+      return '';
+    }
+    function setCookie(name, val, days) {
+      try {
+        var exp = new Date(Date.now() + (days || 90) * 864e5).toUTCString();
+        var host = w.location.hostname.replace(/^www\./, '');
+        d.cookie = name + '=' + encodeURIComponent(val) + '; expires=' + exp + '; path=/; domain=.' + host + '; SameSite=Lax';
+      } catch(e) {}
+    }
+
+    var _fbc = getCookie('_fbc');
+    var _fbp = getCookie('_fbp');
+    var _gcl_aw = getCookie('_gcl_aw');
+    var _gcl_wb = getCookie('_gcl_wb');
+    var _gcl_gb = getCookie('_gcl_gb');
+
+    try {
+      var searchStr = w.location.search.substring(1);
+      if (searchStr) {
+        var pairs = searchStr.split('&');
+        for (var p = 0; p < pairs.length; p++) {
+          var kv = pairs[p].split('=');
+          var k = kv[0];
+          var v = decodeURIComponent(kv[1] || '');
+          if (k === 'fbclid') {
+            _fbc = 'fb.1.' + Date.now() + '.' + v;
+            setCookie('_fbc', _fbc, 90);
+          } else if (k === 'gclid') {
+            _gcl_aw = 'GCL.' + Math.floor(Date.now() / 1000) + '.' + v;
+            setCookie('_gcl_aw', _gcl_aw, 90);
+          } else if (k === 'wbraid') {
+            _gcl_wb = 'GCL.' + Math.floor(Date.now() / 1000) + '.' + v;
+            setCookie('_gcl_wb', _gcl_wb, 90);
+          } else if (k === 'gbraid') {
+            _gcl_gb = 'GCL.' + Math.floor(Date.now() / 1000) + '.' + v;
+            setCookie('_gcl_gb', _gcl_gb, 90);
+          }
+        }
+      }
+    } catch(e) {}
+
+    if (!_fbp && ${hasMeta ? 'true' : 'false'}) {
+      _fbp = 'fb.1.' + Date.now() + '.' + Math.floor(Math.random() * 1e10);
+      setCookie('_fbp', _fbp, 730);
+    }
+
+    ${metaInitBlock}
+
+    ${googleInitBlock}
+
+    // Deterministic Event ID Generator (Shared Deduplication)
     function genEventId() {
       return 'evt_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
     }
 
-    // Helper: Dispatches event to both browser fbq and server CAPI
+    // Unified Multi-Platform Event Dispatcher
     function dispatchEvent(eventName, customData, extractedUser) {
-      if (isBot && !_fireOnBots) {
-        return; // Bot detected -> suppress conversion to protect Meta machine learning
-      }
+      if (isBot && !_fireOnBots) return;
 
       var eventId = genEventId();
       customData = customData || {};
+      extractedUser = extractedUser || {};
 
-      // A. Browser Pixel Dispatch
-      try {
-        w.fbq('track', eventName, customData, { eventID: eventId });
-      } catch(err) {}
+      ${metaDispatchBlock}
 
-      // B. Server-Side CAPI Dispatch
-      if (_enableCapi) {
-        try {
-          var payload = {
-            slug: _slug,
-            eventName: eventName,
-            eventId: eventId,
-            eventSourceUrl: w.location.href,
-            customData: customData,
-            userData: extractedUser || {},
-            isBot: isBot
-          };
+      ${googleDispatchBlock}
 
-          if (nav.sendBeacon) {
-            nav.sendBeacon(_bUrl + '/api/v1/traffic-director/pixel/event', JSON.stringify(payload));
-          } else {
-            fetch(_bUrl + '/api/v1/traffic-director/pixel/event', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload),
-              keepalive: true
-            }).catch(function() {});
-          }
-        } catch(err) {}
-      }
+      ${telemetryBeaconBlock}
     }
 
-    // 4. Track Initial PageView
+    // Track Initial PageView
     if (_trackPv) {
-      dispatchEvent('PageView');
+      ${hasMeta || Boolean(googleConversionLabels?.PageView) ? "dispatchEvent('PageView');" : ''}
     }
 
-    // 5. Automated DOM Form Submission Tracking (e.g. Lead, Contact)
-    d.addEventListener('submit', function(e) {
-      var form = e.target;
-      if (!form || form.nodeName !== 'FORM') return;
-
-      var email = '';
-      var phone = '';
-
+    // Identity Extraction Helper (DOM Forms)
+    function extractFormIdentity(form) {
+      var user = { email: '', phone: '', firstName: '', lastName: '', postalCode: '', city: '', country: '' };
       try {
         var inputs = form.querySelectorAll('input, select, textarea');
         for (var i = 0; i < inputs.length; i++) {
           var inp = inputs[i];
           var name = (inp.name || inp.id || '').toLowerCase();
           var type = (inp.type || '').toLowerCase();
+          var auto = (inp.getAttribute('autocomplete') || '').toLowerCase();
           var val = (inp.value || '').trim();
+          if (!val) continue;
 
-          if (!email && (type === 'email' || name.indexOf('email') !== -1 || name.indexOf('mail') !== -1)) {
-            if (val.indexOf('@') !== -1) email = val;
+          // Email
+          if (!user.email && (type === 'email' || name.indexOf('email') !== -1 || name.indexOf('mail') !== -1 || auto.indexOf('email') !== -1)) {
+            if (val.indexOf('@') !== -1) user.email = val;
           }
-          if (!phone && (type === 'tel' || name.indexOf('phone') !== -1 || name.indexOf('tel') !== -1 || name.indexOf('mobile') !== -1)) {
-            phone = val;
+          // Phone
+          if (!user.phone && (type === 'tel' || name.indexOf('phone') !== -1 || name.indexOf('tel') !== -1 || name.indexOf('mobile') !== -1 || auto.indexOf('tel') !== -1)) {
+            user.phone = val;
+          }
+          // First Name
+          if (!user.firstName && (name.indexOf('fname') !== -1 || name.indexOf('first_name') !== -1 || name.indexOf('firstname') !== -1 || auto.indexOf('given-name') !== -1)) {
+            user.firstName = val;
+          }
+          // Last Name
+          if (!user.lastName && (name.indexOf('lname') !== -1 || name.indexOf('last_name') !== -1 || name.indexOf('lastname') !== -1 || auto.indexOf('family-name') !== -1)) {
+            user.lastName = val;
+          }
+          // Full Name Fallback
+          if (!user.firstName && !user.lastName && (name === 'name' || name === 'fullname' || name === 'full_name' || auto === 'name')) {
+            var parts = val.split(' ');
+            user.firstName = parts[0] || '';
+            user.lastName = parts.slice(1).join(' ') || '';
+          }
+          // Zip / Postal
+          if (!user.postalCode && (name.indexOf('zip') !== -1 || name.indexOf('postal') !== -1 || auto.indexOf('postal-code') !== -1)) {
+            user.postalCode = val;
+          }
+          // City
+          if (!user.city && (name.indexOf('city') !== -1 || auto.indexOf('address-level2') !== -1)) {
+            user.city = val;
+          }
+          // Country
+          if (!user.country && (name.indexOf('country') !== -1 || auto.indexOf('country') !== -1)) {
+            user.country = val;
           }
         }
       } catch(ex) {}
+      return user;
+    }
 
+    // Automated Form Submission Tracking (Lead, Purchase, etc.)
+    d.addEventListener('submit', function(e) {
+      var form = e.target;
+      if (!form || form.nodeName !== 'FORM') return;
+
+      var identity = extractFormIdentity(form);
       var matchedEvent = 'Lead';
+
       for (var r = 0; r < _rules.length; r++) {
         var rule = _rules[r];
         if (rule.triggerType === 'form_submit') {
@@ -796,13 +1047,10 @@ export default async function middleware(request) {
         }
       }
 
-      dispatchEvent(matchedEvent, { content_name: form.id || form.action || 'Lead Form' }, {
-        email: email,
-        phone: phone
-      });
+      dispatchEvent(matchedEvent, { content_name: form.id || form.action || 'Lead Form' }, identity);
     }, true);
 
-    // 6. Click Triggers & Outbound Link Listeners
+    // Click Triggers
     d.addEventListener('click', function(e) {
       var target = e.target;
       if (!target) return;
@@ -817,15 +1065,15 @@ export default async function middleware(request) {
       }
     }, true);
 
-    // 7. Single Page Application (SPA) Route Change Tracker
+    // SPA Route Change Listener
     if (_trackPv && w.history && w.history.pushState) {
       var origPush = w.history.pushState;
       w.history.pushState = function() {
         origPush.apply(this, arguments);
-        dispatchEvent('PageView');
+        ${hasMeta ? "dispatchEvent('PageView');" : ''}
       };
       w.addEventListener('popstate', function() {
-        dispatchEvent('PageView');
+        ${hasMeta ? "dispatchEvent('PageView');" : ''}
       });
     }
 
@@ -833,5 +1081,3 @@ export default async function middleware(request) {
 })(window, document, 'script');`;
   }
 }
-
-
