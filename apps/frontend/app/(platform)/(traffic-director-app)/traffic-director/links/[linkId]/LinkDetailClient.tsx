@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   ArrowLeft, Plus, Play, Layers, Power, Check, Copy, Code, 
-  BarChart3, Lock, Sparkles 
+  BarChart3, Lock, Sparkles, ChevronLeft, ChevronRight, Pin 
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -49,6 +49,13 @@ export default function SmartLinkRuleCanvasPage() {
   const [linkData, setLinkData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'rules' | 'pixel' | 'analytics'>('rules');
+  const [isNavCollapsed, setIsNavCollapsed] = useState(true);
+  const [isNavHovered, setIsNavHovered] = useState(false);
+  const isNavExpanded = !isNavCollapsed || isNavHovered;
+
+  const toggleNavCollapse = () => {
+    setIsNavCollapsed(prev => !prev);
+  };
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<any>(null);
   const [isEmbedModalOpen, setIsEmbedModalOpen] = useState(false);
@@ -384,214 +391,275 @@ export default function SmartLinkRuleCanvasPage() {
         </div>
       </div>
 
-      {/* 2-Column Layout with Right-Hand Side Menu */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Main Content Area (Left on desktop) */}
-        <div className="lg:col-span-8 xl:col-span-9 min-w-0 order-2 lg:order-1">
-          {activeTab === 'rules' && (
-            <LinkRoutingRulesTab
-              linkId={linkId}
-              linkData={linkData}
-              shieldMode={shieldMode}
-              setShieldMode={setShieldMode}
-              datacenterBlocked={datacenterBlocked}
-              setDatacenterBlocked={setDatacenterBlocked}
-              blockSpyServices={blockSpyServices}
-              setBlockSpyServices={setBlockSpyServices}
-              blockVpn={blockVpn}
-              setBlockVpn={setBlockVpn}
-              warmupUntil={warmupUntil}
-              setWarmupUntil={setWarmupUntil}
-              rampUpEnabled={rampUpEnabled}
-              setRampUpEnabled={setRampUpEnabled}
-              rampUpDurationHours={rampUpDurationHours}
-              setRampUpDurationHours={setRampUpDurationHours}
-              savingShield={savingShield}
-              handleUpdateShieldSettings={handleUpdateShieldSettings}
-              fallbackUrl={fallbackUrl}
-              setFallbackUrl={setFallbackUrl}
-              safePageProxyMode={safePageProxyMode}
-              setSafePageProxyMode={setSafePageProxyMode}
-              savingFallback={savingFallback}
-              handleUpdateFallback={handleUpdateFallback}
-              handleMoveRule={handleMoveRule}
-              handleToggleRuleActive={handleToggleRuleActive}
-              setEditingRule={setEditingRule}
-              setDeleteRuleConfirm={setDeleteRuleConfirm}
-              setIsRuleModalOpen={setIsRuleModalOpen}
-              setIsEmbedModalOpen={setIsEmbedModalOpen}
-            />
-          )}
+      {/* Navigation Items definition */}
+      {(() => {
+        const navItems = [
+          {
+            id: 'rules' as const,
+            name: 'Routing Rules & Setup',
+            subtitle: 'Priorities, evasion & fallback',
+            icon: Layers,
+            badge: String(linkData?.rules?.length || 0),
+          },
+          {
+            id: 'pixel' as const,
+            name: 'Universal Meta Pixel',
+            subtitle: 'Server-side CAPI & backup pixels',
+            icon: Sparkles,
+            badge: 'CAPI',
+          },
+          {
+            id: 'analytics' as const,
+            name: 'Traffic Analytics',
+            subtitle: 'Live breakdown & bot logs',
+            icon: BarChart3,
+            badge: `${linkData?.totalClicks || 0}`,
+          }
+        ];
 
-          {activeTab === 'pixel' && (
-            <LinkPixelTab linkId={linkId} linkData={linkData} onUpdated={fetchLinkDetails} />
-          )}
-
-          {activeTab === 'analytics' && (
-            <LinkAnalyticsTab linkId={linkId} linkData={linkData} />
-          )}
-        </div>
-
-        {/* Right-Hand Side Menu (Sticky Navigation Rail) */}
-        <aside className="lg:col-span-4 xl:col-span-3 order-1 lg:order-2 lg:sticky lg:top-6 space-y-4">
-          <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/90 dark:border-white/10 shadow-xs space-y-2">
-            <div className="px-3 py-2 border-b border-gray-200/80 dark:border-white/10 flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
-                Link Navigation
-              </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50 font-semibold">
-                3 Views
-              </span>
+        return (
+          <>
+            {/* Mobile Horizontal Tabs (< lg screens) */}
+            <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer ${
+                    activeTab === item.id
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                      : 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300'
+                  }`}
+                >
+                  <item.icon className="w-3.5 h-3.5" />
+                  <span>{item.name}</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                    activeTab === item.id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400'
+                  }`}>
+                    {item.badge}
+                  </span>
+                </button>
+              ))}
             </div>
 
-            <nav className="space-y-1.5 pt-1">
-              {/* Item 1: Routing Rules & Setup */}
-              <button
-                type="button"
-                onClick={() => setActiveTab('rules')}
-                className={`w-full text-left p-3 rounded-xl transition flex items-start gap-3 cursor-pointer group relative ${
-                  activeTab === 'rules'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800/60'
-                }`}
-              >
-                <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${
-                  activeTab === 'rules'
-                    ? 'bg-white/20 text-white'
-                    : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 group-hover:text-indigo-500'
-                }`}>
-                  <Layers className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1.5">
-                    <span className="text-xs font-bold truncate">Routing Rules & Setup</span>
-                    <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold shrink-0 ${
-                      activeTab === 'rules'
-                        ? 'bg-indigo-500 text-white'
-                        : 'bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300'
-                    }`}>
-                      {linkData.rules?.length || 0}
-                    </span>
-                  </div>
-                  <p className={`text-[11px] mt-0.5 line-clamp-1 ${
-                    activeTab === 'rules' ? 'text-indigo-100' : 'text-gray-400 dark:text-zinc-500'
-                  }`}>
-                    Priorities, evasion & fallback
-                  </p>
-                </div>
+            {/* Main Full-Space Workspace with Animated Collapsible Side Rail */}
+            <div className="flex items-start gap-5 relative min-w-0 w-full">
+              {/* Full-Space Content Canvas */}
+              <div className="flex-1 min-w-0 transition-all duration-300">
                 {activeTab === 'rules' && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-white rounded-full" />
+                  <LinkRoutingRulesTab
+                    linkId={linkId}
+                    linkData={linkData}
+                    shieldMode={shieldMode}
+                    setShieldMode={setShieldMode}
+                    datacenterBlocked={datacenterBlocked}
+                    setDatacenterBlocked={setDatacenterBlocked}
+                    blockSpyServices={blockSpyServices}
+                    setBlockSpyServices={setBlockSpyServices}
+                    blockVpn={blockVpn}
+                    setBlockVpn={setBlockVpn}
+                    warmupUntil={warmupUntil}
+                    setWarmupUntil={setWarmupUntil}
+                    rampUpEnabled={rampUpEnabled}
+                    setRampUpEnabled={setRampUpEnabled}
+                    rampUpDurationHours={rampUpDurationHours}
+                    setRampUpDurationHours={setRampUpDurationHours}
+                    savingShield={savingShield}
+                    handleUpdateShieldSettings={handleUpdateShieldSettings}
+                    fallbackUrl={fallbackUrl}
+                    setFallbackUrl={setFallbackUrl}
+                    safePageProxyMode={safePageProxyMode}
+                    setSafePageProxyMode={setSafePageProxyMode}
+                    savingFallback={savingFallback}
+                    handleUpdateFallback={handleUpdateFallback}
+                    handleMoveRule={handleMoveRule}
+                    handleToggleRuleActive={handleToggleRuleActive}
+                    setEditingRule={setEditingRule}
+                    setDeleteRuleConfirm={setDeleteRuleConfirm}
+                    setIsRuleModalOpen={setIsRuleModalOpen}
+                    setIsEmbedModalOpen={setIsEmbedModalOpen}
+                  />
                 )}
-              </button>
 
-              {/* Item 2: Universal Meta Pixel & CAPI */}
-              <button
-                type="button"
-                onClick={() => setActiveTab('pixel')}
-                className={`w-full text-left p-3 rounded-xl transition flex items-start gap-3 cursor-pointer group relative ${
-                  activeTab === 'pixel'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800/60'
-                }`}
-              >
-                <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${
-                  activeTab === 'pixel'
-                    ? 'bg-white/20 text-white'
-                    : 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 group-hover:text-purple-500'
-                }`}>
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1.5">
-                    <span className="text-xs font-bold truncate">Universal Meta Pixel</span>
-                    <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold shrink-0 ${
-                      activeTab === 'pixel'
-                        ? 'bg-indigo-500 text-white'
-                        : 'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800'
-                    }`}>
-                      CAPI
-                    </span>
-                  </div>
-                  <p className={`text-[11px] mt-0.5 line-clamp-1 ${
-                    activeTab === 'pixel' ? 'text-indigo-100' : 'text-gray-400 dark:text-zinc-500'
-                  }`}>
-                    Server-side CAPI & backup pixels
-                  </p>
-                </div>
                 {activeTab === 'pixel' && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-white rounded-full" />
+                  <LinkPixelTab linkId={linkId} linkData={linkData} onUpdated={fetchLinkDetails} />
                 )}
-              </button>
 
-              {/* Item 3: Traffic Analytics & Cloaking Breakdown */}
-              <button
-                type="button"
-                onClick={() => setActiveTab('analytics')}
-                className={`w-full text-left p-3 rounded-xl transition flex items-start gap-3 cursor-pointer group relative ${
-                  activeTab === 'analytics'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800/60'
-                }`}
-              >
-                <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${
-                  activeTab === 'analytics'
-                    ? 'bg-white/20 text-white'
-                    : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-500'
-                }`}>
-                  <BarChart3 className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1.5">
-                    <span className="text-xs font-bold truncate">Traffic Analytics</span>
-                    <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold shrink-0 ${
-                      activeTab === 'analytics'
-                        ? 'bg-indigo-500 text-white'
-                        : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                    }`}>
-                      {linkData.totalClicks || 0}
-                    </span>
-                  </div>
-                  <p className={`text-[11px] mt-0.5 line-clamp-1 ${
-                    activeTab === 'analytics' ? 'text-indigo-100' : 'text-gray-400 dark:text-zinc-500'
-                  }`}>
-                    Live breakdown & bot logs
-                  </p>
-                </div>
                 {activeTab === 'analytics' && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-white rounded-full" />
+                  <LinkAnalyticsTab linkId={linkId} linkData={linkData} />
                 )}
-              </button>
-            </nav>
-          </div>
+              </div>
 
-          {/* Quick Link Summary Card on the Right Side */}
-          <div className="p-4 rounded-2xl bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-xs space-y-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-              Quick Link Info
-            </span>
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500 dark:text-zinc-400">Architecture</span>
-                <span className="font-semibold text-gray-900 dark:text-white capitalize">
-                  {shieldMode === 'server' ? 'Smart Link' : 'JS Tag'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500 dark:text-zinc-400">Status</span>
-                <span className={`font-semibold ${linkData.isActive ? 'text-emerald-500' : 'text-gray-400'}`}>
-                  {linkData.isActive ? 'Active' : 'Paused'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500 dark:text-zinc-400">Custom Domain</span>
-                <span className="font-mono text-[11px] text-gray-900 dark:text-white truncate max-w-[140px]">
-                  {linkData.customDomain || 'Default'}
-                </span>
+              {/* Desktop Collapsible Animated Side Navigation Rail */}
+              <div className="hidden lg:block shrink-0 relative">
+                {/* Layout spacer to preserve full-width spacing without layout shift */}
+                <div
+                  className={`transition-all duration-300 ease-in-out ${
+                    !isNavCollapsed ? 'w-[280px]' : 'w-[68px]'
+                  }`}
+                />
+
+                {/* Elevated Floating / Sticky Rail */}
+                <aside
+                  onMouseEnter={() => setIsNavHovered(true)}
+                  onMouseLeave={() => setIsNavHovered(false)}
+                  className={`absolute top-0 right-0 z-30 transition-all duration-300 ease-in-out select-none ${
+                    isNavExpanded ? 'w-[280px] shadow-2xl' : 'w-[68px] shadow-sm'
+                  }`}
+                >
+                  <div className="rounded-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-gray-200/90 dark:border-white/10 p-2.5 space-y-3">
+                    {/* Header with Title and Expand/Pin Toggle */}
+                    <div className="flex items-center justify-between pb-2 border-b border-gray-200/80 dark:border-white/10 min-h-[36px]">
+                      {isNavExpanded ? (
+                        <>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-zinc-400 truncate">
+                              Link Navigation
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50 font-semibold shrink-0">
+                              3 Views
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={toggleNavCollapse}
+                            className="p-1 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer shrink-0"
+                            title={isNavCollapsed ? 'Pin open' : 'Collapse to icon rail'}
+                          >
+                            {isNavCollapsed ? <Pin className="w-3.5 h-3.5" /> : <ChevronRight className="w-4 h-4" />}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={toggleNavCollapse}
+                          className="w-full flex items-center justify-center p-1 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                          title="Click to pin expanded"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Navigation Items */}
+                    <nav className="space-y-1.5">
+                      {navItems.map((item) => {
+                        const isActive = activeTab === item.id;
+                        const Icon = item.icon;
+
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setActiveTab(item.id)}
+                            className={`w-full transition cursor-pointer relative group ${
+                              isNavExpanded
+                                ? `text-left p-2.5 rounded-xl flex items-start gap-3 ${
+                                    isActive
+                                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                                      : 'text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800/60'
+                                  }`
+                                : `h-11 rounded-xl flex items-center justify-center mx-auto ${
+                                    isActive
+                                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 ring-2 ring-indigo-500/30'
+                                      : 'text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800'
+                                  }`
+                            }`}
+                            title={!isNavExpanded ? `${item.name} (${item.badge})` : undefined}
+                          >
+                            {isNavExpanded ? (
+                              <>
+                                <div
+                                  className={`p-2 rounded-lg shrink-0 mt-0.5 ${
+                                    isActive
+                                      ? 'bg-white/20 text-white'
+                                      : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 group-hover:text-indigo-500'
+                                  }`}
+                                >
+                                  <Icon className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-1.5">
+                                    <span className="text-xs font-bold truncate">{item.name}</span>
+                                    <span
+                                      className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold shrink-0 ${
+                                        isActive
+                                          ? 'bg-indigo-500 text-white'
+                                          : 'bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300'
+                                      }`}
+                                    >
+                                      {item.badge}
+                                    </span>
+                                  </div>
+                                  <p
+                                    className={`text-[11px] mt-0.5 line-clamp-1 ${
+                                      isActive ? 'text-indigo-100' : 'text-gray-400 dark:text-zinc-500'
+                                    }`}
+                                  >
+                                    {item.subtitle}
+                                  </p>
+                                </div>
+                                {isActive && (
+                                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-white rounded-full" />
+                                )}
+                              </>
+                            ) : (
+                              <div className="relative flex items-center justify-center w-full h-full">
+                                <Icon className="w-4 h-4" />
+                                {item.badge && item.badge !== '0' && (
+                                  <span
+                                    className={`absolute -top-1 -right-1 px-1 min-w-[16px] h-4 text-[9px] font-bold rounded-full flex items-center justify-center font-mono ${
+                                      isActive
+                                        ? 'bg-white text-indigo-600 shadow-xs'
+                                        : 'bg-indigo-500 text-white'
+                                    }`}
+                                  >
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </nav>
+
+                    {/* Quick Link Info (Only visible when expanded) */}
+                    {isNavExpanded && (
+                      <div className="pt-2 border-t border-gray-200/80 dark:border-white/10 space-y-2 text-xs animate-in fade-in duration-200">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500 px-1">
+                          Quick Info
+                        </span>
+                        <div className="p-2.5 rounded-xl bg-gray-50/70 dark:bg-zinc-800/40 border border-gray-200/60 dark:border-white/5 space-y-1.5 text-[11px]">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-500 dark:text-zinc-400">Mode</span>
+                            <span className="font-semibold text-gray-900 dark:text-white capitalize">
+                              {shieldMode === 'server' ? 'Smart Link' : 'JS Tag'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-500 dark:text-zinc-400">Status</span>
+                            <span className={`font-semibold ${linkData.isActive ? 'text-emerald-500' : 'text-gray-400'}`}>
+                              {linkData.isActive ? 'Active' : 'Paused'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-500 dark:text-zinc-400">Custom Domain</span>
+                            <span className="font-mono text-[10px] text-gray-900 dark:text-white truncate max-w-[120px]">
+                              {linkData.customDomain || 'Default'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </aside>
               </div>
             </div>
-          </div>
-        </aside>
-      </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
