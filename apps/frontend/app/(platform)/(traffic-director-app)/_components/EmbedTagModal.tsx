@@ -59,9 +59,7 @@ export default function EmbedTagModal({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const apiBase = customDomain 
-    ? https:// 
-    : getApiBase();
+  const apiBase = customDomain ? ('https://' + customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '')) : getApiBase();
 
   // 1. Vercel / Next.js / Edge Middleware Snippet (Full Developer Guide)
   const vercelEdgeCode = `/**
