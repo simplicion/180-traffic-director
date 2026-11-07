@@ -13,10 +13,15 @@ function PlatformLayoutInner({ children }: { children: React.ReactNode }) {
   const { isLinkDetail } = useLinkDetailNav();
 
   useEffect(() => {
-    // Read theme
-    const storedTheme = localStorage.getItem('180_theme');
-    const isDarkMode = storedTheme ? storedTheme === 'dark' : document.documentElement.classList.contains('dark');
-    setIsDark(isDarkMode);
+    // Sync initial theme
+    try {
+      const storedTheme = localStorage.getItem('180_theme');
+      if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else if (storedTheme === 'light') {
+        document.documentElement.classList.remove('dark');
+      }
+    } catch (_) {}
 
     const token = getAuthToken();
     if (!token) {
