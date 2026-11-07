@@ -337,25 +337,18 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
     linkData?.customDomain ? 'custom' : 'dedicated'
   );
 
-  // Dynamically calculate dedicated CDN / Edge domain based on environment and Cloudflare production domain
+  // Dedicated Cloudflare production domain: 180trafficdirector.pro
   const calculateCdnDomain = (): string => {
     if (process.env.NEXT_PUBLIC_TRAFFIC_DIRECTOR_CDN_URL) {
       return process.env.NEXT_PUBLIC_TRAFFIC_DIRECTOR_CDN_URL.replace(/^https?:\/\//, '').replace(/\/+$/, '');
     }
-    if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname;
-      if (hostname.includes('trafficdirector.pro') || hostname.includes('traffic-director.pro')) {
-        const baseDomain = hostname.replace(/^(app|web|edge|api|trk)\./, '');
-        return `edge.${baseDomain}`;
-      }
-    }
-    return 'edge.180trafficdirector.pro';
+    return '180trafficdirector.pro';
   };
 
   const dedicatedCdnUrl = calculateCdnDomain();
   const apiBase = typeof window !== 'undefined' 
     ? (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:4005' : window.location.origin))
-    : 'https://edge.180trafficdirector.pro';
+    : 'https://180trafficdirector.pro';
 
   const getSelectedHost = () => {
     if (domainMode === 'custom' && linkData?.customDomain) {

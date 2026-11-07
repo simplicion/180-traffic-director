@@ -31,7 +31,7 @@ export default function TrafficDirectorLandingPage() {
           try {
             const apiBase = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
               ? 'http://localhost:4005'
-              : (process.env.NEXT_PUBLIC_API_URL || 'https://api.180trafficdirector.pro');
+              : (process.env.NEXT_PUBLIC_API_URL || 'https://180trafficdirector.pro');
             const tokenRes = await fetch(`${apiBase}/oauth/exchange`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

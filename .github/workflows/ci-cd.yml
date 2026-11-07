@@ -114,7 +114,7 @@ jobs:
 
       - name: Build Next.js Static Export
         env:
-          NEXT_PUBLIC_API_URL: https://edge.180trafficdirector.pro
+          NEXT_PUBLIC_API_URL: https://180trafficdirector.pro
           CF_PAGES: "true"
           NEXT_EXPORT: "true"
         run: pnpm --filter traffic-director-web build
@@ -166,8 +166,8 @@ jobs:
             TRAFFIC_DIRECTOR_PORT=4005
             JWT_SECRET="${{ secrets.JWT_SECRET }}"
             DATABASE_URL="${{ secrets.DATABASE_URL }}"
-            PUBLIC_EDGE_URL="https://edge.180trafficdirector.pro"
-            NEXT_PUBLIC_API_URL="https://edge.180trafficdirector.pro"
+            PUBLIC_EDGE_URL="https://180trafficdirector.pro"
+            NEXT_PUBLIC_API_URL="https://180trafficdirector.pro"
             TRAFFIC_DIRECTOR_WEB_URL="https://180trafficdirector.pro"
             NODE_ENV="production"
             ENVFILE
