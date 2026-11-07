@@ -54,14 +54,166 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health Check
-app.get('/health', (_req, res) => {
+// Health & Telemetry Status Check
+app.get(['/health', '/status'], (_req, res) => {
   res.json({
     status: 'healthy',
     service: '180 Traffic Director Dedicated Edge Backend',
     port: PORT,
     timestamp: new Date().toISOString()
   });
+});
+
+// Root Gateway Handler - Seamlessly redirects web browsers to Dashboard or serves Edge JSON
+app.get(['/', '/dashboard', '/links', '/traffic-director'], (req, res) => {
+  const webUrl = (process.env.TRAFFIC_DIRECTOR_WEB_URL || 'http://localhost:3006').replace(/\/+$/, '');
+  const targetDashboard = `${webUrl}/traffic-director/links`;
+
+  // Return JSON if requested via format=json, Accept header, or curl/API client
+  const acceptsHtml = req.accepts('html');
+  const wantsJson = req.query.format === 'json' || req.query.json === 'true' || req.headers.accept?.includes('application/json');
+
+  if (wantsJson || !acceptsHtml) {
+    return res.json({
+      status: 'online',
+      service: '180 Traffic Director Dedicated Edge Backend',
+      version: '1.0.0',
+      port: PORT,
+      webAppUrl: targetDashboard,
+      endpoints: {
+        health: '/health',
+        redirects: '/r/:slug',
+        dynamicTags: '/tag/:slug.js',
+        edgeEvaluate: '/evaluate/:slug',
+        capiPixel: '/pixel/event',
+        managementApi: '/api/v1/traffic-director'
+      }
+    });
+  }
+
+  // Instant browser redirect with high-fidelity splash page fallback
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="0; url=${targetDashboard}">
+  <title>180 Traffic Director • Edge Gateway</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #090a0f 80%);
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 24px;
+      padding: 40px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 40px rgba(99, 102, 241, 0.15);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      margin-bottom: 20px;
+    }
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 800;
+      margin: 0 0 12px 0;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+    }
+    p {
+      font-size: 13.5px;
+      color: #94a3b8;
+      line-height: 1.6;
+      margin: 0 0 28px 0;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 13px 24px;
+      background: #4f46e5;
+      color: white;
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 600;
+      border-radius: 14px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+    }
+    .btn:hover {
+      background: #4338ca;
+      transform: translateY(-1px);
+    }
+    .footer-links {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 11.5px;
+      color: #64748b;
+    }
+    .footer-links a {
+      color: #818cf8;
+      text-decoration: none;
+      margin: 0 8px;
+    }
+    .footer-links a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge"><span class="dot"></span> Edge Backend Active</div>
+    <h1>180 Traffic Director</h1>
+    <p>Dedicated Edge Routing & CAPI Decision Engine is running on port ${PORT}. Redirecting to your dashboard...</p>
+    <a href="${targetDashboard}" class="btn">Open Web App Dashboard →</a>
+    <div class="footer-links">
+      <a href="/health">Health Endpoint</a> •
+      <a href="/?format=json">JSON Specs</a>
+    </div>
+  </div>
+  <script>
+    setTimeout(function() {
+      window.location.replace("${targetDashboard}");
+    }, 400);
+  </script>
+</body>
+</html>`);
 });
 
 // ─── Local Dev OAuth Token Issuer ───────────────────────────────────────────
@@ -231,6 +383,45 @@ app.use('/r', publicRoutingRoutes);
 
 // ─── Authenticated Management API ───────────────────────────────────────────
 app.use('/api/v1/traffic-director', protect, trafficDirectorRoutes);
+
+// 404 Fallback for unmapped routes
+app.use((req, res) => {
+  const webUrl = (process.env.TRAFFIC_DIRECTOR_WEB_URL || 'http://localhost:3006').replace(/\/+$/, '');
+  const targetDashboard = `${webUrl}/traffic-director/links`;
+
+  if (req.accepts('html')) {
+    return res.status(404).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 • Not Found - 180 Traffic Director</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #090a0f; color: #f1f5f9; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
+    .card { background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; padding: 36px; max-width: 460px; text-align: center; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: rgba(239, 68, 68, 0.15); color: #f87171; margin-bottom: 16px; }
+    h1 { font-size: 20px; font-weight: 800; margin: 0 0 10px 0; color: #ffffff; }
+    p { font-size: 13px; color: #94a3b8; line-height: 1.6; margin: 0 0 24px 0; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; font-size: 13px; font-weight: 600; border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">404 Not Found</div>
+    <h1>Endpoint Not Found</h1>
+    <p>The requested route <code>${req.path}</code> was not found on the edge gateway.</p>
+    <a href="${targetDashboard}" class="btn">Go to Dashboard →</a>
+  </div>
+</body>
+</html>`);
+  }
+
+  return res.status(404).json({
+    success: false,
+    error: `Endpoint not found: ${req.method} ${req.path}`,
+    availableEndpoints: ['/health', '/r/:slug', '/tag/:slug.js', '/evaluate/:slug', '/pixel/event', '/api/v1/traffic-director']
+  });
+});
 
 // Global Error Handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
