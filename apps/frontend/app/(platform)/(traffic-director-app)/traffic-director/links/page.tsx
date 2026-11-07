@@ -102,6 +102,13 @@ export default function SmartLinksDirectoryPage() {
     fetchLinksAndStats();
   }, [search]);
 
+  // Listen to open-live-logs event from the top nav
+  useEffect(() => {
+    const handleOpenLiveLogs = () => setIsLiveLogsDrawerOpen(true);
+    window.addEventListener('open-live-logs', handleOpenLiveLogs);
+    return () => window.removeEventListener('open-live-logs', handleOpenLiveLogs);
+  }, []);
+
   // Derived link stats
   const totalLinksCount = links.length;
   const activeLinksCount = useMemo(() => links.filter(l => l.isActive).length, [links]);
