@@ -88,13 +88,6 @@ export function TrafficDirectorTopNav() {
     }
   };
 
-  const handleLogsClick = (e: React.MouseEvent) => {
-    if (pathname === '/traffic-director/links') {
-      e.preventDefault();
-      window.dispatchEvent(new CustomEvent('open-live-logs'));
-    }
-  };
-
   return (
     <header className="sticky top-0 z-40 w-full bg-white/90 dark:bg-[#0c0c0e]/90 backdrop-blur-xl border-b border-zinc-200/80 dark:border-white/10 transition-colors">
       <div className="w-full max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
@@ -144,7 +137,6 @@ export function TrafficDirectorTopNav() {
 
             <Link
               href="/traffic-director/logs"
-              onClick={handleLogsClick}
               className={clsx(
                 "flex items-center gap-2 px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer",
                 pathname === '/traffic-director/logs'

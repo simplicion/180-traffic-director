@@ -16,7 +16,6 @@ import clsx from 'clsx';
 import { useSubscription } from '@/lib/useSubscription';
 import CreateLinkModal from '../../_components/CreateLinkModal';
 import EditLinkModal from '../../_components/EditLinkModal';
-import LiveLogsDrawer from '../../_components/LiveLogsDrawer';
 
 export default function SmartLinksDirectoryPage() {
   const router = useRouter();
@@ -42,7 +41,6 @@ export default function SmartLinksDirectoryPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isLiveLogsDrawerOpen, setIsLiveLogsDrawerOpen] = useState(false);
   const [editingLink, setEditingLink] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; link: any; loading: boolean }>({
     isOpen: false,
@@ -101,13 +99,6 @@ export default function SmartLinksDirectoryPage() {
   useEffect(() => {
     fetchLinksAndStats();
   }, [search]);
-
-  // Listen to open-live-logs event from the top nav
-  useEffect(() => {
-    const handleOpenLiveLogs = () => setIsLiveLogsDrawerOpen(true);
-    window.addEventListener('open-live-logs', handleOpenLiveLogs);
-    return () => window.removeEventListener('open-live-logs', handleOpenLiveLogs);
-  }, []);
 
   // Derived link stats
   const totalLinksCount = links.length;
@@ -236,11 +227,6 @@ export default function SmartLinksDirectoryPage() {
         }}
       />
 
-      <LiveLogsDrawer
-        isOpen={isLiveLogsDrawerOpen}
-        onClose={() => setIsLiveLogsDrawerOpen(false)}
-      />
-
       <EditLinkModal
         isOpen={Boolean(editingLink)}
         onClose={() => setEditingLink(null)}
@@ -294,12 +280,11 @@ export default function SmartLinksDirectoryPage() {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Live Traffic Stream Drawer Action */}
-            <button
-              type="button"
-              onClick={() => setIsLiveLogsDrawerOpen(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-700/60 text-gray-700 dark:text-gray-200 text-xs font-semibold border border-gray-200 dark:border-zinc-700 transition active:scale-95 cursor-pointer group shadow-xs"
-              title="Open Live Traffic Stream for all Links"
+            {/* Live Traffic Logs Action */}
+            <Link
+              href="/traffic-director/logs"
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-700/60 text-gray-700 dark:text-gray-200 text-xs font-semibold border border-gray-200 dark:border-zinc-700 transition active:scale-95 group shadow-xs cursor-pointer"
+              title="View Live Traffic Logs & Analytics"
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -307,7 +292,7 @@ export default function SmartLinksDirectoryPage() {
               </span>
               <Layers className="w-4 h-4 text-zinc-500 dark:text-zinc-400 group-hover:text-emerald-500 transition-colors" />
               <span>Live Traffic Logs</span>
-            </button>
+            </Link>
 
             {/* Subscription & Quota Manager Action */}
             <Link
