@@ -5,23 +5,10 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
   Link as LinkIcon, 
-  Layers, 
-  ShieldCheck, 
-  CreditCard, 
-  User, 
-  Sparkles,
-  BarChart3,
-  ArrowLeft,
   ChevronLeft, 
-  ChevronRight,
-  Pin,
   X, 
-  Sun,
-  Moon,
-  Zap,
-  Copy,
-  Check,
-  Radio
+  Sun, 
+  Moon 
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -54,7 +41,6 @@ export function TrafficDirectorSidebar({
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
   const [isDark, setIsDark] = useState<boolean>(true);
-  const [advertisingUrl, setAdvertisingUrl] = useState('http://localhost:3000/advertising');
   const [userProfile, setUserProfile] = useState<{
     name: string;
     email: string;
@@ -81,16 +67,6 @@ export function TrafficDirectorSidebar({
         setIsCollapsed(true);
       }
     } catch (_) {}
-
-    const isLocal =
-      typeof window !== 'undefined' &&
-      (window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1');
-    setAdvertisingUrl(
-      isLocal
-        ? 'http://localhost:3000/advertising'
-        : 'https://app.180workspace.com/advertising'
-    );
 
     // Read user profile info
     const token = getAuthToken();
@@ -157,12 +133,9 @@ export function TrafficDirectorSidebar({
     }
   };
 
-  // Main Platform Navigation Items
+  // Main Platform Navigation Items - Focused Smart Links Dashboard
   const platformNavItems: NavItem[] = [
     { id: 'links', name: 'Smart Links', href: '/traffic-director/links', icon: LinkIcon },
-    { id: 'logs', name: 'Traffic Logs', href: '/traffic-director/logs', icon: Layers },
-    { id: 'subscription', name: 'Subscriptions', href: '/traffic-director/subscription', icon: CreditCard },
-    { id: 'profile', name: 'Profile', href: '/traffic-director/profile', icon: User },
   ];
 
   const sidebarContent = (
@@ -284,42 +257,6 @@ export function TrafficDirectorSidebar({
               </Link>
             );
           })}
-        </div>
-
-        {/* AI Tools Section */}
-        <div className="space-y-1 pt-2 border-t border-zinc-200/60 dark:border-white/5">
-          {isExpanded ? (
-            <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
-              AI Tools
-            </p>
-          ) : (
-            <div className="h-px bg-zinc-200/60 dark:bg-white/5 mx-2 my-2" />
-          )}
-
-          <a
-            href={advertisingUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={onMobileClose}
-            className={clsx(
-              "flex items-center rounded-xl font-semibold transition-all duration-200 min-h-[42px] text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/20 border border-transparent hover:border-indigo-200/50 dark:hover:border-indigo-800/40 group",
-              isExpanded ? "justify-between px-3 py-2" : "justify-center p-2"
-            )}
-            title="Generate AI White Page with 180 Visual Website & Landing Page Builder"
-          >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition-transform">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              {isExpanded && <span className="text-xs font-semibold whitespace-nowrap">AI White Pages</span>}
-            </div>
-
-            {isExpanded && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 shrink-0">
-                Builder ↗
-              </span>
-            )}
-          </a>
         </div>
       </nav>
 

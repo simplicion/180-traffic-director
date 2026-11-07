@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { 
   GitFork, Link as LinkIcon, Plus, Search, Copy, Check, ExternalLink, 
   Trash2, Settings2, Power, Filter, ArrowRight, CheckSquare, Layers, Lock,
-  Activity, Users, Bot, Globe, ShieldCheck, AlertTriangle, Sparkles, RefreshCw, Zap
+  Activity, Users, Bot, Globe, ShieldCheck, AlertTriangle, Sparkles, RefreshCw, Zap,
+  CreditCard
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -15,6 +16,7 @@ import clsx from 'clsx';
 import { useSubscription } from '@/lib/useSubscription';
 import CreateLinkModal from '../../_components/CreateLinkModal';
 import EditLinkModal from '../../_components/EditLinkModal';
+import LiveLogsDrawer from '../../_components/LiveLogsDrawer';
 
 export default function SmartLinksDirectoryPage() {
   const router = useRouter();
@@ -40,6 +42,7 @@ export default function SmartLinksDirectoryPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isLiveLogsDrawerOpen, setIsLiveLogsDrawerOpen] = useState(false);
   const [editingLink, setEditingLink] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; link: any; loading: boolean }>({
     isOpen: false,
@@ -226,6 +229,11 @@ export default function SmartLinksDirectoryPage() {
         }}
       />
 
+      <LiveLogsDrawer
+        isOpen={isLiveLogsDrawerOpen}
+        onClose={() => setIsLiveLogsDrawerOpen(false)}
+      />
+
       <EditLinkModal
         isOpen={Boolean(editingLink)}
         onClose={() => setEditingLink(null)}
@@ -279,11 +287,39 @@ export default function SmartLinksDirectoryPage() {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            <Link
-              href="/traffic-director/logs"
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-700/60 text-gray-700 dark:text-gray-200 text-xs font-semibold border border-gray-200 dark:border-zinc-700 transition active:scale-95"
+            {/* Live Traffic Stream Drawer Action */}
+            <button
+              type="button"
+              onClick={() => setIsLiveLogsDrawerOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-700/60 text-gray-700 dark:text-gray-200 text-xs font-semibold border border-gray-200 dark:border-zinc-700 transition active:scale-95 cursor-pointer group shadow-xs"
+              title="Open Live Traffic Stream for all Links"
             >
-              <span>Traffic Logs</span>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <Layers className="w-4 h-4 text-zinc-500 dark:text-zinc-400 group-hover:text-emerald-500 transition-colors" />
+              <span>Live Traffic Logs</span>
+            </button>
+
+            {/* Subscription & Quota Manager Action */}
+            <Link
+              href="/traffic-director/subscription"
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-700/60 text-gray-700 dark:text-gray-200 text-xs font-semibold border border-gray-200 dark:border-zinc-700 transition active:scale-95 group shadow-xs"
+              title="Manage Plan & Subscriptions"
+            >
+              <CreditCard className="w-4 h-4 text-indigo-500 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
+              <span>Subscription</span>
+              {planTier && (
+                <span className={clsx(
+                  "text-[10px] px-1.5 py-0.5 rounded-md font-mono font-bold uppercase",
+                  isPaidPlan 
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" 
+                    : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
+                )}>
+                  {planTier}
+                </span>
+              )}
             </Link>
 
             <button
@@ -346,15 +382,27 @@ export default function SmartLinksDirectoryPage() {
           </div>
 
           {!isUnlimited && (
-            <div className="w-full bg-gray-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
-              <div
-                className={clsx(
-                  "h-full rounded-full transition-all duration-500",
-                  capacityUsedPercent >= 90 ? "bg-rose-500" : capacityUsedPercent >= 70 ? "bg-amber-500" : "bg-emerald-500"
-                )}
-                style={{ width: `${capacityUsedPercent}%` }}
-              />
-            </div>
+            <>
+              <div className="w-full bg-gray-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+                <div
+                  className={clsx(
+                    "h-full rounded-full transition-all duration-500",
+                    capacityUsedPercent >= 90 ? "bg-rose-500" : capacityUsedPercent >= 70 ? "bg-amber-500" : "bg-emerald-500"
+                  )}
+                  style={{ width: `${capacityUsedPercent}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 pt-0.5">
+                <span>{Math.max(0, quotaLimit - activeLinksCount)} active link slots available</span>
+                <Link
+                  href="/traffic-director/subscription"
+                  className="text-blue-600 dark:text-blue-400 hover:underline font-semibold flex items-center gap-1 group"
+                >
+                  <span>Manage Plan & Quotas</span>
+                  <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </div>
+            </>
           )}
         </div>
       </div>

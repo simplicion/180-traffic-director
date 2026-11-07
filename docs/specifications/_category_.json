@@ -1,0 +1,9 @@
+{
+  "label": "180 Traffic Director",
+  "position": 4,
+  "collapsed": true,
+  "link": {
+    "type": "generated-index",
+    "description": "High-velocity link cloaking, Cloudflare Worker edge proxy, bot defense, and real-time ad attribution."
+  }
+}
