@@ -3,9 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  User, ShieldCheck, Copy, Check, ExternalLink, 
-  CreditCard, Key, Smartphone, Mail, Building, 
-  Calendar, Lock, Sparkles, RefreshCw, BadgeCheck, LogOut
+  User, ExternalLink, CreditCard, Mail, Building, 
+  RefreshCw, BadgeCheck, LogOut
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getAuthToken, clearAuthTokens } from '@/lib/api';
@@ -26,7 +25,6 @@ interface UserProfile {
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [copiedId, setCopiedId] = useState(false);
 
   const handleLogout = () => {
     clearAuthTokens();
@@ -77,38 +75,24 @@ export default function ProfilePage() {
     }
   };
 
-  const handleCopyUserId = () => {
-    if (!profile?.id) return;
-    navigator.clipboard.writeText(profile.id);
-    setCopiedId(true);
-    toast.success('User ID copied to clipboard!');
-    setTimeout(() => setCopiedId(false), 2000);
-  };
-
   if (loading && !profile) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
         <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
-        <p className="text-xs text-zinc-500 font-medium">Resolving 180 Sovereign Identity...</p>
+        <p className="text-xs text-zinc-500 font-medium">Loading profile...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-16">
-      {/* Top Breadcrumb & Header */}
+      {/* Top Header */}
       <div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/50">
-            Sovereign Identity
-          </span>
-          <span className="text-xs text-zinc-400">· 180 Workspace Single Sign-On</span>
-        </div>
-        <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight mt-1">
-          User Account & Sovereign Profile
+        <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+          User Profile
         </h1>
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-          Your credentials and permissions are issued by 180 Identity. Traffic Director uses sovereign zero-trust access tokens.
+          Manage your account credentials, workspace settings, and active session.
         </p>
       </div>
 
@@ -116,7 +100,7 @@ export default function ProfilePage() {
       <div className="p-8 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/10 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10 pb-6 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
           <div className="flex items-center gap-5">
             {/* Avatar */}
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-[2px] shadow-md shrink-0">
@@ -158,7 +142,7 @@ export default function ProfilePage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
             >
-              <span>Edit on 180 Profile</span>
+              <span>Edit Profile</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
 
@@ -171,35 +155,6 @@ export default function ProfilePage() {
               <span>Sign Out</span>
             </button>
           </div>
-        </div>
-
-        {/* User ID Highlight Box */}
-        <div className="mt-6 p-4 rounded-2xl bg-slate-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-1">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">
-              Sovereign User Identifier (180 User ID)
-            </span>
-            <div className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100 break-all select-all">
-              {profile?.id}
-            </div>
-          </div>
-
-          <button
-            onClick={handleCopyUserId}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700/60 transition-colors shadow-sm shrink-0 cursor-pointer self-start sm:self-auto"
-          >
-            {copiedId ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-500" />
-                <span className="text-emerald-600">Copied!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" />
-                <span>Copy User ID</span>
-              </>
-            )}
-          </button>
         </div>
       </div>
 
@@ -225,7 +180,7 @@ export default function ProfilePage() {
 
             <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
               <span className="text-zinc-400">Auth Method</span>
-              <span className="font-semibold text-blue-600 dark:text-blue-400">180 Identity SSO (PKCE)</span>
+              <span className="font-semibold text-blue-600 dark:text-blue-400">Single Sign-On (SSO)</span>
             </div>
           </div>
         </div>
@@ -262,32 +217,6 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Sovereign Security & Biometrics Status */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-900 dark:to-zinc-950 border border-blue-200/60 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20">
-            <Lock className="w-6 h-6" />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
-              Sovereign Account Security
-            </h4>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              Your identity supports WebAuthn Passkeys, WhatsApp Instant Verification, and multi-app SSO across 180 Workspace.
-            </p>
-          </div>
-        </div>
-
-        <a
-          href="https://profile.180workspace.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-4 py-2 rounded-xl text-xs font-bold bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-700/60 transition-colors shrink-0 cursor-pointer"
-        >
-          Security Center ↗
-        </a>
       </div>
 
       {/* Active Session & Sign Out Card */}
