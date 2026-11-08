@@ -172,6 +172,9 @@ jobs:
             NODE_ENV="production"
             ENVFILE
 
+            # Sync production database schema
+            cd apps/backend && npx tsx scripts/sync_production_db_schemas.ts && cd ../..
+
             # Gracefully restart backend process with PM2
             pm2 delete traffic-director-backend 2>/dev/null || true
             pm2 start "pnpm --filter traffic-director-backend start" --name "traffic-director-backend"
