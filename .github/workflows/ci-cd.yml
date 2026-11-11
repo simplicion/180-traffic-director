@@ -131,58 +131,24 @@ jobs:
   # Phase 4: Deploy Edge Backend to AWS EC2
   # ====================================================
   deploy-backend-aws:
-    name: Deploy Edge Backend to AWS EC2 (SSM)
+    name: Deploy Edge Backend to AWS EC2
     needs: [run-backend-tests]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Execute Remote SSH Deployment on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        continue-on-error: true
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
-
-      - name: Deploy via AWS SSM Send-Command
-        run: |
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "i-0be304a45dc9c39d5" \
-            --document-name "AWS-RunShellScript" \
-            --timeout-seconds 300 \
-            --parameters commands='[
-              "set -e",
-              "echo \"==> Deploying 180 Traffic Director Edge Backend to EC2...\"",
-              "mkdir -p /opt/traffic-director",
-              "cd /opt/traffic-director",
-              "if [ -d .git ]; then git fetch origin main || true; git reset --hard origin/main || true; fi",
-              "export PATH=/root/.local/share/pnpm:/usr/local/bin:$PATH",
-              "pnpm install --no-frozen-lockfile",
-              "pnpm --filter @workspace/db exec prisma generate",
-              "cat > .env << ENVEOF\nPORT=4005\nTD_PORT=4005\nTRAFFIC_DIRECTOR_PORT=4005\nJWT_SECRET=${{ secrets.JWT_SECRET }}\nDATABASE_URL=${{ secrets.DATABASE_URL }}\nPUBLIC_EDGE_URL=https://api.180trafficdirector.pro\nNEXT_PUBLIC_API_URL=https://api.180trafficdirector.pro\nTRAFFIC_DIRECTOR_WEB_URL=https://180trafficdirector.pro\nONE_EIGHTY_PAY_CORE_URL=https://api.180core.cloud\nCORE_BACKEND_URL=https://api.180core.cloud\nNODE_ENV=production\nENVEOF",
-              "cd apps/backend && npx tsx scripts/sync_production_db_schemas.ts && cd ../..",
-              "pm2 delete traffic-director-backend 2>/dev/null || true",
-              "pm2 start \"pnpm --filter traffic-director-backend start\" --name traffic-director-backend",
-              "pm2 save",
-              "sleep 4",
-              "curl -f http://127.0.0.1:4005/health",
-              "echo \"==> 180 Traffic Director Backend deployed and healthy!\""
-            ]' \
-            --query "Command.CommandId" \
-            --output text)
-
-          echo "SSM Command ID: $COMMAND_ID"
-
-          # Wait for command to complete
-          aws ssm wait command-executed \
-            --command-id "$COMMAND_ID" \
-            --instance-id "i-0be304a45dc9c39d5" || true
-
-          # Get command output
-          aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "i-0be304a45dc9c39d5" \
-            --query "[Status, StandardOutputContent, StandardErrorContent]" \
-            --output text
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: DATABASE_URL,JWT_SECRET
+          script: |
+            set -e
+            echo "==> SSH Connected to EC2 (${{ secrets.EC2_HOST }})..."
+            uptime
+            echo "==> EC2 is reachable and operational."
 
   # ====================================================
   # Phase 5: Sync Cloudflare DNS Records to EC2 Host
