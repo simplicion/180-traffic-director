@@ -717,8 +717,8 @@ serve_safe_page($config);
 
       <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
         {selectedDomain === getDefaultEdgeDomain()
-          ? 'Stealth domain masks traffic director indicators to protect campaigns against ad network reviewers and spy bots.'
-          : 'Snippets and links will dynamically route through the selected host.'}
+          ? 'Operational stealth domain masks traffic director signatures on smart links and injection scripts. Web portal and dashboard remain exclusively on 180trafficdirector.pro.'
+          : 'Operational traffic routes through the selected edge node. Web portal remains on 180trafficdirector.pro.'}
       </p>
     </div>
   );

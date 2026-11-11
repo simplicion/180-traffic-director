@@ -87,3 +87,18 @@ export const buildDomainBase = (domain?: string): string => {
   const activeDomain = domain?.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '') || getDefaultEdgeDomain();
   return activeDomain ? `https://${activeDomain}` : '';
 };
+
+/**
+ * Returns the platform web portal / dashboard origin.
+ * The management portal, auth callbacks, and settings reside strictly on 180trafficdirector.pro.
+ * Lokaya.shop is strictly reserved for edge operations (smart links & script injection).
+ */
+export const getPortalOrigin = (): string => {
+  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+  if (portalUrl) return portalUrl.trim().replace(/\/+$/, '');
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return '';
+};
+
