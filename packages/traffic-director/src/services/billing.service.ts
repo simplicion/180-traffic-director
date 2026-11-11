@@ -870,7 +870,7 @@ export class TrafficDirectorBillingService {
 
     if (!sessionResponse) {
       if (process.env.NODE_ENV !== 'production' || !payBaseUrl) {
-        const devSessionId = `dev_sub_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        const devSessionId = `dev_sub_${planTier.toLowerCase()}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
         return {
           success: true,
           sessionId: devSessionId,
@@ -994,18 +994,26 @@ export class TrafficDirectorBillingService {
 
     if (!session) {
       if (sessionId.startsWith('dev_sub_')) {
+        let devTier: TrafficDirectorTier = 'PRO';
+        if (sessionId.includes('_starter_')) devTier = 'STARTER';
+        else if (sessionId.includes('_enterprise_')) devTier = 'ENTERPRISE';
+        else if (sessionId.includes('_pro_')) devTier = 'PRO';
+
+        const dynamicPlans = await this.getPlans();
+        const tierPrice = dynamicPlans[devTier]?.price || (devTier === 'ENTERPRISE' ? 75 : devTier === 'STARTER' ? 25 : 50);
+
         const updatedRecord = await this.activateSubscriptionFromSessionRecord(userId, {
           id: sessionId,
           status: 'CAPTURED',
-          amount: 50,
+          amount: tierPrice,
           currency: 'USD',
-          metadata: { userId, planTier: 'PRO' }
+          metadata: { userId, planTier: devTier },
         });
         return {
           success: true,
           message: 'Dev subscription successfully confirmed and activated',
           subscription: updatedRecord,
-          planTier: updatedRecord?.planTier || 'PRO',
+          planTier: updatedRecord?.planTier || devTier,
         };
       }
       throw new Error(`Checkout session ${sessionId} not found`);

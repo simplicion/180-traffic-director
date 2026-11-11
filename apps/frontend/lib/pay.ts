@@ -21,14 +21,19 @@ export interface OneEightySubscriptionManagerOptions {
   onClose?: () => void;
 }
 
+export const getPayServerUrl = (): string => {
+  const envUrl = process.env.NEXT_PUBLIC_PAY_URL || process.env.NEXT_PUBLIC_180_PAY_URL;
+  if (envUrl) return envUrl;
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return 'http://localhost:3009';
+  }
+  return 'https://profile.180core.cloud';
+};
+
 export const OneEightyPay = {
   checkout: async (options: OneEightyPayCheckoutOptions): Promise<any> => {
     return new Promise((resolve, reject) => {
-      const baseUrl =
-        options.payServerUrl ||
-        (typeof window !== 'undefined' && window.location.hostname.endsWith('180workspace.com')
-          ? 'https://pay.180workspace.com'
-          : 'https://pay.180workspace.com');
+      const baseUrl = options.payServerUrl || getPayServerUrl();
 
       const sid = options.sessionId;
       const query = [
@@ -110,12 +115,8 @@ export const OneEightyPay = {
   },
 
   openSubscriptionManager: (options: OneEightySubscriptionManagerOptions) => {
-    const baseUrl =
-      options.payServerUrl ||
-      (typeof window !== 'undefined' && window.location.hostname.endsWith('180workspace.com')
-        ? 'https://pay.180workspace.com'
-        : 'https://pay.180workspace.com');
-    const manageUrl = `${baseUrl}/subscriptions/${encodeURIComponent(options.subscriptionId)}`;
+    const baseUrl = options.payServerUrl || getPayServerUrl();
+    const manageUrl = `${baseUrl}/checkout/manage-subscription/${encodeURIComponent(options.subscriptionId)}`;
 
     const handleMessage = (event: MessageEvent) => {
       if (!event.data) return;

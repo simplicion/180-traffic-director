@@ -13,7 +13,7 @@ import { OneEightyPay } from '@/lib/pay';
 interface SubscriptionData {
   id: string;
   userId: string;
-  planTier: 'STARTER' | 'PRO' | 'ENTERPRISE';
+  planTier: 'FREE' | 'STARTER' | 'PRO' | 'ENTERPRISE';
   planName: string;
   price: number;
   currency: string;
@@ -22,6 +22,11 @@ interface SubscriptionData {
   amountCharged: number;
   couponApplied?: string;
   discountAmount?: number;
+  trialStartedAt?: string;
+  trialEndsAt?: string;
+  isTrialing?: boolean;
+  trialDaysLeft?: number;
+  isTrialExpired?: boolean;
   currentPeriodStart?: string;
   currentPeriodEnd?: string;
   nextBillingDate?: string;
@@ -119,9 +124,9 @@ export default function SubscriptionPage() {
   };
 
   const handleSubscribe = async (tier: 'STARTER' | 'PRO' | 'ENTERPRISE') => {
+    const toastId = toast.loading('Initializing 180 Pay Sovereign Checkout...');
     try {
       setInitiatingPay(true);
-      const toastId = toast.loading('Initializing 180 Pay Sovereign Checkout...');
 
       const res = await api.post('/api/v1/traffic-director/billing/create-checkout', {
         planTier: tier,
@@ -143,6 +148,9 @@ export default function SubscriptionPage() {
         sessionId,
         amount,
         currency,
+        planCode: `traffic-${tier.toLowerCase()}`,
+        title: `180 Traffic Director ${tier === 'PRO' ? 'Pro Armor' : tier === 'ENTERPRISE' ? 'Enterprise Sovereign' : 'Starter Edge'}`,
+        uxMode: 'popup',
         onSuccess: async (paymentResult: any) => {
           const confirmToast = toast.loading('Activating subscription with Traffic Director...');
           try {
@@ -164,8 +172,9 @@ export default function SubscriptionPage() {
         },
       });
     } catch (err: any) {
-      toast.error(err.message || 'Checkout failed to launch');
+      toast.error(err.message || 'Checkout failed to launch', { id: toastId });
     } finally {
+      toast.dismiss(toastId);
       setInitiatingPay(false);
     }
   };
@@ -197,7 +206,9 @@ export default function SubscriptionPage() {
     );
   }
 
-  const currentTier = subData?.planTier || 'STARTER';
+  const currentTier = subData?.planTier || 'FREE';
+  const isPaid = subData?.status === 'ACTIVE' && currentTier !== 'FREE';
+  const isTrial = subData?.isTrialing || currentTier === 'FREE' || subData?.status === 'TRIALING';
   const targetPlan = plans.find((p) => p.tier === selectedTier) || plans[0] || {
     price: selectedTier === 'STARTER' ? 25 : selectedTier === 'PRO' ? 50 : 75,
     name: selectedTier,
@@ -262,7 +273,7 @@ export default function SubscriptionPage() {
         </div>
 
         <div className="flex items-center gap-2 self-start">
-          {subData?.status === 'ACTIVE' && (
+          {isPaid && (
             <button
               onClick={handleManageSubscription}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors shadow-sm cursor-pointer"
@@ -293,19 +304,25 @@ export default function SubscriptionPage() {
             <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Current Plan</span>
             <div className="flex items-center gap-2">
               <span className="text-xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
-                {subData?.planName || 'Starter Edge'}
+                {isPaid
+                  ? (subData?.planName || (currentTier === 'ENTERPRISE' ? 'Enterprise Sovereign' : currentTier === 'PRO' ? 'Pro Armor' : 'Starter Edge'))
+                  : '7-Day Free Trial'}
               </span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                subData?.status === 'ACTIVE'
+                isPaid
                   ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50'
-                  : 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50'
+                  : subData?.isTrialExpired
+                  ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50'
+                  : 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50'
               }`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                {subData?.status || 'ACTIVE'}
+                <span className={`w-1.5 h-1.5 rounded-full ${isPaid ? 'bg-emerald-500 animate-pulse' : subData?.isTrialExpired ? 'bg-rose-500' : 'bg-blue-500 animate-pulse'}`} />
+                {isPaid ? 'ACTIVE' : subData?.isTrialExpired ? 'EXPIRED' : 'TRIAL ACTIVE'}
               </span>
             </div>
             <p className="text-[11px] text-zinc-500">
-              {subData?.planTier === 'ENTERPRISE' ? 'Unlimited Allocation' : `${subData?.maxLinks ?? 2} Smart Links Allocation`}
+              {isPaid
+                ? (currentTier === 'ENTERPRISE' ? 'Unlimited Allocation' : `${subData?.maxLinks ?? 2} Smart Links Allocation`)
+                : `${subData?.trialDaysLeft ?? 7} Days Remaining · 1 Smart Link Allocation`}
             </p>
           </div>
 
@@ -313,32 +330,58 @@ export default function SubscriptionPage() {
           <div className="space-y-1">
             <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Billed Amount</span>
             <div className="text-xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
-              {subData?.currency === 'INR' ? '₹' : '$'}
-              {subData?.amountCharged !== undefined ? subData.amountCharged.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '25.00'}
-              <span className="text-xs text-zinc-400 font-normal"> / month</span>
+              {isPaid ? (
+                <>
+                  {subData?.currency === 'INR' ? '₹' : '$'}
+                  {subData?.amountCharged !== undefined ? subData.amountCharged.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '25.00'}
+                  <span className="text-xs text-zinc-400 font-normal"> / month</span>
+                </>
+              ) : (
+                <>
+                  $0.00
+                  <span className="text-xs text-zinc-400 font-normal"> / trial period</span>
+                </>
+              )}
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-              <Lock className="w-3 h-3" />
-              <span>180 Pay Auto-Renew Active</span>
+            <div className={`flex items-center gap-1.5 text-[11px] font-medium ${isPaid ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-500 dark:text-zinc-400'}`}>
+              {isPaid ? (
+                <>
+                  <Lock className="w-3 h-3" />
+                  <span>180 Pay Auto-Renew Active</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Free Trial (No Card Required)</span>
+                </>
+              )}
             </div>
           </div>
 
           {/* Renewal Date */}
           <div className="space-y-1">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Next Billing Date</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">
+              {isPaid ? 'Next Billing Date' : 'Trial Status'}
+            </span>
             <div className="text-base font-bold text-zinc-900 dark:text-white tracking-tight flex items-center gap-1.5">
               <Clock className="w-4 h-4 text-blue-500" />
               <span>
-                {subData?.nextBillingDate
-                  ? new Date(subData.nextBillingDate).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })
-                  : '30 Days From Activation'}
+                {isPaid
+                  ? (subData?.nextBillingDate
+                    ? new Date(subData.nextBillingDate).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    : '30 Days From Activation')
+                  : subData?.isTrialExpired
+                  ? 'Trial Period Expired'
+                  : `${subData?.trialDaysLeft ?? 7} Days Remaining`}
               </span>
             </div>
-            <p className="text-[11px] text-zinc-500">Automatic renewal from sovereign wallet</p>
+            <p className="text-[11px] text-zinc-500">
+              {isPaid ? 'Automatic renewal from sovereign wallet' : 'Upgrade below to unlock unlimited links & cloaking'}
+            </p>
           </div>
 
           {/* Smart Link Usage Quota */}
@@ -395,7 +438,7 @@ export default function SubscriptionPage() {
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
                   Starter Edge
                 </span>
-                {currentTier === 'STARTER' && (
+                {isPaid && currentTier === 'STARTER' && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
                     Active Plan
                   </span>
@@ -458,17 +501,17 @@ export default function SubscriptionPage() {
                   setSelectedTier('STARTER');
                   handleSubscribe('STARTER');
                 }}
-                disabled={initiatingPay || currentTier === 'STARTER'}
+                disabled={initiatingPay || (isPaid && currentTier === 'STARTER')}
                 className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                  currentTier === 'STARTER'
+                  isPaid && currentTier === 'STARTER'
                     ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
                     : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 shadow-sm'
                 }`}
               >
                 <span>
-                  {currentTier === 'STARTER'
+                  {isPaid && currentTier === 'STARTER'
                     ? 'Current Active Tier'
-                    : `Select Starter (${starterPlan.currencySymbol}${starterPlan.price}/mo)`}
+                    : `Upgrade to Starter (${starterPlan.currencySymbol}${starterPlan.price}/mo)`}
                 </span>
               </button>
             </div>
@@ -489,7 +532,7 @@ export default function SubscriptionPage() {
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50">
                   Pro Armor
                 </span>
-                {currentTier === 'PRO' && (
+                {isPaid && currentTier === 'PRO' && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
                     Active Plan
                   </span>
@@ -556,16 +599,16 @@ export default function SubscriptionPage() {
                   setSelectedTier('PRO');
                   handleSubscribe('PRO');
                 }}
-                disabled={initiatingPay || currentTier === 'PRO'}
+                disabled={initiatingPay || (isPaid && currentTier === 'PRO')}
                 className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                  currentTier === 'PRO'
+                  isPaid && currentTier === 'PRO'
                     ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
                     : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/25 active:scale-95'
                 }`}
               >
                 <Zap className="w-3.5 h-3.5" />
                 <span>
-                  {currentTier === 'PRO'
+                  {isPaid && currentTier === 'PRO'
                     ? 'Current Active Tier'
                     : `Upgrade to Pro (${proPlan.currencySymbol}${proPlan.price}/mo)`}
                 </span>
@@ -584,7 +627,7 @@ export default function SubscriptionPage() {
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200/50 dark:border-purple-800/50">
                   Enterprise Sovereign
                 </span>
-                {currentTier === 'ENTERPRISE' && (
+                {isPaid && currentTier === 'ENTERPRISE' && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
                     Active Plan
                   </span>
@@ -651,16 +694,16 @@ export default function SubscriptionPage() {
                   setSelectedTier('ENTERPRISE');
                   handleSubscribe('ENTERPRISE');
                 }}
-                disabled={initiatingPay || currentTier === 'ENTERPRISE'}
+                disabled={initiatingPay || (isPaid && currentTier === 'ENTERPRISE')}
                 className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                  currentTier === 'ENTERPRISE'
+                  isPaid && currentTier === 'ENTERPRISE'
                     ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
                     : 'bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-500/25 active:scale-95'
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>
-                  {currentTier === 'ENTERPRISE'
+                  {isPaid && currentTier === 'ENTERPRISE'
                     ? 'Current Active Tier'
                     : `Upgrade to Enterprise (${enterprisePlan.currencySymbol}${enterprisePlan.price}/mo)`}
                 </span>
@@ -742,7 +785,7 @@ export default function SubscriptionPage() {
         </div>
 
         <a
-          href="https://profile.180workspace.com"
+          href="https://profile.180core.cloud"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 font-semibold text-blue-600 dark:text-blue-400 hover:underline shrink-0"

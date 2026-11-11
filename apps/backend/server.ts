@@ -39,6 +39,7 @@ app.use(cors({
     'Content-Type',
     'Authorization',
     'x-user-id',
+    'x-company-id',
     'x-180-signature',
     'x-180-timestamp',
     'Range'

@@ -348,7 +348,7 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
   const dedicatedCdnUrl = calculateCdnDomain();
   const apiBase = typeof window !== 'undefined' 
     ? (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:4005' : window.location.origin))
-    : 'https://180trafficdirector.pro';
+    : 'https://api.180trafficdirector.pro';
 
   const getSelectedHost = () => {
     if (domainMode === 'custom' && linkData?.customDomain) {

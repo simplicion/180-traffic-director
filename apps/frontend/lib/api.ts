@@ -5,8 +5,14 @@ export const getApiBase = () => {
   if (isLocal) {
     return envUrl && envUrl.includes('localhost') ? envUrl : 'http://localhost:4005';
   }
-  if (typeof window === 'undefined') return envUrl || 'http://localhost:4005';
-  return envUrl || 'https://180trafficdirector.pro';
+  // In production: never send API requests to the static Cloudflare Pages host (180trafficdirector.pro)
+  if (typeof window !== 'undefined') {
+    if (envUrl && (envUrl.includes('api.180trafficdirector.pro') || envUrl.includes('edge.180trafficdirector.pro'))) {
+      return envUrl;
+    }
+    return 'https://api.180trafficdirector.pro';
+  }
+  return envUrl && !envUrl.includes('localhost') ? envUrl : 'https://api.180trafficdirector.pro';
 };
 
 export const getAuthToken = (): string | null => {
@@ -40,8 +46,9 @@ export const clearAuthTokens = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('auth_token');
   localStorage.removeItem('accessToken');
+  const isTd = window.location.hostname.endsWith('180trafficdirector.pro');
   const is180 = window.location.hostname.endsWith('180workspace.com');
-  const domainAttr = is180 ? '; domain=.180workspace.com' : '';
+  const domainAttr = isTd ? '; domain=.180trafficdirector.pro' : is180 ? '; domain=.180workspace.com' : '';
   document.cookie = `platform_auth_token=; path=/; max-age=0${domainAttr};`;
   document.cookie = `platform_auth_token=; path=/; max-age=0;`;
   document.cookie = `token=; path=/; max-age=0${domainAttr};`;
