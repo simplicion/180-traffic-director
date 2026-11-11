@@ -146,9 +146,46 @@ jobs:
           envs: DATABASE_URL,JWT_SECRET
           script: |
             set -e
-            echo "==> SSH Connected to EC2 (${{ secrets.EC2_HOST }})..."
-            uptime
-            echo "==> EC2 is reachable and operational."
+            echo "==> Deploying 180 Traffic Director Edge Backend to EC2..."
+            mkdir -p /opt/traffic-director
+            cd /opt/traffic-director
+
+            if [ -d ".git" ]; then
+              git fetch origin main || true
+              git reset --hard origin/main || true
+            fi
+
+            # Install dependencies and update prisma client
+            pnpm install --no-frozen-lockfile
+            pnpm --filter @workspace/db exec prisma generate
+
+            # Ensure production .env is populated
+            cat << 'ENVFILE' > .env
+            PORT=4005
+            TD_PORT=4005
+            TRAFFIC_DIRECTOR_PORT=4005
+            JWT_SECRET="${{ secrets.JWT_SECRET }}"
+            DATABASE_URL="${{ secrets.DATABASE_URL }}"
+            PUBLIC_EDGE_URL="https://api.180trafficdirector.pro"
+            NEXT_PUBLIC_API_URL="https://api.180trafficdirector.pro"
+            TRAFFIC_DIRECTOR_WEB_URL="https://180trafficdirector.pro"
+            ONE_EIGHTY_PAY_CORE_URL="https://api.180core.cloud"
+            CORE_BACKEND_URL="https://api.180core.cloud"
+            NODE_ENV="production"
+            ENVFILE
+
+            # Sync production database schema
+            cd apps/backend && npx tsx scripts/sync_production_db_schemas.ts && cd ../..
+
+            # Gracefully restart backend process with PM2
+            pm2 delete traffic-director-backend 2>/dev/null || true
+            pm2 start "pnpm --filter traffic-director-backend start" --name "traffic-director-backend"
+            pm2 save
+
+            # Verify health
+            sleep 4
+            curl -f http://127.0.0.1:4005/health
+            echo "==> 180 Traffic Director Backend deployed and healthy!"
 
   # ====================================================
   # Phase 5: Sync Cloudflare DNS Records to EC2 Host
