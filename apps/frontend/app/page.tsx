@@ -72,17 +72,15 @@ export default function TrafficDirectorLandingPage() {
       const res = await fetch(`${apiBase}/oauth/dev-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'simplicion.com@gmail.com' }),
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (data?.success && data?.token) {
         localStorage.setItem('platform_auth_token', data.token);
         localStorage.setItem('token', data.token);
         const isProd = window.location.protocol === 'https:';
-        const is180 = window.location.hostname.endsWith('180workspace.com');
-        const domainAttr = is180 ? '; domain=.180workspace.com' : '';
         const secureAttr = isProd ? '; Secure' : '';
-        document.cookie = `platform_auth_token=${data.token}; path=/; max-age=604800; SameSite=Lax${secureAttr}${domainAttr}`;
+        document.cookie = `platform_auth_token=${data.token}; path=/; max-age=604800; SameSite=Lax${secureAttr}`;
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));
         }
@@ -107,8 +105,7 @@ export default function TrafficDirectorLandingPage() {
     setIsAuthenticated(false);
 
     if (typeof window !== 'undefined') {
-      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      setIsDev(isLocalHost);
+      setIsDev(process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === 'true');
     }
 
     // Auto-trigger login if navigated with ?login=true

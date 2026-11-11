@@ -1,0 +1,12 @@
+# Cloudflare Pages Reverse Proxy - API routes to Express backend
+/api/v1/traffic-director/*  __API_URL__/api/v1/traffic-director/:splat  200
+/oauth/*                    __API_URL__/oauth/:splat                    200
+/r/*                        __API_URL__/r/:splat                        200
+/tag/*                      __API_URL__/tag/:splat                      200
+/evaluate/*                 __API_URL__/evaluate/:splat                  200
+/pixel/*                    __API_URL__/pixel/:splat                     200
+/health                     __API_URL__/health                           200
+
+# SPA Rewrites for Traffic Director dynamic routes
+/traffic-director/links/*.txt    /traffic-director/links/default.txt   200
+/traffic-director/links/*        /traffic-director/links/default       200

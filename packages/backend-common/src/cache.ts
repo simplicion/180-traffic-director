@@ -1,7 +1,10 @@
 import Redis from 'ioredis';
 
 // Re-use connection from .env
-const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+const redisUrl = process.env.REDIS_URL;
+if (!redisUrl) {
+    throw new Error('REDIS_URL is not configured in environment');
+}
 
 // Initialize a single shared Redis client instance
 export const redisClient = new Redis(redisUrl, {

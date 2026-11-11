@@ -297,9 +297,16 @@ export class PublicRoutingController {
         return res.status(404).type('application/javascript').send('// Smart Link Not Found');
       }
 
-      const host = req.get('host') || 'localhost:4005';
+      // Generated scripts call back to the host they were served from (e.g. the edge domain
+      // the user selected), falling back to the configured public edge URL.
+      const host = req.get('host');
       const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
-      const apiBaseUrl = `${protocol}://${host}`;
+      const apiBaseUrl = host
+        ? `${protocol}://${host}`
+        : (process.env.PUBLIC_EDGE_URL || '').replace(/\/+$/, '');
+      if (!apiBaseUrl) {
+        return res.status(500).type('application/javascript').send('// Edge host is not configured');
+      }
       
       const targetUrl = link.rules?.[0]?.destinationUrl || link.fallbackUrl;
       const cacheKey = `${cleanSlug}:${targetUrl}:${apiBaseUrl}`;

@@ -4,12 +4,12 @@
  * --------------------------------------------------------------------------
  * Strictly environment-variable driven. Zero hardcoded URLs or domain fallbacks.
  *
- * Supports dynamic switching between configured stealth edge domains (e.g. lokaya.shop),
- * platform domains (180trafficdirector.pro), and verified user custom domains.
+ * Supports dynamic switching between configured stealth edge domains,
+ * platform domains, and verified user custom domains (all from env).
  */
 
 /**
- * Returns the default edge domain configured in .env (e.g. "lokaya.shop")
+ * Returns the default edge domain configured in .env (NEXT_PUBLIC_DEFAULT_EDGE_DOMAIN)
  */
 export const getDefaultEdgeDomain = (): string => {
   const domain = process.env.NEXT_PUBLIC_DEFAULT_EDGE_DOMAIN || '';
@@ -55,7 +55,7 @@ export const getAvailableEdgeDomains = (customDomain?: string | null): string[] 
 };
 
 /**
- * Build a standard Smart Link URL (e.g. https://lokaya.shop/r/xoraoffer)
+ * Build a standard Smart Link URL (https://<edge-domain>/r/<slug>)
  */
 export const buildSmartLinkUrl = (slug: string, domain?: string): string => {
   const activeDomain = domain?.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '') || getDefaultEdgeDomain();
@@ -63,7 +63,7 @@ export const buildSmartLinkUrl = (slug: string, domain?: string): string => {
 };
 
 /**
- * Build dynamic pixel / client-shield script URL (e.g. https://lokaya.shop/tag/xoraoffer.js)
+ * Build dynamic pixel / client-shield script URL (https://<edge-domain>/tag/<slug>.js)
  */
 export const buildTagScriptUrl = (slug: string, domain?: string): string => {
   const activeDomain = domain?.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '') || getDefaultEdgeDomain();
@@ -71,7 +71,7 @@ export const buildTagScriptUrl = (slug: string, domain?: string): string => {
 };
 
 /**
- * Build dynamic edge evaluation API URL (e.g. https://lokaya.shop/api/v1/traffic-director/evaluate/xoraoffer)
+ * Build dynamic edge evaluation API URL (https://<edge-domain>/api/v1/traffic-director/evaluate/<slug>)
  */
 export const buildEvaluateUrl = (slug: string, domain?: string): string => {
   const activeDomain = domain?.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '') || getDefaultEdgeDomain();
@@ -90,8 +90,8 @@ export const buildDomainBase = (domain?: string): string => {
 
 /**
  * Returns the platform web portal / dashboard origin.
- * The management portal, auth callbacks, and settings reside strictly on 180trafficdirector.pro.
- * Lokaya.shop is strictly reserved for edge operations (smart links & script injection).
+ * The management portal, auth callbacks, and settings reside strictly on NEXT_PUBLIC_APP_URL.
+ * The edge domains are strictly reserved for operational traffic (smart links & script injection).
  */
 export const getPortalOrigin = (): string => {
   const portalUrl = process.env.NEXT_PUBLIC_APP_URL || '';

@@ -1,8 +1,21 @@
 import { corePrisma } from '@workspace/db-180core';
 import crypto from 'crypto';
 
-const PROJECT_ID = process.env.TRAFFIC_DIRECTOR_PROJECT_ID || '7697a348-7550-4229-9595-08ba67aa9755';
-const CLIENT_ID = process.env.TRAFFIC_DIRECTOR_CLIENT_ID || '180_client_b26aee801c22cb3295f041ff2a3597db';
+const requireEnv = (name) => {
+  const value = (process.env[name] || '').trim();
+  if (!value) {
+    console.error(`${name} is not set. Add it to your .env file before running this script.`);
+    process.exit(1);
+  }
+  return value;
+};
+const splitList = (raw) => (raw || '').split(',').map((v) => v.trim().replace(/\/+$/, '')).filter(Boolean);
+const portalUrl = requireEnv('TRAFFIC_DIRECTOR_WEB_URL').replace(/\/+$/, '');
+const oauthOrigins = Array.from(new Set([portalUrl, ...splitList(process.env.OAUTH_ALLOWED_ORIGINS)]));
+const oauthRedirectUris = oauthOrigins.map((origin) => `${origin}/callback`);
+const PROJECT_ID = requireEnv('TRAFFIC_DIRECTOR_PROJECT_ID');
+const CLIENT_ID = requireEnv('TRAFFIC_DIRECTOR_CLIENT_ID');
+const BACKEND_URL = requireEnv('PUBLIC_EDGE_URL').replace(/\/+$/, '');
 const CLIENT_SECRET = process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || `180_secret_${crypto.randomBytes(24).toString('hex')}`;
 const WEBHOOK_SECRET = process.env.TRAFFIC_DIRECTOR_WEBHOOK_SECRET || `whsec_${crypto.randomBytes(20).toString('hex')}`;
 
@@ -30,28 +43,12 @@ async function main() {
 
   const redirectUris = Array.from(new Set([
     ...(app.redirectUris || []),
-    'http://localhost:3000/callback',
-    'http://localhost:3006/callback',
-    'http://localhost:3009/callback',
-    'http://localhost:3002/callback',
-    'https://traffic-director.180workspace.com/callback',
-    'https://trafficdirector.180workspace.com/callback',
-    'https://traffic.180workspace.com/callback',
-    'https://*.180workspace.com/callback',
+    ...oauthRedirectUris,
   ]));
 
   const allowedOrigins = Array.from(new Set([
     ...(app.allowedOrigins || []),
-    'http://localhost:3000',
-    'http://localhost:3006',
-    'http://127.0.0.1:3006',
-    'http://localhost:3009',
-    'http://127.0.0.1:3009',
-    'http://localhost:3002',
-    'https://traffic-director.180workspace.com',
-    'https://trafficdirector.180workspace.com',
-    'https://traffic.180workspace.com',
-    'https://*.180workspace.com',
+    ...oauthOrigins,
   ]));
 
   const updatedApp = await corePrisma.oAuthApp.update({
@@ -63,7 +60,7 @@ async function main() {
       clientSecretHint: '...' + CLIENT_SECRET.slice(-4),
       redirectUris,
       allowedOrigins,
-      webhookUrl: 'http://localhost:4002/api/v1/traffic-director/billing/webhook',
+      webhookUrl: `${BACKEND_URL}/api/v1/traffic-director/billing/webhook`,
       webhookSecret: WEBHOOK_SECRET,
       enableAuth: true,
       enablePay: true,

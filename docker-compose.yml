@@ -15,7 +15,7 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=${REDIS_URL}
     depends_on:
       - redis
 
@@ -29,7 +29,7 @@ services:
       - "3006:3006"
     environment:
       - PORT=3006
-      - NEXT_PUBLIC_API_URL=http://localhost:4005
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     depends_on:
       - backend
 

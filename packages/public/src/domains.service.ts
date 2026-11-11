@@ -26,7 +26,7 @@ export interface DomainConfig {
 export class DomainsService {
   private static VERCEL_ANYCAST_IP = process.env.VERCEL_ANYCAST_IP || '76.76.21.21';
   private static VERCEL_CNAME_TARGET = process.env.VERCEL_CNAME_TARGET || 'cname.vercel-dns.com';
-  private static CLOUDFLARE_CNAME_TARGET = process.env.CUSTOM_DOMAIN_CNAME_TARGET || 'cname.180workspace.com';
+  private static CLOUDFLARE_CNAME_TARGET = process.env.CUSTOM_DOMAIN_CNAME_TARGET || '';
   private static SERVER_PUBLIC_IP = process.env.EC2_PUBLIC_IP || process.env.SERVER_PUBLIC_IP || '';
 
   /**
@@ -357,7 +357,7 @@ export class DomainsService {
       } else {
         const cnameRecords = await dns.promises.resolveCname(cleanDomain).catch(() => []);
         details.resolvedCname = cnameRecords;
-        if (cnameRecords.some(r => r.includes('180workspace') || r.includes('vercel-dns') || r.includes('cloudflare'))) {
+        if (cnameRecords.some(r => (this.CLOUDFLARE_CNAME_TARGET && r.includes(this.CLOUDFLARE_CNAME_TARGET)) || r.includes('vercel-dns') || r.includes('cloudflare'))) {
           isDnsValid = true;
         }
       }
@@ -522,8 +522,17 @@ export class DomainsService {
     reason?: string;
   }> {
     const cleanSlug = (slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
-    const root = options?.rootDomain || process.env.ROOT_DOMAIN || process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || (process.env.NODE_ENV === 'development' ? 'localhost' : '180workspace.com');
+    const root = options?.rootDomain || process.env.ROOT_DOMAIN || process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
     const fullDomain = `${cleanSlug}.${root}`;
+
+    if (!root) {
+      return {
+        available: false,
+        slug: cleanSlug,
+        fullDomain,
+        reason: 'Platform root domain is not configured (ROOT_DOMAIN).'
+      };
+    }
 
     if (!cleanSlug || cleanSlug.length < 2) {
       return {

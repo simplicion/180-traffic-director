@@ -96,9 +96,10 @@ export const OneEightyPayButton: React.FC<OneEightyPayButtonProps> = ({
         }
       } else {
         // 2. Direct fallback
-        const baseUrl = payServerUrl || (typeof window !== 'undefined' && window.location.hostname.endsWith('180workspace.com')
-          ? 'https://pay.180workspace.com'
-          : 'http://localhost:3009');
+        const baseUrl = (payServerUrl || process.env.NEXT_PUBLIC_PAY_URL || process.env.NEXT_PUBLIC_180_PAY_URL || '').replace(/\/+$/, '');
+        if (!baseUrl) {
+          throw new Error('Payment server URL is not configured (NEXT_PUBLIC_PAY_URL)');
+        }
         const sid = sessionId || 'cs_' + Math.random().toString(36).substring(2, 14);
         const query = [
           amount ? `amount=${encodeURIComponent(amount)}` : '',

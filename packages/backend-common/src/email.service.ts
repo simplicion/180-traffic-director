@@ -8,7 +8,7 @@ const { prisma } = require('@workspace/db');
  * Get application base URL
  */
 function getAppUrl(path = '') {
-    let baseUrl = (process.env.CLIENT_URL || 'http://localhost:3000').split(',')[0].trim();
+    let baseUrl = (process.env.CLIENT_URL || '').split(',')[0].trim();
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
     if (path && !path.startsWith('/')) path = '/' + path;
     return `${baseUrl}${path}`;
@@ -1753,7 +1753,7 @@ export const EmailService = {
         const to = user.email;
         const name = user.name || 'User';
         const company = await getCompanyInfo(prisma);
-        const loginUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+        const loginUrl = process.env.CLIENT_URL || '';
         const subject = `Your Temporary Password — ${company.companyName || companyName}`;
         const content = `
             <div style="text-align: center; margin-bottom: 24px;">

@@ -6,7 +6,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.clearCache = exports.setCachedData = exports.getCachedData = exports.delCache = exports.setCache = exports.getCache = exports.redisClient = void 0;
 const ioredis_1 = __importDefault(require("ioredis"));
 // Re-use connection from .env
-const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+const redisUrl = process.env.REDIS_URL;
+if (!redisUrl) {
+    throw new Error('REDIS_URL is not configured in environment');
+}
 // Initialize a single shared Redis client instance
 exports.redisClient = new ioredis_1.default(redisUrl, {
     maxRetriesPerRequest: null,

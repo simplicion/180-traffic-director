@@ -1,5 +1,13 @@
 import http from 'http';
 
+// Backend under test, e.g. the local dev server. Requires ENABLE_DEV_LOGIN=true and DEV_LOGIN_EMAIL on that server.
+const testApiUrl = (process.env.TEST_API_URL || '').trim();
+if (!testApiUrl) {
+  console.error('TEST_API_URL is not set. Point it at the backend you want to test.');
+  process.exit(1);
+}
+const testApi = new URL(testApiUrl);
+
 interface TestResult {
   endpoint: string;
   method: string;
@@ -35,8 +43,8 @@ function req(options: http.RequestOptions, postData?: any): Promise<{ status: nu
       reqHeaders['Content-Length'] = Buffer.byteLength(payload);
     }
     const r = http.request({
-      host: 'localhost',
-      port: 4005,
+      host: testApi.hostname,
+      port: Number(testApi.port) || (testApi.protocol === 'https:' ? 443 : 80),
       ...options,
       headers: reqHeaders,
     }, (res) => {
@@ -72,7 +80,7 @@ async function runFullEndpointVerification() {
   });
 
   // 2. OAuth Dev Token
-  const auth = await req({ path: '/oauth/dev-token', method: 'POST' }, { email: 'simplicion.com@gmail.com' });
+  const auth = await req({ path: '/oauth/dev-token', method: 'POST' }, {});
   const token = auth.data?.token;
   logResult({
     endpoint: '/oauth/dev-token',

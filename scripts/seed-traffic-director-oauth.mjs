@@ -3,6 +3,19 @@ import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
+const requireEnv = (name) => {
+  const value = (process.env[name] || '').trim();
+  if (!value) {
+    console.error(`${name} is not set. Add it to your .env file before running this script.`);
+    process.exit(1);
+  }
+  return value;
+};
+const splitList = (raw) => (raw || '').split(',').map((v) => v.trim().replace(/\/+$/, '')).filter(Boolean);
+const portalUrl = requireEnv('TRAFFIC_DIRECTOR_WEB_URL').replace(/\/+$/, '');
+const oauthOrigins = Array.from(new Set([portalUrl, ...splitList(process.env.OAUTH_ALLOWED_ORIGINS)]));
+const oauthRedirectUris = oauthOrigins.map((origin) => `${origin}/callback`);
+
 async function main() {
   console.log('[Seed] Seeding 180 Traffic Director OAuth App...');
 
@@ -15,7 +28,7 @@ async function main() {
     process.exit(1);
   }
 
-  const clientId = process.env.TRAFFIC_DIRECTOR_CLIENT_ID || '180_client_b26aee801c22cb3295f041ff2a3597db';
+  const clientId = requireEnv('TRAFFIC_DIRECTOR_CLIENT_ID');
   const secret = process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || `180_secret_${crypto.randomBytes(24).toString('hex')}`;
   const secretHash = crypto.createHash('sha256').update(secret).digest('hex');
 
@@ -25,33 +38,13 @@ async function main() {
     clientId,
     clientSecretHash: secretHash,
     clientSecretHint: secret.slice(-4),
-    redirectUris: [
-      'http://localhost:3000/callback',
-      'http://localhost:3006/callback',
-      'http://localhost:3009/callback',
-      'http://localhost:3002/callback',
-      'https://traffic-director.180workspace.com/callback',
-      'https://trafficdirector.180workspace.com/callback',
-      'https://traffic.180workspace.com/callback',
-      'https://*.180workspace.com/callback',
-    ],
-    allowedOrigins: [
-      'http://localhost:3000',
-      'http://localhost:3006',
-      'http://127.0.0.1:3006',
-      'http://localhost:3009',
-      'http://127.0.0.1:3009',
-      'http://localhost:3002',
-      'https://traffic-director.180workspace.com',
-      'https://trafficdirector.180workspace.com',
-      'https://traffic.180workspace.com',
-      'https://*.180workspace.com',
-    ],
+    redirectUris: oauthRedirectUris,
+    allowedOrigins: oauthOrigins,
     allowedScopes: ['openid', 'identity:read', 'identity:email'],
     isVerified: true,
     isActive: true,
     logoUrl: '/icon.svg',
-    homepageUrl: 'https://trafficdirector.180workspace.com',
+    homepageUrl: portalUrl,
     userId: systemUser.id,
   };
 

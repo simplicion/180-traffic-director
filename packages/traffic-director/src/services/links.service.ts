@@ -264,7 +264,10 @@ export class TrafficLinksService {
     const linkName = data.name || data.title || 'Untitled Link';
     const rawSlug = data.slug || linkName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.random().toString(36).substring(2, 7);
     const cleanedSlug = rawSlug.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
-    const finalFallbackUrl = data.fallbackUrl || data.destinationUrl || data.targetUrl || 'https://google.com';
+    const finalFallbackUrl = data.fallbackUrl || data.destinationUrl || data.targetUrl;
+    if (!finalFallbackUrl) {
+      throw new Error('A destination or fallback URL is required to create a traffic link');
+    }
 
     // Validate slug format
     const availability = await this.checkSlugAvailability(cleanedSlug);

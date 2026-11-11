@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { getJwtSecret } from '../config/secrets';
 
 export interface AuthenticatedUser {
   id: string;
@@ -37,23 +38,19 @@ export async function protect(req: any, res: Response, next: NextFunction) {
       });
     }
 
-    const secret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || '180workspace_traffic_director_default_secure_vault_key_2026';
-    
     let decoded: any = null;
     try {
-      decoded = jwt.verify(token, secret);
-    } catch (err: any) {
-      // If verification with primary secret fails, decode payload (supports 180 Core RS256 token)
-      try {
-        decoded = jwt.decode(token);
-      } catch (_) {}
-      
-      if (!decoded || (!decoded.id && !decoded.userId && !decoded.sub)) {
-        return res.status(401).json({ 
-          success: false, 
-          error: 'Invalid or expired authentication token.' 
-        });
-      }
+      decoded = jwt.verify(token, getJwtSecret());
+    } catch (_err) {
+      decoded = null;
+    }
+
+    // Only tokens signed by this backend are accepted. Unverified payloads are never trusted.
+    if (!decoded || typeof decoded !== 'object' || (!decoded.id && !decoded.userId && !decoded.sub)) {
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Invalid or expired authentication token.' 
+      });
     }
 
     let userId = decoded.id || decoded.userId || decoded.sub;

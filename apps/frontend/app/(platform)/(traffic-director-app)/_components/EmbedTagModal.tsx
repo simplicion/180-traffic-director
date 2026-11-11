@@ -13,7 +13,8 @@ import {
   buildSmartLinkUrl, 
   buildTagScriptUrl, 
   buildEvaluateUrl, 
-  buildDomainBase 
+  buildDomainBase,
+  getPortalOrigin
 } from '@/lib/domains';
 import { Drawer } from '@/components/ui/Drawer';
 import { DomainManagerModal } from '@workspace/ui';
@@ -55,7 +56,7 @@ export default function EmbedTagModal({
     summary?: string;
   } | null>(null);
 
-  // Dynamic Domain Selector state (defaults to lokaya.shop from .env)
+  // Dynamic Domain Selector state (defaults to NEXT_PUBLIC_DEFAULT_EDGE_DOMAIN)
   const availableDomains = getAvailableEdgeDomains(customDomain);
   const [selectedDomain, setSelectedDomain] = useState<string>(() => {
     return getDefaultEdgeDomain() || (customDomain ? customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '') : '') || (availableDomains[0] || '');
@@ -639,6 +640,8 @@ serve_safe_page($config);
 
   const brandedUrl = customDomain ? (customDomain.startsWith('http') ? `${customDomain}/r/${slug}` : `https://${customDomain}/r/${slug}`) : directUrl;
 
+  const portalHost = getPortalOrigin().replace(/^https?:\/\//, '');
+
   const renderDomainSelector = (contextLabel: string) => (
     <div className="p-3.5 rounded-xl bg-gray-50/90 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700/60 space-y-2">
       <div className="flex items-center justify-between text-xs">
@@ -717,8 +720,8 @@ serve_safe_page($config);
 
       <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
         {selectedDomain === getDefaultEdgeDomain()
-          ? 'Operational stealth domain masks traffic director signatures on smart links and injection scripts. Web portal and dashboard remain exclusively on 180trafficdirector.pro.'
-          : 'Operational traffic routes through the selected edge node. Web portal remains on 180trafficdirector.pro.'}
+          ? `Operational stealth domain masks traffic director signatures on smart links and injection scripts.${portalHost ? ` Web portal and dashboard remain on ${portalHost}.` : ''}`
+          : `Operational traffic routes through the selected edge node.${portalHost ? ` Web portal remains on ${portalHost}.` : ''}`}
       </p>
     </div>
   );

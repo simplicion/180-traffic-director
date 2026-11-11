@@ -27,7 +27,7 @@ export function TrafficDirectorTopNav() {
     initial: string;
   }>({
     name: '180 Advertiser',
-    email: 'advertiser@180workspace.com',
+    email: '',
     initial: 'A',
   });
 
@@ -67,7 +67,7 @@ export function TrafficDirectorTopNav() {
           const email =
             payload.email ||
             cachedUser.email ||
-            'advertiser@180workspace.com';
+            '';
           const initial = (name[0] || email[0] || 'A').toUpperCase();
 
           setUserProfile({ name, email, initial });

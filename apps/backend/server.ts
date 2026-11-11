@@ -5,6 +5,7 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import path from 'path';
 import { protect } from './src/middleware/auth';
+import { getJwtSecret } from './src/config/secrets';
 import trafficDirectorRoutes from './src/routes/traffic-director.routes';
 import publicRoutingRoutes from './src/routes/public-routing.routes';
 import { PublicRoutingController } from './src/controllers/public-routing.controller';
@@ -218,11 +219,19 @@ app.get(['/', '/dashboard', '/links', '/traffic-director'], (req, res) => {
 });
 
 // ─── Local Dev OAuth Token Issuer ───────────────────────────────────────────
+// Disabled unless explicitly enabled outside production. Never expose this on a live server.
 app.post('/oauth/dev-token', async (req, res) => {
+  const devLoginEnabled = process.env.ENABLE_DEV_LOGIN === 'true' && process.env.NODE_ENV !== 'production';
+  if (!devLoginEnabled) {
+    return res.status(404).json({ success: false, error: 'Not found' });
+  }
   try {
     const { prisma } = require('@workspace/db');
     const jwt = require('jsonwebtoken');
-    const email = req.body?.email || 'simplicion.com@gmail.com';
+    const email = (process.env.DEV_LOGIN_EMAIL || '').trim();
+    if (!email) {
+      return res.status(500).json({ success: false, error: 'DEV_LOGIN_EMAIL is not configured in environment' });
+    }
     
     let user = await prisma.user.findFirst({
       where: { email: { equals: email, mode: 'insensitive' } }
@@ -238,7 +247,7 @@ app.post('/oauth/dev-token', async (req, res) => {
       });
     }
 
-    const secret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || '180workspace_traffic_director_default_secure_vault_key_2026';
+    const secret = getJwtSecret();
     const token = jwt.sign(
       { 
         id: user.id, 
@@ -277,6 +286,9 @@ app.post(['/oauth/exchange', '/oauth/token', '/api/auth/exchange'], async (req, 
 
     const clientId = process.env.TRAFFIC_DIRECTOR_CLIENT_ID;
     const clientSecret = process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET;
+    if (!clientId || !clientSecret) {
+      return res.status(500).json({ success: false, error: 'OAuth client credentials are not configured in environment' });
+    }
     const defaultWebUrl = (process.env.TRAFFIC_DIRECTOR_WEB_URL || '').replace(/\/+$/, '');
     const redirectUri = redirect_uri || (defaultWebUrl ? `${defaultWebUrl}/callback` : '');
 
@@ -302,7 +314,10 @@ app.post(['/oauth/exchange', '/oauth/token', '/api/auth/exchange'], async (req, 
 
     const tokenData = coreRes.data;
     const profileUser = tokenData.user || {};
-    const email = profileUser.email || `${profileUser.username || 'user'}@180core.cloud`;
+    const email = (profileUser.email || '').trim();
+    if (!email) {
+      return res.status(401).json({ success: false, error: 'Identity provider did not return an email for this account' });
+    }
 
     // 2. Ensure user exists in dedicated 180trafficdirector_db
     const { prisma } = require('@workspace/db');
@@ -321,7 +336,7 @@ app.post(['/oauth/exchange', '/oauth/token', '/api/auth/exchange'], async (req, 
     }
 
     // 3. Issue edge access token
-    const secret = process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET || '180workspace_traffic_director_default_secure_vault_key_2026';
+    const secret = getJwtSecret();
     const jwt = require('jsonwebtoken');
     const localToken = jwt.sign(
       {

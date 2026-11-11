@@ -78,11 +78,7 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
     reason?: string;
   } | null>(null);
 
-  const platformRoot = (typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN)) 
-    ? (process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN) 
-    : (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-        ? (window.location.port ? `${window.location.hostname}:${window.location.port}` : window.location.hostname)
-        : (process.env.NEXT_PUBLIC_ROOT_DOMAIN || '180workspace.com'));
+  const platformRoot = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
 
   const cleanCustomInput = customDomainInput.trim().toLowerCase().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
   const isApex = cleanCustomInput ? cleanCustomInput.split('.').filter(Boolean).length <= 2 : false;
@@ -92,10 +88,6 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
     let base = apiBaseUrl || '';
     if (!base && typeof window !== 'undefined') {
       base = (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || '').replace(/\/+$/, '');
-      if (!base) {
-        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        base = isLocal ? 'http://localhost:4002' : 'https://api.180workspace.com';
-      }
     }
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     return `${base}${cleanEndpoint}`;

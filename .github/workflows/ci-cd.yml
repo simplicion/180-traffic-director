@@ -77,7 +77,7 @@ jobs:
         env:
           PORT: 4005
           TD_PORT: 4005
-          JWT_SECRET: ${{ secrets.JWT_SECRET || '180workspace_traffic_director_ci_test_secret_2026' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           cd apps/backend
@@ -114,15 +114,15 @@ jobs:
 
       - name: Build Next.js Static Export
         env:
-          NEXT_PUBLIC_DEFAULT_EDGE_DOMAIN: "lokaya.shop"
-          NEXT_PUBLIC_AVAILABLE_EDGE_DOMAINS: "lokaya.shop,180trafficdirector.pro"
-          NEXT_PUBLIC_API_URL: "https://api.180trafficdirector.pro"
-          NEXT_PUBLIC_APP_URL: "https://180trafficdirector.pro"
-          NEXT_PUBLIC_180_CLIENT_ID: "180_client_39d675390e2ddf3a518b8c436ae665f5"
-          NEXT_PUBLIC_180_AUTH_URL: "https://profile.180core.cloud"
-          NEXT_PUBLIC_CORE_BACKEND_URL: "https://api.180core.cloud"
-          NEXT_PUBLIC_PAY_URL: "https://profile.180core.cloud"
-          NEXT_PUBLIC_TRAFFIC_DIRECTOR_CDN_URL: "lokaya.shop"
+          NEXT_PUBLIC_DEFAULT_EDGE_DOMAIN: ${{ vars.DEFAULT_EDGE_DOMAIN }}
+          NEXT_PUBLIC_AVAILABLE_EDGE_DOMAINS: ${{ vars.AVAILABLE_EDGE_DOMAINS }}
+          NEXT_PUBLIC_API_URL: ${{ vars.PUBLIC_EDGE_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ vars.TRAFFIC_DIRECTOR_WEB_URL }}
+          NEXT_PUBLIC_180_CLIENT_ID: ${{ vars.TRAFFIC_DIRECTOR_CLIENT_ID }}
+          NEXT_PUBLIC_180_AUTH_URL: ${{ vars.AUTH_SERVER_URL }}
+          NEXT_PUBLIC_CORE_BACKEND_URL: ${{ vars.CORE_BACKEND_URL }}
+          NEXT_PUBLIC_PAY_URL: ${{ vars.PAY_SERVER_URL }}
+          NEXT_PUBLIC_TRAFFIC_DIRECTOR_CDN_URL: ${{ vars.DEFAULT_EDGE_DOMAIN }}
           CF_PAGES: "true"
           NEXT_EXPORT: "true"
         run: pnpm --filter traffic-director-web build
@@ -133,7 +133,7 @@ jobs:
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          npx -y wrangler pages deploy apps/frontend/out --project-name=180workspace-traffic --branch=main --commit-dirty=true
+          npx -y wrangler pages deploy apps/frontend/out --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }} --branch=main --commit-dirty=true
 
   # ====================================================
   # Phase 4: Deploy Edge Backend to AWS EC2
@@ -174,14 +174,17 @@ jobs:
             TRAFFIC_DIRECTOR_PORT=4005
             JWT_SECRET="${{ secrets.JWT_SECRET }}"
             DATABASE_URL="${{ secrets.DATABASE_URL }}"
-            PUBLIC_EDGE_URL="https://api.180trafficdirector.pro"
-            NEXT_PUBLIC_API_URL="https://api.180trafficdirector.pro"
-            TRAFFIC_DIRECTOR_WEB_URL="https://180trafficdirector.pro"
-            DEFAULT_EDGE_DOMAIN="lokaya.shop"
-            AVAILABLE_EDGE_DOMAINS="lokaya.shop,180trafficdirector.pro"
-            ONE_EIGHTY_PAY_CORE_URL="https://api.180core.cloud"
-            CORE_BACKEND_URL="https://api.180core.cloud"
-            AUTH_SERVER_URL="https://profile.180core.cloud"
+            TRAFFIC_DIRECTOR_CLIENT_ID="${{ vars.TRAFFIC_DIRECTOR_CLIENT_ID }}"
+            TRAFFIC_DIRECTOR_CLIENT_SECRET="${{ secrets.TRAFFIC_DIRECTOR_CLIENT_SECRET }}"
+            TRAFFIC_DIRECTOR_WEBHOOK_SECRET="${{ secrets.TRAFFIC_DIRECTOR_WEBHOOK_SECRET }}"
+            PUBLIC_EDGE_URL="${{ vars.PUBLIC_EDGE_URL }}"
+            NEXT_PUBLIC_API_URL="${{ vars.PUBLIC_EDGE_URL }}"
+            TRAFFIC_DIRECTOR_WEB_URL="${{ vars.TRAFFIC_DIRECTOR_WEB_URL }}"
+            DEFAULT_EDGE_DOMAIN="${{ vars.DEFAULT_EDGE_DOMAIN }}"
+            AVAILABLE_EDGE_DOMAINS="${{ vars.AVAILABLE_EDGE_DOMAINS }}"
+            ONE_EIGHTY_PAY_CORE_URL="${{ vars.CORE_BACKEND_URL }}"
+            CORE_BACKEND_URL="${{ vars.CORE_BACKEND_URL }}"
+            AUTH_SERVER_URL="${{ vars.AUTH_SERVER_URL }}"
             NODE_ENV="production"
             ENVFILE
 
@@ -213,6 +216,8 @@ jobs:
           CF_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           TARGET_IP: ${{ secrets.EC2_HOST }}
+          DNS_SYNC_ZONES: ${{ vars.DNS_SYNC_ZONES }}
+          DNS_APEX_ZONES: ${{ vars.DNS_APEX_ZONES }}
         run: |
           node << 'EOF'
           const https = require('https');
@@ -220,7 +225,11 @@ jobs:
           const authKey = (process.env.CF_KEY || '').trim();
           const authEmail = (process.env.CF_EMAIL || '').trim();
           const targetIp = (process.env.TARGET_IP || '').trim();
-          const rootDomain = '180trafficdirector.pro';
+          const splitList = (raw) => (raw || '').split(',').map((d) => d.trim().toLowerCase()).filter(Boolean);
+          // Zones whose edge/api/trk subdomains point at the EC2 edge backend
+          const targetDomains = splitList(process.env.DNS_SYNC_ZONES);
+          // Zones whose apex itself serves operational traffic (e.g. smart links on the bare domain)
+          const apexDomains = splitList(process.env.DNS_APEX_ZONES);
 
           if (!authKey || !authEmail || !targetIp) {
             console.log('Skipping DNS sync: Cloudflare credentials or target IP not configured.');
@@ -259,7 +268,10 @@ jobs:
           }
 
           async function main() {
-            const targetDomains = ['180trafficdirector.pro', 'lokaya.shop'];
+            if (targetDomains.length === 0) {
+              console.log('Skipping DNS sync: DNS_SYNC_ZONES repository variable is not set.');
+              return;
+            }
             for (const rootDomain of targetDomains) {
               console.log(`==> Checking Cloudflare DNS for ${rootDomain} -> EC2 ${targetIp}...`);
               const zonesRes = await cfRequest(`/zones?name=${rootDomain}`);
@@ -273,9 +285,16 @@ jobs:
               const dnsRecords = await cfRequest(`/zones/${zoneId}/dns_records`);
               const records = dnsRecords.result || [];
 
-              const subdomains = ['edge', 'api', 'trk'];
-              for (const sub of subdomains) {
-                const fullRecordName = `${sub}.${rootDomain}`;
+              const recordNames = ['edge', 'api', 'trk'].map((sub) => `${sub}.${rootDomain}`);
+              if (apexDomains.includes(rootDomain)) {
+                recordNames.unshift(rootDomain);
+              }
+              for (const fullRecordName of recordNames) {
+                const conflicting = records.find(r => r.name === fullRecordName && r.type === 'CNAME');
+                if (conflicting) {
+                  console.log(`Skipping ${fullRecordName}: a CNAME record already exists (-> ${conflicting.content}). Remove it manually to route this host to EC2.`);
+                  continue;
+                }
                 const existing = records.find(r => r.name === fullRecordName && r.type === 'A');
 
                 if (existing) {

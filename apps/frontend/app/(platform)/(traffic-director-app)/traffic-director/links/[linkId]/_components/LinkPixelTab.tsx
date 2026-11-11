@@ -338,7 +338,7 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
     linkData?.customDomain ? 'custom' : 'dedicated'
   );
 
-  // Dedicated edge domain from environment (e.g. lokaya.shop)
+  // Dedicated edge domain from environment
   const calculateCdnDomain = (): string => {
     return (process.env.NEXT_PUBLIC_TRAFFIC_DIRECTOR_CDN_URL || getDefaultEdgeDomain() || '')
       .replace(/^https?:\/\//, '')

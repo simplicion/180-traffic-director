@@ -1,5 +1,13 @@
 import http from 'http';
 
+// Backend under test, e.g. the local dev server. Requires ENABLE_DEV_LOGIN=true and DEV_LOGIN_EMAIL on that server.
+const testApiUrl = (process.env.TEST_API_URL || '').trim();
+if (!testApiUrl) {
+  console.error('TEST_API_URL is not set. Point it at the backend you want to test.');
+  process.exit(1);
+}
+const testApi = new URL(testApiUrl);
+
 interface TestResult {
   suite: string;
   test: string;
@@ -35,8 +43,8 @@ function req(options: http.RequestOptions, postData?: any): Promise<{ status: nu
       reqHeaders['Content-Length'] = Buffer.byteLength(payload);
     }
     const r = http.request({
-      host: '127.0.0.1',
-      port: 4005,
+      host: testApi.hostname,
+      port: Number(testApi.port) || (testApi.protocol === 'https:' ? 443 : 80),
       ...options,
       headers: reqHeaders,
     }, (res) => {
@@ -68,7 +76,7 @@ async function runMasterTestBattery() {
   assert(health.data.status === 'healthy', 'Health', 'Health status is "healthy"');
   assert(health.data.service.includes('Traffic Director'), 'Health', 'Service identifier matches');
 
-  const auth = await req({ path: '/oauth/dev-token', method: 'POST' }, { email: 'simplicion.com@gmail.com' });
+  const auth = await req({ path: '/oauth/dev-token', method: 'POST' }, {});
   assert(auth.status === 200, 'Auth', 'POST /oauth/dev-token returns 200');
   assert(auth.data.success === true, 'Auth', 'Token issuance success flag is true');
   assert(typeof auth.data.token === 'string' && auth.data.token.length > 20, 'Auth', 'Valid JWT token returned');
@@ -90,7 +98,7 @@ async function runMasterTestBattery() {
     deviceRedirectUrl: 'https://mobile-destination.example.com/app',
     status: 'ACTIVE',
     rampUpEnabled: false, // Explicitly disabled for immediate 100% deterministic testing
-    trackingDomain: 'click.180workspace.com'
+    trackingDomain: 'click.example.com'
   });
 
   assert(createLinkRes.status === 201 || createLinkRes.status === 200, 'Links', 'POST /links creates new link', createLinkRes.data);

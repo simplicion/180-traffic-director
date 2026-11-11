@@ -27,8 +27,10 @@ export class PixelManagerService {
   private static getMasterKey(customKey?: string): Buffer {
     const rawKey = customKey || 
       process.env.TRAFFIC_DIRECTOR_SECRET_KEY || 
-      process.env.JWT_SECRET || 
-      '180workspace_traffic_director_default_secure_vault_key_2026';
+      process.env.JWT_SECRET;
+    if (!rawKey) {
+      throw new Error('TRAFFIC_DIRECTOR_SECRET_KEY (or JWT_SECRET) is not configured in environment');
+    }
     return crypto.createHash('sha256').update(rawKey).digest();
   }
 

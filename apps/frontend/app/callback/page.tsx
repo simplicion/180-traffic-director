@@ -65,30 +65,13 @@ export default function CallbackPage() {
           code_verifier: pkceVerifier,
         };
 
-        // Try backend exchange first (server-to-server with secret)
-        let tokenRes = await fetch(`${apiBase}/oauth/exchange`, {
+        // Exchange the code through our backend only. It verifies with the client secret
+        // and issues the signed session token the API accepts.
+        const tokenRes = await fetch(`${apiBase}/oauth/exchange`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(tokenPayload),
         });
-
-        // Fallback to backend /oauth/token or core cloud oauth token endpoint
-        if (!tokenRes.ok) {
-          tokenRes = await fetch(`${apiBase}/oauth/token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(tokenPayload),
-          });
-        }
-
-        const coreUrl = (process.env.NEXT_PUBLIC_CORE_BACKEND_URL || process.env.NEXT_PUBLIC_180_AUTH_URL || '').replace(/\/+$/, '');
-        if (!tokenRes.ok && coreUrl) {
-          tokenRes = await fetch(`${coreUrl}/api/oauth/token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(tokenPayload),
-          });
-        }
 
         const tokenData = await tokenRes.json();
         const token = tokenData.access_token || tokenData.token || tokenData.authToken;

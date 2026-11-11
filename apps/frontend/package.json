@@ -5,7 +5,7 @@
     "scripts":  {
                     "dev":  "next dev -p 3006",
                     "build":  "next build",
-                    "postbuild":  "node -e \"const fs = require(\u0027fs\u0027); if (fs.existsSync(\u0027public/_redirects\u0027) \u0026\u0026 fs.existsSync(\u0027out\u0027)) { fs.copyFileSync(\u0027public/_redirects\u0027, \u0027out/_redirects\u0027); console.log(\u0027✓ Copied public/_redirects to out/_redirects\u0027); }\"",
+                    "postbuild":  "node scripts/generate-redirects.js",
                     "start":  "next start -p 3006",
                     "lint":  "next lint"
                 },

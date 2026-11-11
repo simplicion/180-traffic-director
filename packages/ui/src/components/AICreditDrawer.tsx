@@ -107,7 +107,6 @@ export const AICreditDrawer: React.FC<AICreditDrawerProps> = ({
       const uId = userId || (typeof window !== "undefined" ? localStorage.getItem("current_user_id") : "") || "";
       const endpoints = [
         `/api/v1/ai/credits/status${uId ? `?userId=${encodeURIComponent(uId)}` : ""}`,
-        `http://127.0.0.1:4002/api/v1/ai/credits/status${uId ? `?userId=${encodeURIComponent(uId)}` : ""}`,
       ];
 
       for (const url of endpoints) {
