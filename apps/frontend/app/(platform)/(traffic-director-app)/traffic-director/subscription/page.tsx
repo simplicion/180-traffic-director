@@ -785,7 +785,7 @@ export default function SubscriptionPage() {
         </div>
 
         <a
-          href="https://profile.180core.cloud"
+          href={process.env.NEXT_PUBLIC_PAY_URL || process.env.NEXT_PUBLIC_180_AUTH_URL || '#'}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 font-semibold text-blue-600 dark:text-blue-400 hover:underline shrink-0"

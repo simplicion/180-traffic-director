@@ -47,10 +47,13 @@ export function use180Identity() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (document.querySelector('script[src*="180-core-sdk.js"]')) return;
-    const script = document.createElement('script');
-    script.src = 'https://profile.180core.cloud/sdk/v1/180-core-sdk.js';
-    script.async = true;
-    document.head.appendChild(script);
+    const authBase = (process.env.NEXT_PUBLIC_180_AUTH_URL || '').replace(/\/+$/, '');
+    if (authBase) {
+      const script = document.createElement('script');
+      script.src = `${authBase}/sdk/v1/180-core-sdk.js`;
+      script.async = true;
+      document.head.appendChild(script);
+    }
   }, []);
 
   const closeIdentity = useCallback(() => {
@@ -66,19 +69,17 @@ export function use180Identity() {
   const launch180Identity = useCallback(async (options: Launch180IdentityOptions = {}) => {
     setIsOpeningIdentity(true);
 
-    const clientId =
-      options.clientId ||
-      process.env.NEXT_PUBLIC_180_CLIENT_ID ||
-      '180_client_39d675390e2ddf3a518b8c436ae665f5';
+    const clientId = options.clientId || process.env.NEXT_PUBLIC_180_CLIENT_ID || '';
 
-    const authServerUrl =
-      options.authServerUrl ||
-      process.env.NEXT_PUBLIC_180_AUTH_URL ||
-      'https://profile.180core.cloud';
+    const authServerUrl = options.authServerUrl || process.env.NEXT_PUBLIC_180_AUTH_URL || '';
 
     const redirectUri =
       options.redirectUri ||
-      (typeof window !== 'undefined' ? `${window.location.origin}/callback` : 'https://180trafficdirector.pro/callback');
+      (typeof window !== 'undefined'
+        ? `${window.location.origin}/callback`
+        : process.env.NEXT_PUBLIC_APP_URL
+        ? `${process.env.NEXT_PUBLIC_APP_URL}/callback`
+        : '/callback');
 
     const state = options.state || Math.random().toString(36).substring(2, 15);
     const scope = options.scope || 'openid identity:read identity:email';

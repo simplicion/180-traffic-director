@@ -67,7 +67,7 @@ app.get(['/health', '/status'], (_req, res) => {
 
 // Root Gateway Handler - Seamlessly redirects web browsers to Dashboard or serves Edge JSON
 app.get(['/', '/dashboard', '/links', '/traffic-director'], (req, res) => {
-  const webUrl = (process.env.TRAFFIC_DIRECTOR_WEB_URL || 'http://localhost:3006').replace(/\/+$/, '');
+  const webUrl = (process.env.TRAFFIC_DIRECTOR_WEB_URL || '').replace(/\/+$/, '');
   const targetDashboard = `${webUrl}/traffic-director/links`;
 
   // Return JSON if requested via format=json, Accept header, or curl/API client
@@ -275,9 +275,10 @@ app.post(['/oauth/exchange', '/oauth/token', '/api/auth/exchange'], async (req, 
       return res.status(400).json({ success: false, error: 'Authorization code is required' });
     }
 
-    const clientId = process.env.TRAFFIC_DIRECTOR_CLIENT_ID || '180_client_39d675390e2ddf3a518b8c436ae665f5';
-    const clientSecret = process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || '180_secret_77d4c99df29f155d1535d7cc608f231622d89a3951f7ec1376399bed929a9434';
-    const redirectUri = redirect_uri || 'https://180trafficdirector.pro/callback';
+    const clientId = process.env.TRAFFIC_DIRECTOR_CLIENT_ID;
+    const clientSecret = process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET;
+    const defaultWebUrl = (process.env.TRAFFIC_DIRECTOR_WEB_URL || '').replace(/\/+$/, '');
+    const redirectUri = redirect_uri || (defaultWebUrl ? `${defaultWebUrl}/callback` : '');
 
     // 1. Server-to-server exchange with 180 Core Auth Server
     const tokenPayload: any = {
@@ -289,7 +290,12 @@ app.post(['/oauth/exchange', '/oauth/token', '/api/auth/exchange'], async (req, 
     };
     if (code_verifier) tokenPayload.code_verifier = code_verifier;
 
-    const coreRes = await axios.post('https://api.180core.cloud/api/oauth/token', tokenPayload, {
+    const coreApiBase = (process.env.CORE_BACKEND_URL || process.env.AUTH_SERVER_URL || '').replace(/\/+$/, '');
+    if (!coreApiBase) {
+      return res.status(500).json({ success: false, error: 'Authentication service endpoint is not configured in environment' });
+    }
+
+    const coreRes = await axios.post(`${coreApiBase}/api/oauth/token`, tokenPayload, {
       headers: { 'Content-Type': 'application/json' },
       timeout: 10000
     });
@@ -387,7 +393,7 @@ app.use('/api/v1/traffic-director', protect, trafficDirectorRoutes);
 
 // 404 Fallback for unmapped routes
 app.use((req, res) => {
-  const webUrl = (process.env.TRAFFIC_DIRECTOR_WEB_URL || 'http://localhost:3006').replace(/\/+$/, '');
+  const webUrl = (process.env.TRAFFIC_DIRECTOR_WEB_URL || '').replace(/\/+$/, '');
   const targetDashboard = `${webUrl}/traffic-director/links`;
 
   if (req.accepts('html')) {
@@ -437,11 +443,11 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 app.listen(PORT, () => {
   console.log(`\n================================================================`);
   console.log(` 🚀 180 TRAFFIC DIRECTOR DEDICATED BACKEND ONLINE`);
-  console.log(` 🌐 Listening on: http://localhost:${PORT}`);
-  console.log(` 🛡️  Edge Public Redirects: http://localhost:${PORT}/r/:slug`);
-  console.log(` 📦 Dynamic Pixel Tags:   http://localhost:${PORT}/tag/:slug.js`);
-  console.log(` ⚡ CAPI Beacon Ingest:    http://localhost:${PORT}/pixel/event`);
-  console.log(` 🔑 Management API:       http://localhost:${PORT}/api/v1/traffic-director`);
+  console.log(` 🌐 Dedicated Edge Port: ${PORT}`);
+  console.log(` 🛡️  Edge Public Redirects: /r/:slug`);
+  console.log(` 📦 Dynamic Pixel Tags:   /tag/:slug.js`);
+  console.log(` ⚡ CAPI Beacon Ingest:    /pixel/event`);
+  console.log(` 🔑 Management API:       /api/v1/traffic-director`);
   console.log(`================================================================\n`);
 
   // Start background Tor exit node synchronization

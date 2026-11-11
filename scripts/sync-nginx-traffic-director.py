@@ -61,7 +61,7 @@ def sync_nginx_conf():
                     "    server {\n"
                     "        listen 80;\n"
                     "        listen [::]:80;\n"
-                    "        server_name api.180trafficdirector.pro edge.180trafficdirector.pro trk.180trafficdirector.pro;\n"
+                    "        server_name api.180trafficdirector.pro edge.180trafficdirector.pro trk.180trafficdirector.pro lokaya.shop *.lokaya.shop;\n"
                     "\n"
                     "        client_max_body_size 50M;\n"
                     "\n"
@@ -107,7 +107,7 @@ def sync_nginx_conf():
             "server {\n"
             "    listen 80;\n"
             "    listen [::]:80;\n"
-            "    server_name api.180trafficdirector.pro edge.180trafficdirector.pro trk.180trafficdirector.pro;\n\n"
+            "    server_name api.180trafficdirector.pro edge.180trafficdirector.pro trk.180trafficdirector.pro lokaya.shop *.lokaya.shop;\n\n"
             "    client_max_body_size 50M;\n\n"
             "    location / {\n"
             "        proxy_pass http://traffic_director_standalone_upstream;\n"
@@ -138,3 +138,4 @@ def sync_nginx_conf():
 
 if __name__ == '__main__':
     sync_nginx_conf()
+

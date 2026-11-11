@@ -12,6 +12,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { LogoLoader } from '@workspace/ui';
 import { useSubscription } from '@/lib/useSubscription';
 import { ensureExternalUrl } from '@/lib/url';
+import { getDefaultEdgeDomain } from '@/lib/domains';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -159,9 +160,10 @@ export function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLinkModalP
     }
   };
 
-  const baseUrl = typeof window !== 'undefined'
-    ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin)
-    : (process.env.NEXT_PUBLIC_APP_URL || '');
+  const defaultEdgeDomain = getDefaultEdgeDomain();
+  const edgeRedirectBase = defaultEdgeDomain 
+    ? `https://${defaultEdgeDomain}` 
+    : (typeof window !== 'undefined' ? window.location.origin : '');
 
   return (
     <Drawer
@@ -356,7 +358,7 @@ export function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLinkModalP
           )}
 
           <p className="text-[11px] text-gray-400 mt-1">
-            Public edge redirect: <code className="text-indigo-500 font-mono">{baseUrl || 'https://yourdomain.com'}/r/{slug || '...'}</code>
+            Public edge redirect: <code className="text-indigo-500 font-mono">{edgeRedirectBase}/r/{slug || '...'}</code>
           </p>
         </div>
 

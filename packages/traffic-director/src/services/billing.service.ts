@@ -820,8 +820,8 @@ export class TrafficDirectorBillingService {
       title: `180 Traffic Director ${planMeta.name}`,
       description: `Recurring monthly subscription for ${planMeta.maxLinks === -1 ? 'Unlimited' : planMeta.maxLinks} Smart Links and sovereign bot cloaking.`,
       mode: 'subscription',
-      returnUrl: returnUrl || 'http://localhost:3006/traffic-director/subscription?status=success',
-      cancelUrl: cancelUrl || 'http://localhost:3006/traffic-director/subscription?status=cancelled',
+      returnUrl: returnUrl || (process.env.TRAFFIC_DIRECTOR_WEB_URL ? `${process.env.TRAFFIC_DIRECTOR_WEB_URL}/traffic-director/subscription?status=success` : '/traffic-director/subscription?status=success'),
+      cancelUrl: cancelUrl || (process.env.TRAFFIC_DIRECTOR_WEB_URL ? `${process.env.TRAFFIC_DIRECTOR_WEB_URL}/traffic-director/subscription?status=cancelled` : '/traffic-director/subscription?status=cancelled'),
       metadata: {
         userId,
         planTier,
@@ -879,7 +879,7 @@ export class TrafficDirectorBillingService {
         return {
           success: true,
           sessionId: devSessionId,
-          checkoutUrl: `${returnUrl || 'http://localhost:3006/traffic-director/subscription'}?session_id=${devSessionId}&status=dev_preview`,
+          checkoutUrl: `${returnUrl || (process.env.TRAFFIC_DIRECTOR_WEB_URL ? `${process.env.TRAFFIC_DIRECTOR_WEB_URL}/traffic-director/subscription` : '/traffic-director/subscription')}?session_id=${devSessionId}&status=dev_preview`,
           amount: convertedAmount,
           currency: currency,
           currencySymbol: symbol,

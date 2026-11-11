@@ -137,7 +137,7 @@ export default function ProfilePage() {
 
           <div className="flex flex-wrap items-center gap-2.5 self-start">
             <a
-              href="https://profile.180workspace.com"
+              href={process.env.NEXT_PUBLIC_180_AUTH_URL || '#'}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-500/20 transition-all cursor-pointer"

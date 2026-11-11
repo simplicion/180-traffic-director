@@ -53,18 +53,13 @@ export default function CallbackPage() {
 
       // Otherwise handle full-page redirect grant
       try {
-        const isLocal =
-          window.location.hostname === 'localhost' ||
-          window.location.hostname === '127.0.0.1';
-        const apiBase = isLocal 
-          ? 'http://localhost:4005'
-          : (process.env.NEXT_PUBLIC_API_URL || 'https://api.180trafficdirector.pro');
+        const apiBase = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '') || window.location.origin;
         const redirectUri = window.location.origin + '/callback';
         const pkceVerifier = sessionStorage.getItem('180_pkce_verifier') || undefined;
 
         const tokenPayload = {
           grant_type: 'authorization_code',
-          client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_39d675390e2ddf3a518b8c436ae665f5',
+          client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || '',
           code,
           redirect_uri: redirectUri,
           code_verifier: pkceVerifier,
@@ -86,8 +81,9 @@ export default function CallbackPage() {
           });
         }
 
-        if (!tokenRes.ok) {
-          tokenRes = await fetch('https://api.180core.cloud/api/oauth/token', {
+        const coreUrl = (process.env.NEXT_PUBLIC_CORE_BACKEND_URL || process.env.NEXT_PUBLIC_180_AUTH_URL || '').replace(/\/+$/, '');
+        if (!tokenRes.ok && coreUrl) {
+          tokenRes = await fetch(`${coreUrl}/api/oauth/token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(tokenPayload),
@@ -111,8 +107,11 @@ export default function CallbackPage() {
         if (tokenData.user) localStorage.setItem('180_user', JSON.stringify(tokenData.user));
 
         const isProd = window.location.protocol === 'https:';
-        const is180 = window.location.hostname.endsWith('180trafficdirector.pro');
-        const domainAttr = is180 ? '; domain=.180trafficdirector.pro' : '';
+        const hostname = window.location.hostname;
+        const isIpOrLocal = hostname === 'localhost' || hostname === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
+        const parts = hostname.split('.');
+        const rootDomain = (!isIpOrLocal && parts.length >= 2) ? '.' + parts.slice(-2).join('.') : '';
+        const domainAttr = rootDomain ? `; domain=${rootDomain}` : '';
         const cookieFlags = `; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${
           isProd ? '; Secure' : ''
         }${domainAttr}`;

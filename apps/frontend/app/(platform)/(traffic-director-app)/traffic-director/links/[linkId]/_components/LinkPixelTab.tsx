@@ -8,6 +8,7 @@ import {
   Share2, Database, ShieldAlert
 } from 'lucide-react';
 import api, { getApiBase } from '@/lib/api';
+import { getDefaultEdgeDomain } from '@/lib/domains';
 import toast from 'react-hot-toast';
 import { LogoLoader } from '@workspace/ui';
 
@@ -337,18 +338,15 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
     linkData?.customDomain ? 'custom' : 'dedicated'
   );
 
-  // Dedicated Cloudflare production domain: 180trafficdirector.pro
+  // Dedicated edge domain from environment (e.g. lokaya.shop)
   const calculateCdnDomain = (): string => {
-    if (process.env.NEXT_PUBLIC_TRAFFIC_DIRECTOR_CDN_URL) {
-      return process.env.NEXT_PUBLIC_TRAFFIC_DIRECTOR_CDN_URL.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-    }
-    return '180trafficdirector.pro';
+    return (process.env.NEXT_PUBLIC_TRAFFIC_DIRECTOR_CDN_URL || getDefaultEdgeDomain() || '')
+      .replace(/^https?:\/\//, '')
+      .replace(/\/+$/, '');
   };
 
   const dedicatedCdnUrl = calculateCdnDomain();
-  const apiBase = typeof window !== 'undefined' 
-    ? (process.env.NEXT_PUBLIC_API_URL || (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:4005' : 'https://api.180trafficdirector.pro'))
-    : 'https://api.180trafficdirector.pro';
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '') || (typeof window !== 'undefined' ? window.location.origin : '');
 
   const getSelectedHost = () => {
     if (domainMode === 'custom' && linkData?.customDomain) {

@@ -15,6 +15,7 @@ import clsx from 'clsx';
 import { useSubscription } from '@/lib/useSubscription';
 import CreateLinkModal from '../../_components/CreateLinkModal';
 import EditLinkModal from '../../_components/EditLinkModal';
+import { getDefaultEdgeDomain } from '@/lib/domains';
 
 export default function SmartLinksDirectoryPage() {
   const router = useRouter();
@@ -123,8 +124,11 @@ export default function SmartLinksDirectoryPage() {
     });
   }, [links, statusFilter]);
 
-  const handleCopy = (slug: string, id: string) => {
-    const url = `${window.location.origin}/r/${slug}`;
+  const defaultEdgeDomain = getDefaultEdgeDomain();
+
+  const handleCopy = (slug: string, id: string, customDomain?: string | null) => {
+    const domain = customDomain || defaultEdgeDomain;
+    const url = domain ? `https://${domain}/r/${slug}` : `${window.location.origin}/r/${slug}`;
     navigator.clipboard.writeText(url);
     setCopiedId(id);
     toast.success('Routing URL copied to clipboard!');
@@ -483,9 +487,9 @@ export default function SmartLinksDirectoryPage() {
                       <span className={`w-2.5 h-2.5 rounded-full ${link.isActive && cloakingEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
                       <h3 className="text-base font-bold text-gray-900 dark:text-white">{link.name}</h3>
                       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-zinc-800 font-mono text-xs text-blue-600 dark:text-blue-400 font-medium">
-                        /r/{link.slug}
+                        {link.customDomain ? `${link.customDomain}/r/${link.slug}` : (defaultEdgeDomain ? `${defaultEdgeDomain}/r/${link.slug}` : `/r/${link.slug}`)}
                         <button
-                          onClick={() => handleCopy(link.slug, link.id)}
+                          onClick={() => handleCopy(link.slug, link.id, link.customDomain)}
                           className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 ml-1 transition cursor-pointer"
                           title="Copy Link URL"
                         >

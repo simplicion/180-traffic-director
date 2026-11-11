@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { Drawer } from '@/components/ui/Drawer';
 import { LogoLoader } from '@workspace/ui';
 import { ensureExternalUrl } from '@/lib/url';
+import { getDefaultEdgeDomain } from '@/lib/domains';
 
 interface EditLinkModalProps {
   isOpen: boolean;
@@ -126,9 +127,10 @@ export function EditLinkModal({ isOpen, onClose, link, onSuccess }: EditLinkModa
     }
   };
 
-  const baseUrl = typeof window !== 'undefined'
-    ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin)
-    : (process.env.NEXT_PUBLIC_APP_URL || '');
+  const defaultEdgeDomain = getDefaultEdgeDomain();
+  const edgeRedirectBase = defaultEdgeDomain 
+    ? `https://${defaultEdgeDomain}` 
+    : (typeof window !== 'undefined' ? window.location.origin : '');
 
   return (
     <Drawer
@@ -250,7 +252,7 @@ export function EditLinkModal({ isOpen, onClose, link, onSuccess }: EditLinkModa
           )}
 
           <p className="text-[11px] text-gray-400 mt-1">
-            Public edge redirect: <code className="text-indigo-500 font-mono">{baseUrl || 'https://yourdomain.com'}/r/{slug || '...'}</code>
+            Public edge redirect: <code className="text-indigo-500 font-mono">{edgeRedirectBase}/r/{slug || '...'}</code>
           </p>
         </div>
 

@@ -7,6 +7,14 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api, { getApiBase } from '@/lib/api';
+import { 
+  getDefaultEdgeDomain, 
+  getAvailableEdgeDomains, 
+  buildSmartLinkUrl, 
+  buildTagScriptUrl, 
+  buildEvaluateUrl, 
+  buildDomainBase 
+} from '@/lib/domains';
 import { Drawer } from '@/components/ui/Drawer';
 import { DomainManagerModal } from '@workspace/ui';
 
@@ -47,19 +55,40 @@ export default function EmbedTagModal({
     summary?: string;
   } | null>(null);
 
+  // Dynamic Domain Selector state (defaults to lokaya.shop from .env)
+  const availableDomains = getAvailableEdgeDomains(customDomain);
+  const [selectedDomain, setSelectedDomain] = useState<string>(() => {
+    return getDefaultEdgeDomain() || (customDomain ? customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '') : '') || (availableDomains[0] || '');
+  });
+  const [isDomainDropdownOpen, setIsDomainDropdownOpen] = useState(false);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const domainDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
+      if (domainDropdownRef.current && !domainDropdownRef.current.contains(event.target as Node)) {
+        setIsDomainDropdownOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const apiBase = customDomain ? ('https://' + customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '')) : getApiBase();
+  // Update selected domain if custom domain changes or default initializes
+  useEffect(() => {
+    if (!selectedDomain && availableDomains.length > 0) {
+      setSelectedDomain(availableDomains[0]);
+    }
+  }, [availableDomains, selectedDomain]);
+
+  const activeBase = buildDomainBase(selectedDomain) || getApiBase();
+  const activeEvaluateUrl = buildEvaluateUrl(slug, selectedDomain);
+  const activeTagScriptUrl = buildTagScriptUrl(slug, selectedDomain);
+  const activeSmartLinkUrl = buildSmartLinkUrl(slug, selectedDomain);
 
   // 1. Vercel / Next.js / Edge Middleware Snippet (Full Developer Guide)
   const vercelEdgeCode = `/**
@@ -95,7 +124,7 @@ export default async function middleware(request) {
 
   try {
     // 2. Edge Evaluation Request with 1.2s timeout
-    const res = await fetch('${apiBase.replace(/\/+$/, '')}/api/v1/traffic-director/evaluate/${slug}', {
+    const res = await fetch('${activeEvaluateUrl}', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ip, userAgent, referrer, url }),
@@ -144,7 +173,7 @@ app.use(async (req, res, next) => {
 
   // 2. Extract visitor headers & target full URL
   const slug = '${slug}';
-  const apiUrl = '${apiBase.replace(/\/+$/, '')}/api/v1/traffic-director/evaluate/' + slug;
+  const apiUrl = '${activeEvaluateUrl}';
   const ip = req.headers['cf-connecting-ip'] || 
              req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
              req.socket?.remoteAddress || '';
@@ -206,7 +235,7 @@ add_action('template_redirect', function() {
     }
 
     $slug = '${slug}';
-    $api_url = '${apiBase.replace(/\/+$/, '')}/api/v1/traffic-director/evaluate/' . $slug;
+    $api_url = '${activeEvaluateUrl}';
 
     // 2. Extract visitor headers (Cloudflare, Proxy, or Direct IP)
     $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] 
@@ -271,7 +300,7 @@ add_action('template_redirect', function() {
 // Configuration
 $config = [
     'slug'         => '${slug}',
-    'api_endpoint' => '${apiBase.replace(/\/+$/, '')}/api/v1/traffic-director/evaluate/${slug}',
+    'api_endpoint' => '${activeEvaluateUrl}',
     'timeout_sec'  => 1.5,
     'local_safe'   => __DIR__ . '/safe.html',
     'white_page'   => __DIR__ . '/white_page.html'
@@ -334,7 +363,7 @@ function serve_safe_page($config, $fallback_url = '') {
 
 // 3. Assemble Evaluation Payload
 $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') 
-    . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . ($_SERVER['REQUEST_URI'] ?? '');
+    . '://' . ($_SERVER['HTTP_HOST'] ?? '') . ($_SERVER['REQUEST_URI'] ?? '');
 
 $payload = [
     'ip'          => get_client_ip(),
@@ -414,7 +443,7 @@ serve_safe_page($config);
   ⚡ HOW IT WORKS:
   Loads asynchronously and evaluates client hardware telemetry & bot heuristics.
 -->
-<script src="${apiBase.replace(/\/+$/, '')}/tag/${slug}.js" async></script>`;
+<script src="${activeTagScriptUrl}" async></script>`;
 
   // 6. Standalone Inline Ad Shield Snippet (Stealth Disguised Telemetry Tag)
   const inlineShieldCode = `<!-- 
@@ -428,7 +457,7 @@ serve_safe_page($config);
 <script>
 (function(w, d, n){
   'use strict';
-  var _ep = "${apiBase.replace(/\/+$/, '')}";
+  var _ep = "${activeBase}";
   var _sid = "${slug}";
 
   // 1. Client-Side Telemetry & Automated Browser Filter
@@ -600,15 +629,99 @@ serve_safe_page($config);
     }
   };
 
-  const directUrl = `${apiBase}/r/${slug}`;
-  const protocol = typeof window !== 'undefined' ? `${window.location.protocol}//` : (process.env.NODE_ENV === 'development' ? 'http://' : 'https://');
+  const directUrl = activeSmartLinkUrl;
+  const protocol = typeof window !== 'undefined' ? `${window.location.protocol}//` : 'https://';
   const portSuffix = (typeof window !== 'undefined' && window.location.port && !customDomain?.includes(':')) ? `:${window.location.port}` : '';
 
   const fullHost = customDomain
     ? `${protocol}${customDomain.includes(':') ? customDomain : `${customDomain}${portSuffix}`}`
     : directUrl;
 
-  const brandedUrl = customDomain ? fullHost.replace(/\/+$/, '') : directUrl;
+  const brandedUrl = customDomain ? (customDomain.startsWith('http') ? `${customDomain}/r/${slug}` : `https://${customDomain}/r/${slug}`) : directUrl;
+
+  const renderDomainSelector = (contextLabel: string) => (
+    <div className="p-3.5 rounded-xl bg-gray-50/90 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700/60 space-y-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+          <Globe className="w-3.5 h-3.5 text-indigo-500" />
+          {contextLabel}
+        </span>
+        <span className="text-[10px] text-gray-500 dark:text-gray-400 font-mono">
+          {selectedDomain === getDefaultEdgeDomain() ? '⚡ Default Stealth Mode' : 'Routing Edge Node'}
+        </span>
+      </div>
+
+      <div className="relative" ref={domainDropdownRef}>
+        <button
+          type="button"
+          onClick={() => setIsDomainDropdownOpen(!isDomainDropdownOpen)}
+          className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 text-left text-xs font-semibold text-gray-900 dark:text-white shadow-xs hover:border-indigo-400 dark:hover:border-indigo-500 transition cursor-pointer"
+        >
+          <div className="flex items-center gap-2 truncate">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span className="font-mono text-xs text-indigo-600 dark:text-indigo-400 truncate font-bold">
+              {selectedDomain || 'Select Domain'}
+            </span>
+            {selectedDomain === getDefaultEdgeDomain() && (
+              <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-semibold shrink-0">
+                Default (Stealth)
+              </span>
+            )}
+            {customDomain && selectedDomain === customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '') && (
+              <span className="text-[10px] bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded font-semibold shrink-0">
+                Custom Domain
+              </span>
+            )}
+          </div>
+          <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform duration-200 ${isDomainDropdownOpen ? 'rotate-180 text-indigo-600' : ''}`} />
+        </button>
+
+        {isDomainDropdownOpen && (
+          <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl bg-white dark:bg-zinc-850 border border-gray-200 dark:border-zinc-700 shadow-2xl overflow-hidden py-1">
+            <div className="px-3.5 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/80 dark:bg-zinc-800/80">
+              Select Routing Domain
+            </div>
+            {availableDomains.map((domain) => (
+              <button
+                key={domain}
+                type="button"
+                onClick={() => {
+                  setSelectedDomain(domain);
+                  setIsDomainDropdownOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3.5 py-2 text-xs transition cursor-pointer ${
+                  selectedDomain === domain 
+                    ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-300 font-semibold' 
+                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-mono">{domain}</span>
+                  {domain === getDefaultEdgeDomain() && (
+                    <span className="text-[9px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1 py-0.2 rounded font-semibold">
+                      Default Stealth
+                    </span>
+                  )}
+                  {customDomain && domain === customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '') && (
+                    <span className="text-[9px] bg-purple-500/10 text-purple-600 dark:text-purple-400 px-1 py-0.2 rounded font-semibold">
+                      Branded Custom
+                    </span>
+                  )}
+                </div>
+                {selectedDomain === domain && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
+        {selectedDomain === getDefaultEdgeDomain()
+          ? 'Stealth domain masks traffic director indicators to protect campaigns against ad network reviewers and spy bots.'
+          : 'Snippets and links will dynamically route through the selected host.'}
+      </p>
+    </div>
+  );
 
   return (
     <>
@@ -623,6 +736,9 @@ serve_safe_page($config);
           {/* VIEW 1: CODE INJECTION (ONLY WHEN shieldMode === 'client_shield') */}
           {shieldMode === 'client_shield' && (
             <div className="space-y-3.5 animate-in fade-in duration-200">
+              {/* Domain Switcher */}
+              {renderDomainSelector('Cloaking Host & Edge Domain')}
+
               {/* Custom Animated Framework Dropdown Selector */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
@@ -896,6 +1012,9 @@ serve_safe_page($config);
                 )}
               </div>
 
+              {/* Domain Switcher */}
+              {renderDomainSelector('Direct Smart Link Edge Domain')}
+
               {/* Card 2: Direct Smart Link */}
               <div className="p-4 rounded-xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200 dark:border-white/10 space-y-3 shadow-xs">
                 <div className="flex items-center justify-between">
@@ -914,11 +1033,11 @@ serve_safe_page($config);
                   <input
                     type="text"
                     readOnly
-                    value={directUrl}
+                    value={activeSmartLinkUrl}
                     className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-zinc-800 text-xs font-mono text-gray-800 dark:text-gray-200 select-all font-medium"
                   />
                   <button
-                    onClick={() => copyToClipboard(directUrl, 'direct')}
+                    onClick={() => copyToClipboard(activeSmartLinkUrl, 'direct')}
                     className="px-3.5 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition shadow-xs"
                   >
                     {copiedType === 'direct' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}

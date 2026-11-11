@@ -22,12 +22,9 @@ export interface OneEightySubscriptionManagerOptions {
 }
 
 export const getPayServerUrl = (): string => {
-  const envUrl = process.env.NEXT_PUBLIC_PAY_URL || process.env.NEXT_PUBLIC_180_PAY_URL;
-  if (envUrl) return envUrl;
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return 'http://localhost:3009';
-  }
-  return 'https://profile.180core.cloud';
+  const envUrl = process.env.NEXT_PUBLIC_PAY_URL || process.env.NEXT_PUBLIC_180_PAY_URL || process.env.NEXT_PUBLIC_180_AUTH_URL;
+  if (envUrl) return envUrl.replace(/\/+$/, '');
+  return '';
 };
 
 export const OneEightyPay = {

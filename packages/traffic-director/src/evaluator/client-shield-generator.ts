@@ -430,7 +430,7 @@ function serve_safe_page($config, $fallback_url = '') {
 
 // 3. Assemble Evaluation Payload
 $current_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') 
-    . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . ($_SERVER['REQUEST_URI'] ?? '');
+    . '://' . ($_SERVER['HTTP_HOST'] ?? '') . ($_SERVER['REQUEST_URI'] ?? '');
 
 $payload = [
     'ip'          => get_client_ip(),

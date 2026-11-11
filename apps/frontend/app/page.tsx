@@ -22,22 +22,24 @@ export default function TrafficDirectorLandingPage() {
 
   const handleLogin = () => {
     launch180Identity({
-      clientId: process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_39d675390e2ddf3a518b8c436ae665f5',
-      authServerUrl: 'https://profile.180core.cloud',
-      redirectUri: typeof window !== 'undefined' ? `${window.location.origin}/callback` : 'https://180trafficdirector.pro/callback',
+      clientId: process.env.NEXT_PUBLIC_180_CLIENT_ID || '',
+      authServerUrl: process.env.NEXT_PUBLIC_180_AUTH_URL || '',
+      redirectUri: typeof window !== 'undefined'
+        ? `${window.location.origin}/callback`
+        : process.env.NEXT_PUBLIC_APP_URL
+        ? `${process.env.NEXT_PUBLIC_APP_URL}/callback`
+        : '/callback',
       onSuccess: async (res: any) => {
         let token = res?.authToken || res?.accessToken || res?.token;
         if (!token && res?.code) {
           try {
-            const apiBase = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-              ? 'http://localhost:4005'
-              : (process.env.NEXT_PUBLIC_API_URL || 'https://api.180trafficdirector.pro');
+            const apiBase = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '') || (typeof window !== 'undefined' ? window.location.origin : '');
             const tokenRes = await fetch(`${apiBase}/oauth/exchange`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 code: res.code,
-                client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || '180_client_39d675390e2ddf3a518b8c436ae665f5',
+                client_id: process.env.NEXT_PUBLIC_180_CLIENT_ID || '',
                 redirect_uri: window.location.origin + '/callback',
               }),
             });
@@ -66,9 +68,7 @@ export default function TrafficDirectorLandingPage() {
   const handleDevLogin = async () => {
     try {
       setIsDevLoggingIn(true);
-      const apiBase = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-        ? 'http://localhost:4005'
-        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4005');
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '') || (typeof window !== 'undefined' ? window.location.origin : '');
       const res = await fetch(`${apiBase}/oauth/dev-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -265,7 +265,7 @@ export default function TrafficDirectorLandingPage() {
       stepNumber: "03",
       title: "Deploy via Shortlink or Dynamic Tag",
       description: "Use the generated shortlink as your ad destination, or inject the 1-line dynamic script tag on your landing page.",
-      actionSnippet: "<script src=\"https://api.180workspace.com/tag/offer-slug\"></script>"
+      actionSnippet: "<script src=\"/tag/offer-slug.js\" async></script>"
     },
     {
       stepNumber: "04",
