@@ -321,8 +321,8 @@ export default function SubscriptionPage() {
             </div>
             <p className="text-[11px] text-zinc-500">
               {isPaid
-                ? (currentTier === 'ENTERPRISE' ? 'Unlimited Allocation' : `${subData?.maxLinks ?? 2} Smart Links Allocation`)
-                : `${subData?.trialDaysLeft ?? 7} Days Remaining · 1 Smart Link Allocation`}
+                ? (currentTier === 'ENTERPRISE' ? 'Unlimited Allocation' : `${subData?.maxLinks ?? (currentTier === 'PRO' ? 5 : 2)} Smart Links Allocation`)
+                : `${subData?.trialDaysLeft ?? 7} Days Remaining · ${subData?.maxLinks ?? 1} Smart Link Allocation`}
             </p>
           </div>
 
@@ -391,7 +391,7 @@ export default function SubscriptionPage() {
               <span className="font-bold text-zinc-900 dark:text-white">
                 {subData?.isUnlimited
                   ? `${subData.currentLinksCount} (Unlimited)`
-                  : `${subData?.currentLinksCount || 0} / ${subData?.maxLinks || 1} Links`}
+                  : `${subData?.currentLinksCount || 0} / ${subData?.maxLinks ?? (currentTier === 'PRO' ? 5 : currentTier === 'STARTER' ? 2 : 1)} Links`}
               </span>
             </div>
             <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden">
@@ -407,7 +407,7 @@ export default function SubscriptionPage() {
               />
             </div>
             <span className="text-[10px] text-zinc-500 block">
-              {(subData?.canCreateMoreLinks ?? ((subData?.currentLinksCount || 0) < (subData?.maxLinks || 1)))
+              {(subData?.canCreateMoreLinks ?? ((subData?.currentLinksCount || 0) < (subData?.maxLinks ?? (currentTier === 'PRO' ? 5 : currentTier === 'STARTER' ? 2 : 1))))
                 ? 'Link quota healthy. You can create additional links.'
                 : 'Quota reached. Upgrade tier to launch more smart links.'}
             </span>

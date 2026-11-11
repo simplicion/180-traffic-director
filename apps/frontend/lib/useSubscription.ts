@@ -75,7 +75,9 @@ export function useSubscription() {
   const isTrialing = Boolean(subscription?.isTrialing);
   const isTrialExpired = Boolean(subscription?.isTrialExpired);
   const isSubscriptionActive = Boolean(subscription?.isSubscriptionActive);
-  const canCreateMoreLinks = Boolean(subscription?.canCreateMoreLinks);
+  const canCreateMoreLinks = subscription !== null 
+    ? Boolean(subscription?.canCreateMoreLinks) 
+    : true; // Graceful optimistic default for new/loading accounts
   const hasAdvancedAnalytics = Boolean(subscription?.hasAdvancedAnalytics);
   const trialDaysLeft = subscription?.trialDaysLeft ?? 0;
 
@@ -92,7 +94,7 @@ export function useSubscription() {
     canCreateMoreLinks,
     hasAdvancedAnalytics,
     cloakingEnabled: Boolean(subscription?.cloakingEnabled),
-    maxLinks: subscription?.maxLinks ?? 2,
+    maxLinks: subscription?.maxLinks ?? 1,
     isUnlimited: Boolean(subscription?.isUnlimited || subscription?.maxLinks === -1),
     currentLinksCount: subscription?.currentLinksCount ?? 0,
     activeLinksCount: subscription?.activeLinksCount ?? 0,

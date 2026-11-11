@@ -208,8 +208,10 @@ export default function SmartLinksDirectoryPage() {
     }
   };
 
-  // Quota calculation
-  const quotaLimit = isPaidPlan ? (isUnlimited ? 999999 : maxLinks) : 2;
+  // Quota calculation based on active tier allocation
+  const quotaLimit = isUnlimited ? 999999 : (maxLinks ?? 1);
+  const isLimitReached = !isUnlimited && links.length >= quotaLimit;
+  const canCreateLink = !isTrialExpired && !isLimitReached && canCreateMoreLinks;
   const capacityUsedPercent = isUnlimited 
     ? 0 
     : Math.min(100, Math.round((activeLinksCount / (quotaLimit || 1)) * 100));
@@ -281,12 +283,13 @@ export default function SmartLinksDirectoryPage() {
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={() => {
-                if (!canCreateMoreLinks) {
-                  toast.error(
-                    isTrialExpired 
-                      ? 'Your 7-day free trial has expired. Upgrade your subscription to create new links.' 
-                      : `Link quota limit reached (${links.length}/${isUnlimited ? '∞' : maxLinks}). Upgrade your subscription to create more links.`
-                  );
+                if (isTrialExpired) {
+                  toast.error('Your 7-day free trial has expired. Upgrade your subscription to create new links.');
+                  router.push('/traffic-director/subscription');
+                  return;
+                }
+                if (isLimitReached) {
+                  toast.error(`Link quota limit reached (${links.length}/${isUnlimited ? '∞' : quotaLimit}). Upgrade your subscription to create more links.`);
                   router.push('/traffic-director/subscription');
                   return;
                 }
@@ -294,15 +297,15 @@ export default function SmartLinksDirectoryPage() {
               }}
               className={clsx(
                 "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition cursor-pointer",
-                canCreateMoreLinks
+                canCreateLink
                   ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20 active:scale-95"
                   : "bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700 hover:border-amber-400"
               )}
-              title={canCreateMoreLinks ? 'Create a new Smart Link' : 'Upgrade subscription to create more links'}
+              title={canCreateLink ? 'Create a new Smart Link' : 'Upgrade subscription to create more links'}
             >
-              {canCreateMoreLinks ? <Plus className="w-4 h-4" /> : <Lock className="w-3.5 h-3.5 text-amber-500" />}
+              {canCreateLink ? <Plus className="w-4 h-4" /> : <Lock className="w-3.5 h-3.5 text-amber-500" />}
               <span>Create Smart Link</span>
-              {!canCreateMoreLinks && (
+              {!canCreateLink && (
                 <span className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded font-mono font-bold">
                   Upgrade
                 </span>
@@ -589,12 +592,13 @@ export default function SmartLinksDirectoryPage() {
           {statusFilter === 'all' && (
             <button
               onClick={() => {
-                if (!canCreateMoreLinks) {
-                  toast.error(
-                    isTrialExpired 
-                      ? 'Your 7-day free trial has expired. Upgrade your subscription to create new links.' 
-                      : `Link quota limit reached (${links.length}/${isUnlimited ? '∞' : maxLinks}). Upgrade your subscription to create more links.`
-                  );
+                if (isTrialExpired) {
+                  toast.error('Your 7-day free trial has expired. Upgrade your subscription to create new links.');
+                  router.push('/traffic-director/subscription');
+                  return;
+                }
+                if (isLimitReached) {
+                  toast.error(`Link quota limit reached (${links.length}/${isUnlimited ? '∞' : quotaLimit}). Upgrade your subscription to create more links.`);
                   router.push('/traffic-director/subscription');
                   return;
                 }

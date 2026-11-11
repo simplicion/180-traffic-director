@@ -567,8 +567,13 @@ export class TrafficDirectorBillingService {
     const planTier = (sub.planTier?.toUpperCase() as TrafficDirectorTier) || 'FREE';
     const dynamicPlans = await this.getPlans();
     const planMeta = dynamicPlans[planTier] || dynamicPlans.STARTER;
-    // Free accounts are strictly capped to 1 Smart Link
-    const maxLinks = planTier === 'FREE' ? 1 : (sub.maxLinks !== undefined ? sub.maxLinks : planMeta.maxLinks);
+    // Free accounts are strictly capped to 1 Smart Link. Paid tiers receive at least the tier allocation
+    const maxLinks =
+      planTier === 'FREE'
+        ? 1
+        : planMeta.maxLinks === -1
+        ? -1
+        : Math.max(sub.maxLinks !== undefined ? sub.maxLinks : 0, planMeta.maxLinks);
 
     const isUnlimited = maxLinks === -1;
     const quotaUsedPercent = isUnlimited ? 0 : Math.min(100, Math.round((currentLinksCount / maxLinks) * 100));

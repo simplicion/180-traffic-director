@@ -25,6 +25,7 @@ export function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLinkModalP
     canCreateMoreLinks, 
     isTrialExpired, 
     maxLinks, 
+    isUnlimited,
     currentLinksCount, 
     planName 
   } = useSubscription();
@@ -97,12 +98,15 @@ export function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLinkModalP
     if (e) e.preventDefault();
     if (loading) return;
 
-    if (!canCreateMoreLinks) {
-      toast.error(
-        isTrialExpired
-          ? 'Your 7-day free trial has expired. Upgrade your subscription to create new links.'
-          : `Link quota limit reached (${currentLinksCount}/${maxLinks}). Upgrade your subscription to create more links.`
-      );
+    const isLimitReached = !isUnlimited && currentLinksCount >= maxLinks;
+    if (isTrialExpired) {
+      toast.error('Your 7-day free trial has expired. Upgrade your subscription to create new links.');
+      onClose();
+      router.push('/traffic-director/subscription');
+      return;
+    }
+    if (isLimitReached) {
+      toast.error(`Link quota limit reached (${currentLinksCount}/${maxLinks}). Upgrade your subscription to create more links.`);
       onClose();
       router.push('/traffic-director/subscription');
       return;
@@ -202,7 +206,7 @@ export function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLinkModalP
       }
     >
       <form onSubmit={handleSubmit} className="space-y-5 p-1">
-        {!canCreateMoreLinks && (
+        {(isTrialExpired || (!isUnlimited && currentLinksCount >= maxLinks)) && (
           <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-start gap-3">
             <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="text-xs space-y-2 flex-1">

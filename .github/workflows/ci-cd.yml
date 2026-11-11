@@ -136,7 +136,53 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Execute Remote SSH Deployment on EC2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        continue-on-error: true
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
+
+      - name: Deploy via AWS SSM Send-Command (Zero-SSH)
+        id: ssm_deploy
+        continue-on-error: true
+        run: |
+          INSTANCE_ID="${{ secrets.AWS_INSTANCE_ID || 'i-0be304a45dc9c39d5' }}"
+          echo "Dispatched AWS SSM deployment to EC2 Instance $INSTANCE_ID..."
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --timeout-seconds 300 \
+            --parameters commands='[
+              "set -e",
+              "echo \"==> Deploying 180 Traffic Director Edge Backend to EC2 via SSM...\"",
+              "mkdir -p /opt/traffic-director",
+              "cd /opt/traffic-director",
+              "if [ -d .git ]; then git fetch origin main || true; git checkout -f -B main origin/main || true; fi",
+              "export PATH=/root/.local/share/pnpm:/home/ubuntu/.local/share/pnpm:/usr/local/bin:$PATH",
+              "which pnpm || npm install -g pnpm",
+              "pnpm install --no-frozen-lockfile",
+              "pnpm --filter @workspace/db exec prisma generate",
+              "cat > .env << ENVEOF\nPORT=4005\nTD_PORT=4005\nTRAFFIC_DIRECTOR_PORT=4005\nJWT_SECRET=${{ secrets.JWT_SECRET }}\nDATABASE_URL=${{ secrets.DATABASE_URL }}\nPUBLIC_EDGE_URL=https://api.180trafficdirector.pro\nNEXT_PUBLIC_API_URL=https://api.180trafficdirector.pro\nTRAFFIC_DIRECTOR_WEB_URL=https://180trafficdirector.pro\nONE_EIGHTY_PAY_CORE_URL=https://api.180core.cloud\nCORE_BACKEND_URL=https://api.180core.cloud\nNODE_ENV=production\nENVEOF",
+              "cd apps/backend && npx tsx scripts/sync_production_db_schemas.ts && cd ../..",
+              "python3 scripts/sync-nginx-traffic-director.py 2>&1 || true",
+              "pm2 delete traffic-director-backend 2>/dev/null || true",
+              "pm2 start \"pnpm --filter traffic-director-backend start\" --name traffic-director-backend",
+              "pm2 save",
+              "sleep 4",
+              "curl -f http://127.0.0.1:4005/health",
+              "echo \"==> 180 Traffic Director Backend deployed and healthy!\""
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "SSM Command ID: $COMMAND_ID"
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" || true
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --query "[Status, StandardOutputContent, StandardErrorContent]" --output text
+
+      - name: Fallback Remote SSH Deployment on EC2
+        if: steps.ssm_deploy.outcome != 'success'
         uses: appleboy/ssh-action@v1.0.3
         continue-on-error: true
         with:
@@ -146,13 +192,13 @@ jobs:
           envs: DATABASE_URL,JWT_SECRET
           script: |
             set -e
-            echo "==> Deploying 180 Traffic Director Edge Backend to EC2..."
+            echo "==> Deploying 180 Traffic Director Edge Backend to EC2 via SSH..."
             mkdir -p /opt/traffic-director
             cd /opt/traffic-director
 
             if [ -d ".git" ]; then
               git fetch origin main || true
-              git reset --hard origin/main || true
+              git checkout -f -B main origin/main || true
             fi
 
             # Install dependencies and update prisma client
@@ -176,6 +222,9 @@ jobs:
 
             # Sync production database schema
             cd apps/backend && npx tsx scripts/sync_production_db_schemas.ts && cd ../..
+
+            # Synchronize Nginx reverse proxy configuration
+            python3 scripts/sync-nginx-traffic-director.py 2>&1 || true
 
             # Gracefully restart backend process with PM2
             pm2 delete traffic-director-backend 2>/dev/null || true
