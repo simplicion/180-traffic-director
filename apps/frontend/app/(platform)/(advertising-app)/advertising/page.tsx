@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import WebsiteCard from "@/app/(platform)/(advertising-app)/_components/WebsiteCard";
 import CreateWebsiteModal from "@/app/(platform)/(advertising-app)/_components/CreateWebsiteModal";
 import { useSubscription } from '@/lib/useSubscription';
+import { AliveProgressBar } from '@/components/ui/MotionPrimitives';
 
 export default function AdvertisingPage() {
     const router = useRouter();
@@ -188,15 +189,7 @@ export default function AdvertisingPage() {
 
                     {!isUnlimited && (
                         <>
-                            <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
-                                <div
-                                    className={clsx(
-                                        "h-full rounded-full transition-all duration-500",
-                                        capacityUsedPercent >= 90 ? "bg-rose-500" : capacityUsedPercent >= 70 ? "bg-amber-500" : "bg-emerald-500"
-                                    )}
-                                    style={{ width: `${capacityUsedPercent}%` }}
-                                />
-                            </div>
+                            <AliveProgressBar percent={capacityUsedPercent} />
                             <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 pt-0.5">
                                 <span>{Math.max(0, quotaLimit - websites.length)} website {quotaLimit - websites.length === 1 ? 'slot' : 'slots'} available</span>
                                 <Link
@@ -238,9 +231,10 @@ export default function AdvertisingPage() {
                 </div>
             ) : filteredWebsites.length > 0 ? (
                 <div className="flex flex-col gap-4">
-                    {filteredWebsites.map((website) => (
+                    {filteredWebsites.map((website, idx) => (
                         <WebsiteCard
                             key={website.id}
+                            index={idx}
                             website={website}
                             companyData={companyData}
                             onRefresh={() => {

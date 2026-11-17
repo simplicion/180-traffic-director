@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { 
   ShieldCheck, Check, Sparkles, CreditCard, ArrowRight, 
   AlertCircle, RefreshCw, Zap, Tag, CheckCircle2, Lock,
@@ -9,6 +10,7 @@ import {
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { OneEightyPay } from '@/lib/pay';
+import { AliveProgressBar, AliveListCard } from '@/components/ui/MotionPrimitives';
 
 interface SubscriptionData {
   id: string;
@@ -304,7 +306,7 @@ export default function SubscriptionPage() {
 
       {/* Active Subscription Status Banner */}
       <div className="p-6 rounded-3xl bg-gradient-to-br from-white to-zinc-50 dark:from-zinc-900 dark:to-zinc-950 border border-zinc-200/80 dark:border-white/10 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/8 dark:bg-blue-500/15 rounded-full blur-3xl pointer-events-none animate-td-breathe" />
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative z-10">
           {/* Current Tier */}
@@ -422,18 +424,17 @@ export default function SubscriptionPage() {
                     {subData?.isUnlimited || q.max === -1 ? `${q.used} (Unlimited)` : `${q.used} / ${q.max}`}
                   </span>
                 </div>
-                <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      q.pct >= 100
-                        ? 'bg-rose-500'
-                        : q.pct >= 80
-                        ? 'bg-amber-500'
-                        : 'bg-gradient-to-r from-blue-600 to-indigo-600'
-                    }`}
-                    style={{ width: subData?.isUnlimited || q.max === -1 ? '18%' : `${q.pct}%` }}
-                  />
-                </div>
+                <AliveProgressBar
+                  heightClass="h-1.5"
+                  percent={subData?.isUnlimited || q.max === -1 ? 18 : q.pct}
+                  colorClass={
+                    q.pct >= 100
+                      ? 'bg-gradient-to-r from-rose-500 to-red-500'
+                      : q.pct >= 80
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600'
+                  }
+                />
               </div>
             ))}
           </div>
@@ -457,11 +458,15 @@ export default function SubscriptionPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* STARTER TIER */}
-          <div className={`p-6 rounded-3xl border transition-all relative flex flex-col justify-between ${
-            selectedTier === 'STARTER'
-              ? 'border-blue-600 bg-white dark:bg-zinc-900 shadow-xl shadow-blue-500/10'
-              : 'border-zinc-200 dark:border-white/10 bg-white/70 dark:bg-zinc-950/60 hover:border-zinc-300 dark:hover:border-white/20'
-          }`}>
+          <AliveListCard
+            index={0}
+            hoverLift={-4}
+            className={`p-6 rounded-3xl border transition-colors transition-shadow relative flex flex-col justify-between ${
+              selectedTier === 'STARTER'
+                ? 'border-blue-600 bg-white dark:bg-zinc-900 shadow-xl shadow-blue-500/10'
+                : 'border-zinc-200 dark:border-white/10 bg-white/70 dark:bg-zinc-950/60 hover:border-zinc-300 dark:hover:border-white/20 hover:shadow-lg'
+            }`}
+          >
             <div>
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300">
@@ -544,14 +549,18 @@ export default function SubscriptionPage() {
                 </span>
               </button>
             </div>
-          </div>
+          </AliveListCard>
 
           {/* PRO TIER (Featured) */}
-          <div className={`p-6 rounded-3xl border transition-all relative flex flex-col justify-between ${
-            selectedTier === 'PRO'
-              ? 'border-indigo-500 bg-white dark:bg-zinc-900 shadow-2xl shadow-indigo-500/15 ring-2 ring-indigo-500/20'
-              : 'border-zinc-200 dark:border-white/10 bg-white/70 dark:bg-zinc-950/60 hover:border-zinc-300 dark:hover:border-white/20'
-          }`}>
+          <AliveListCard
+            index={1}
+            hoverLift={-5}
+            className={`p-6 rounded-3xl border transition-colors transition-shadow relative flex flex-col justify-between ${
+              selectedTier === 'PRO'
+                ? 'border-indigo-500 bg-white dark:bg-zinc-900 shadow-2xl shadow-indigo-500/15 ring-2 ring-indigo-500/20'
+                : 'border-zinc-200 dark:border-white/10 bg-white/70 dark:bg-zinc-950/60 hover:border-zinc-300 dark:hover:border-white/20 hover:shadow-lg'
+            }`}
+          >
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-[9px] uppercase tracking-wider shadow-md">
               Most Popular
             </div>
@@ -643,14 +652,18 @@ export default function SubscriptionPage() {
                 </span>
               </button>
             </div>
-          </div>
+          </AliveListCard>
 
           {/* ENTERPRISE TIER */}
-          <div className={`p-6 rounded-3xl border transition-all relative flex flex-col justify-between ${
-            selectedTier === 'ENTERPRISE'
-              ? 'border-purple-600 bg-white dark:bg-zinc-900 shadow-xl shadow-purple-500/10'
-              : 'border-zinc-200 dark:border-white/10 bg-white/70 dark:bg-zinc-950/60 hover:border-zinc-300 dark:hover:border-white/20'
-          }`}>
+          <AliveListCard
+            index={2}
+            hoverLift={-4}
+            className={`p-6 rounded-3xl border transition-colors transition-shadow relative flex flex-col justify-between ${
+              selectedTier === 'ENTERPRISE'
+                ? 'border-purple-600 bg-white dark:bg-zinc-900 shadow-xl shadow-purple-500/10'
+                : 'border-zinc-200 dark:border-white/10 bg-white/70 dark:bg-zinc-950/60 hover:border-zinc-300 dark:hover:border-white/20 hover:shadow-lg'
+            }`}
+          >
             <div>
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200/50 dark:border-purple-800/50">
@@ -738,7 +751,7 @@ export default function SubscriptionPage() {
                 </span>
               </button>
             </div>
-          </div>
+          </AliveListCard>
         </div>
       </div>
 

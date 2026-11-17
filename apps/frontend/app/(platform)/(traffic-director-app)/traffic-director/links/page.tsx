@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { 
   GitFork, Link as LinkIcon, Plus, Search, Copy, Check, ExternalLink, 
   Trash2, Settings2, Power, Filter, ArrowRight, CheckSquare, Lock,
@@ -16,6 +17,7 @@ import { useSubscription } from '@/lib/useSubscription';
 import CreateLinkModal from '../../_components/CreateLinkModal';
 import EditLinkModal from '../../_components/EditLinkModal';
 import { getDefaultEdgeDomain } from '@/lib/domains';
+import { AliveProgressBar, AlivePillTabs, AliveListCard } from '@/components/ui/MotionPrimitives';
 
 export default function SmartLinksDirectoryPage() {
   const router = useRouter();
@@ -347,15 +349,7 @@ export default function SmartLinksDirectoryPage() {
 
           {!isUnlimited && (
             <>
-              <div className="w-full bg-gray-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
-                <div
-                  className={clsx(
-                    "h-full rounded-full transition-all duration-500",
-                    capacityUsedPercent >= 90 ? "bg-rose-500" : capacityUsedPercent >= 70 ? "bg-amber-500" : "bg-emerald-500"
-                  )}
-                  style={{ width: `${capacityUsedPercent}%` }}
-                />
-              </div>
+              <AliveProgressBar percent={capacityUsedPercent} />
               <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 pt-0.5">
                 <span>{Math.max(0, quotaLimit - activeLinksCount)} active link slots available</span>
                 <Link
@@ -375,44 +369,37 @@ export default function SmartLinksDirectoryPage() {
           SECTION 4: STATUS TABS, SEARCH, AND BULK SELECT CONTROLS
           ────────────────────────────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Status Filter Chips */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800">
-          <button
-            onClick={() => setStatusFilter('all')}
-            className={clsx(
-              "px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer",
-              statusFilter === 'all'
-                ? "bg-white dark:bg-zinc-800 text-gray-900 dark:text-white shadow-xs"
-                : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white"
-            )}
-          >
-            All Links ({links.length})
-          </button>
-          <button
-            onClick={() => setStatusFilter('active')}
-            className={clsx(
-              "px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5",
-              statusFilter === 'active'
-                ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-xs"
-                : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white"
-            )}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            Active ({activeLinksCount})
-          </button>
-          <button
-            onClick={() => setStatusFilter('paused')}
-            className={clsx(
-              "px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5",
-              statusFilter === 'paused'
-                ? "bg-white dark:bg-zinc-800 text-gray-900 dark:text-white shadow-xs"
-                : "text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white"
-            )}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-            Paused ({pausedLinksCount})
-          </button>
-        </div>
+        {/* Status Filter Chips with Organic Gliding Pill */}
+        <AlivePillTabs
+          layoutId="links-status-pill"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            {
+              id: 'all',
+              label: <>All Links ({links.length})</>,
+            },
+            {
+              id: 'active',
+              activeTextClass: 'text-emerald-600 dark:text-emerald-400',
+              label: (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Active ({activeLinksCount})
+                </>
+              ),
+            },
+            {
+              id: 'paused',
+              label: (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                  Paused ({pausedLinksCount})
+                </>
+              ),
+            },
+          ]}
+        />
 
         {/* Search & Bulk Select Actions */}
         <div className="flex items-center gap-3 flex-1 max-w-md">
@@ -454,16 +441,17 @@ export default function SmartLinksDirectoryPage() {
         </div>
       ) : filteredLinks.length > 0 ? (
         <div className="grid grid-cols-1 gap-4">
-          {filteredLinks.map((link) => {
+          {filteredLinks.map((link, idx) => {
             const isSelected = selectedLinkIds.includes(link.id);
             return (
-              <div
+              <AliveListCard
                 key={link.id}
+                index={idx}
                 className={clsx(
-                  "p-6 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border transition flex flex-col md:flex-row md:items-center justify-between gap-6",
+                  "p-6 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border transition-colors transition-shadow flex flex-col md:flex-row md:items-center justify-between gap-6",
                   isSelected 
                     ? "border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/20 dark:bg-blue-950/20" 
-                    : "border-gray-200/80 dark:border-white/10 hover:shadow-md hover:border-blue-200 dark:hover:border-zinc-700"
+                    : "border-gray-200/80 dark:border-white/10 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-[0_0_30px_rgba(255,255,255,0.04)] hover:border-blue-300/80 dark:hover:border-zinc-700"
                 )}
               >
                 <div className="flex items-start gap-3.5 flex-1">
@@ -560,10 +548,10 @@ export default function SmartLinksDirectoryPage() {
 
                   <Link
                     href={`/traffic-director/links/${link.id}`}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 dark:bg-zinc-800/80 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-white/10 hover:bg-blue-100 dark:hover:bg-zinc-800 text-xs font-semibold transition active:scale-95"
+                    className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 dark:bg-zinc-800/80 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-white/10 hover:bg-blue-100 dark:hover:bg-zinc-800 text-xs font-semibold transition active:scale-95"
                   >
                     Rules Canvas
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                   </Link>
 
                   <button
@@ -574,7 +562,7 @@ export default function SmartLinksDirectoryPage() {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-              </div>
+              </AliveListCard>
             );
           })}
         </div>

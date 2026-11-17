@@ -7,11 +7,13 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { ConfirmModal, DomainManagerModal } from '@workspace/ui';
+import { EASE_FLUID, SPRING_SNAPPY } from '@/components/ui/MotionPrimitives';
 
 interface WebsiteCardProps {
     website: any;
     companyData: any;
     onRefresh: () => void;
+    index?: number;
 }
 
 function ThreeDotMenu({ websiteId, liveUrl, onOpenDomain, onDelete }: any) {
@@ -81,7 +83,7 @@ function ThreeDotMenu({ websiteId, liveUrl, onOpenDomain, onDelete }: any) {
     );
 }
 
-export default function WebsiteCard({ website, companyData, onRefresh }: WebsiteCardProps) {
+export default function WebsiteCard({ website, companyData, onRefresh, index = 0 }: WebsiteCardProps) {
     const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || '').trim();
     const liveUrl = website.customDomain
         ? `https://${website.customDomain}`
@@ -162,9 +164,14 @@ export default function WebsiteCard({ website, companyData, onRefresh }: Website
     return (
         <>
             <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:shadow-gray-200/50 transition-all flex flex-col md:flex-row items-center p-4 gap-4 md:gap-6"
+                initial={{ opacity: 0, y: 12, scale: 0.99 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                whileHover={{ y: -2 }}
+                transition={{
+                    opacity: { duration: 0.24, delay: Math.min(index * 0.04, 0.28), ease: EASE_FLUID },
+                    y: { type: 'spring', stiffness: 360, damping: 28, delay: Math.min(index * 0.035, 0.24) },
+                }}
+                className="group bg-white/90 dark:bg-zinc-900/85 backdrop-blur-md rounded-2xl border border-zinc-200/80 dark:border-white/10 shadow-sm hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-[0_0_30px_rgba(255,255,255,0.04)] hover:border-indigo-300/70 dark:hover:border-indigo-500/40 transition-colors transition-shadow flex flex-col md:flex-row items-center p-4 gap-4 md:gap-6"
             >
                 {/* Logo area - clickable to edit */}
                 <Link href={`/advertising/${website.id}/edit`} className="flex-shrink-0 relative cursor-pointer" title="Open Website Editor">
@@ -185,17 +192,17 @@ export default function WebsiteCard({ website, companyData, onRefresh }: Website
                 <div className="flex-1 min-w-0 w-full flex flex-col">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <Link href={`/advertising/${website.id}/edit`}>
-                            <h3 className="font-bold text-gray-900 text-lg hover:text-indigo-600 transition-colors truncate cursor-pointer">
+                            <h3 className="font-bold text-zinc-900 dark:text-white text-lg hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate cursor-pointer">
                                 {website.name}
                             </h3>
                         </Link>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
+                    <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 truncate">
                         <a
                             href={liveUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="hover:text-indigo-600 truncate flex items-center gap-1"
+                            className="hover:text-indigo-600 dark:hover:text-indigo-400 truncate flex items-center gap-1"
                         >
                             <span>{displayUrl}</span>
                             <ExternalLink className="w-3 h-3" />
@@ -207,20 +214,20 @@ export default function WebsiteCard({ website, companyData, onRefresh }: Website
                 <div className="flex items-center gap-2 md:ml-auto">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
                         website.isPublished 
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                            : 'bg-gray-100 text-gray-600 border-gray-200'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60' 
+                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700'
                     }`}>
                         {website.isPublished ? 'Published' : 'Draft'}
                     </span>
                 </div>
 
                 {/* Stats */}
-                <div className="flex items-center gap-4 text-center border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 pl-0 md:pl-6 w-full md:w-auto">
+                <div className="flex items-center gap-4 text-center border-t md:border-t-0 md:border-l border-zinc-100 dark:border-zinc-800 pt-4 md:pt-0 pl-0 md:pl-6 w-full md:w-auto">
                     <div className="flex flex-col items-start gap-1">
                         <select 
                             value={timeRange}
                             onChange={(e) => setTimeRange(e.target.value)}
-                            className="text-[11px] text-gray-400 uppercase tracking-widest font-bold bg-transparent border-none p-0 cursor-pointer focus:ring-0 outline-none"
+                            className="text-[11px] text-zinc-400 uppercase tracking-widest font-bold bg-transparent border-none p-0 cursor-pointer focus:ring-0 outline-none"
                         >
                             <option value="today">Visits Today</option>
                             <option value="week">Visits Last Week</option>
@@ -230,25 +237,25 @@ export default function WebsiteCard({ website, companyData, onRefresh }: Website
                         </select>
                         
                         <div className="flex items-end gap-2">
-                            <p className="text-xl font-bold text-gray-900 leading-none">{calculateViews()}</p>
+                            <p className="text-xl font-bold text-zinc-900 dark:text-white leading-none">{calculateViews()}</p>
                         </div>
 
                         {timeRange === 'custom' && (
                             <div className="flex gap-1 items-center text-xs mt-1">
-                                <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="px-1.5 py-1 border border-gray-200 rounded text-gray-600" />
-                                <span className="text-gray-400">-</span>
-                                <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="px-1.5 py-1 border border-gray-200 rounded text-gray-600" />
+                                <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="px-1.5 py-1 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-300" />
+                                <span className="text-zinc-400">-</span>
+                                <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="px-1.5 py-1 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-300" />
                             </div>
                         )}
                     </div>
                 </div>
 
                 {/* Actions - Direct Access */}
-                <div className="flex items-center justify-end gap-2 w-full md:w-auto pt-4 md:pt-0 pl-0 md:pl-6 border-t md:border-t-0 md:border-l border-gray-100 md:ml-2">
+                <div className="flex items-center justify-end gap-2 w-full md:w-auto pt-4 md:pt-0 pl-0 md:pl-6 border-t md:border-t-0 md:border-l border-zinc-100 dark:border-zinc-800 md:ml-2">
                     <button
                         onClick={() => setIsDomainModalOpen(true)}
                         title="Domain Settings"
-                        className="p-2.5 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-xs flex items-center justify-center cursor-pointer"
+                        className="p-2.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-zinc-500 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:border-indigo-200 dark:hover:border-indigo-800 transition-all shadow-xs flex items-center justify-center cursor-pointer active:scale-95"
                     >
                         <Globe className="w-4 h-4" />
                     </button>
@@ -257,15 +264,15 @@ export default function WebsiteCard({ website, companyData, onRefresh }: Website
                         target="_blank"
                         rel="noopener noreferrer"
                         title="Preview Live"
-                        className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-xs"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all shadow-xs active:scale-95"
                     >
-                        <ExternalLink className="w-3.5 h-3.5 text-gray-500" />
+                        <ExternalLink className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                         <span>Preview</span>
                     </a>
                     <Link
                         href={`/advertising/${website.id}/edit`}
                         title="Edit Website"
-                        className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-xs font-bold text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-xs"
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/60 rounded-xl text-xs font-bold text-indigo-600 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all shadow-xs active:scale-95"
                     >
                         <Edit3 className="w-3.5 h-3.5" />
                         <span>Edit Website</span>

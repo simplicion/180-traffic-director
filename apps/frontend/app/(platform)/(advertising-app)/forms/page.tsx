@@ -12,6 +12,7 @@ import api, { getApiBase, getAuthToken } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { ConfirmModal, LogoLoader } from "@workspace/ui";
 import { useSubscription } from '@/lib/useSubscription';
+import { AliveProgressBar, AliveListCard, AliveModal } from '@/components/ui/MotionPrimitives';
 
 export default function FormsListPage() {
   const router = useRouter();
@@ -269,15 +270,7 @@ export default function FormsListPage() {
 
           {!isUnlimited && (
             <>
-              <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
-                <div
-                  className={clsx(
-                    "h-full rounded-full transition-all duration-500",
-                    capacityUsedPercent >= 90 ? "bg-rose-500" : capacityUsedPercent >= 70 ? "bg-amber-500" : "bg-emerald-500"
-                  )}
-                  style={{ width: `${capacityUsedPercent}%` }}
-                />
-              </div>
+              <AliveProgressBar percent={capacityUsedPercent} />
               <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 pt-0.5">
                 <span>{Math.max(0, quotaLimit - forms.length)} form {quotaLimit - forms.length === 1 ? 'slot' : 'slots'} available</span>
                 <Link
@@ -345,7 +338,7 @@ export default function FormsListPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredForms.map((form) => {
+          {filteredForms.map((form, idx) => {
             const effectiveCode = form.formCode || form.slug;
             const isHeadless = form.formType === 'HEADLESS_ENDPOINT' || form.settings?.isHeadless;
             const isSales = form.formType === 'SALES_ACTIVITY' || form.settings?.isSalesActivity;
@@ -356,10 +349,12 @@ export default function FormsListPage() {
             const cvr = viewsCount > 0 ? ((submissionsCount / viewsCount) * 100).toFixed(1) : (submissionsCount > 0 ? '100' : '0.0');
 
             return (
-              <div 
-                key={form.id} 
+              <AliveListCard 
+                key={form.id}
+                index={idx}
+                hoverLift={-3}
                 onClick={() => router.push(`/forms/${form.id}`)}
-                className="bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-2xl shadow-xs hover:shadow-xl transition-all duration-200 flex flex-col justify-between overflow-hidden cursor-pointer group"
+                className="bg-white dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200/80 dark:border-white/10 hover:border-indigo-300/80 dark:hover:border-indigo-500/40 rounded-2xl shadow-xs hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-[0_0_32px_rgba(99,102,241,0.08)] transition-colors transition-shadow duration-200 flex flex-col justify-between overflow-hidden cursor-pointer group"
               >
                 {/* Card Header & Body */}
                 <div className="p-5 pb-4 space-y-3.5">
@@ -535,16 +530,19 @@ export default function FormsListPage() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </AliveListCard>
             );
           })}
         </div>
       )}
 
       {/* ─── DEDICATED MODAL 1: CAPTURE WEBSITE FORM DATA ─── */}
-      {createModalMode === 'CAPTURE' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4">
+      <AliveModal
+        isOpen={createModalMode === 'CAPTURE'}
+        onClose={() => setCreateModalMode(null)}
+        maxWidthClass="max-w-lg"
+      >
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl shadow-2xl w-full p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200 dark:border-indigo-800">
@@ -664,13 +662,15 @@ export default function FormsListPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </AliveModal>
 
       {/* ─── DEDICATED MODAL 2: CREATE NEW HOSTED FORM ─── */}
-      {createModalMode === 'FORM' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4">
+      <AliveModal
+        isOpen={createModalMode === 'FORM'}
+        onClose={() => setCreateModalMode(null)}
+        maxWidthClass="max-w-lg"
+      >
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl shadow-2xl w-full p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200 dark:border-indigo-800">
@@ -776,8 +776,7 @@ export default function FormsListPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </AliveModal>
 
       {/* Universal Confirm Delete Modal */}
       <ConfirmModal

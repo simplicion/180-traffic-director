@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { 
   User, ExternalLink, CreditCard, Mail, Building, 
   RefreshCw, BadgeCheck, LogOut
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getAuthToken, clearAuthTokens } from '@/lib/api';
+import { AliveListCard } from '@/components/ui/MotionPrimitives';
 
 interface UserProfile {
   id: string;
@@ -97,17 +99,21 @@ export default function ProfilePage() {
       </div>
 
       {/* Primary Identity Hero Card */}
-      <div className="p-8 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/10 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      <AliveListCard index={0} hoverLift={-2} className="p-8 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/10 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/8 dark:bg-blue-500/15 rounded-full blur-3xl pointer-events-none animate-td-breathe" />
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
           <div className="flex items-center gap-5">
             {/* Avatar */}
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-[2px] shadow-md shrink-0">
+            <motion.div
+              whileHover={{ scale: 1.06, rotate: -2 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 24 }}
+              className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-[2px] shadow-md shrink-0"
+            >
               <div className="w-full h-full bg-white dark:bg-zinc-900 rounded-[14px] flex items-center justify-center font-bold text-xl text-blue-600 dark:text-blue-400">
                 {profile?.name?.[0]?.toUpperCase() || 'U'}
               </div>
-            </div>
+            </motion.div>
 
             {/* Basic Info */}
             <div className="space-y-1">
@@ -156,12 +162,12 @@ export default function ProfilePage() {
             </button>
           </div>
         </div>
-      </div>
+      </AliveListCard>
 
       {/* Identity Detail Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Contact & SSO Information */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/10 shadow-sm space-y-4">
+        <AliveListCard index={1} hoverLift={-2} className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/10 shadow-sm space-y-4">
           <div className="flex items-center gap-2">
             <Mail className="w-4 h-4 text-blue-500" />
             <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Credentials & Contact</h3>
@@ -183,10 +189,10 @@ export default function ProfilePage() {
               <span className="font-semibold text-blue-600 dark:text-blue-400">Single Sign-On (SSO)</span>
             </div>
           </div>
-        </div>
+        </AliveListCard>
 
         {/* Tenant & Permissions Context */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/10 shadow-sm space-y-4">
+        <AliveListCard index={2} hoverLift={-2} className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/10 shadow-sm space-y-4">
           <div className="flex items-center gap-2">
             <Building className="w-4 h-4 text-indigo-500" />
             <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Workspace & Tenancy</h3>
@@ -216,11 +222,11 @@ export default function ProfilePage() {
               <span className="font-semibold text-emerald-600 dark:text-emerald-400">Full Edge Administrator</span>
             </div>
           </div>
-        </div>
+        </AliveListCard>
       </div>
 
       {/* Active Session & Sign Out Card */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/10 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+      <AliveListCard index={3} hoverLift={-2} className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-white/10 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <h4 className="text-sm font-bold text-zinc-900 dark:text-white">Active Session</h4>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
@@ -229,12 +235,12 @@ export default function ProfilePage() {
         </div>
         <button
           onClick={handleLogout}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-600/20 transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-600/20 active:scale-95 transition-all cursor-pointer"
         >
           <LogOut className="w-4 h-4" />
           <span>Sign Out of Traffic Director</span>
         </button>
-      </div>
+      </AliveListCard>
     </div>
   );
 }

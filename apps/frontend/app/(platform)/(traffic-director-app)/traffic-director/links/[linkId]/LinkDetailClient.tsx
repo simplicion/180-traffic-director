@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { 
   ArrowLeft, Plus, Play, Layers, Power, Check, Copy, Code, 
   BarChart3, Lock, Sparkles, ShieldCheck 
@@ -14,6 +15,7 @@ import { useSubscription } from '@/lib/useSubscription';
 import { ensureExternalUrl } from '@/lib/url';
 import { getDefaultEdgeDomain } from '@/lib/domains';
 import { useLinkDetailNav } from '@/context/LinkDetailNavContext';
+import { SPRING_SNAPPY, EASE_FLUID } from '@/components/ui/MotionPrimitives';
 import CreateRuleModal from '../../../_components/CreateRuleModal';
 import EditRuleModal from '../../../_components/EditRuleModal';
 import EmbedTagModal from '../../../_components/EmbedTagModal';
@@ -450,32 +452,49 @@ export default function SmartLinkRuleCanvasPage() {
         </div>
       </div>
 
-      {/* Canvas Navigation Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-gray-200 dark:border-zinc-800 pb-3">
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setActiveTab(item.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition shrink-0 cursor-pointer ${
-              activeTab === item.id
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                : 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800'
-            }`}
-          >
-            <item.icon className="w-3.5 h-3.5" />
-            <span>{item.name}</span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-              activeTab === item.id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400'
-            }`}>
-              {item.badge}
-            </span>
-          </button>
-        ))}
+      {/* Canvas Navigation Tabs with Organic Gliding Pill */}
+      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none border-b border-gray-200 dark:border-zinc-800 pb-3">
+        {navItems.map((item) => {
+          const isActive = activeTab === item.id;
+          return (
+            <motion.button
+              key={item.id}
+              type="button"
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setActiveTab(item.id)}
+              className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-colors shrink-0 cursor-pointer ${
+                isActive
+                  ? 'text-white'
+                  : 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800'
+              }`}
+            >
+              {isActive && (
+                <motion.span
+                  layoutId="link-detail-canvas-tab"
+                  transition={SPRING_SNAPPY}
+                  className="absolute inset-0 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 shadow-md shadow-indigo-500/25"
+                />
+              )}
+              <item.icon className="relative z-10 w-3.5 h-3.5" />
+              <span className="relative z-10">{item.name}</span>
+              <span className={`relative z-10 px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                isActive ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400'
+              }`}>
+                {item.badge}
+              </span>
+            </motion.button>
+          );
+        })}
       </div>
 
-      {/* Main Full-Space Workspace Canvas (100% width, No right sidebar) */}
-      <div className="w-full min-w-0 transition-all duration-300">
+      {/* Main Full-Space Workspace Canvas with Organic Tab Reveal */}
+      <motion.div
+        key={activeTab}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22, ease: EASE_FLUID }}
+        className="w-full min-w-0"
+      >
         {activeTab === 'rules' && (
           <LinkRoutingRulesTab
             linkId={linkId}
@@ -518,7 +537,7 @@ export default function SmartLinkRuleCanvasPage() {
         {activeTab === 'analytics' && (
           <LinkAnalyticsTab linkId={linkId} linkData={linkData} />
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }

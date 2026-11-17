@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { motion, MotionConfig } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getAuthToken, clearAuthTokens } from '@/lib/api';
 import { TrafficDirectorSidebar } from '@/components/layout/TrafficDirectorSidebar';
 import { TrialBanner } from '@/components/shared/TrialBanner';
 import { LinkDetailNavProvider, useLinkDetailNav } from '@/context/LinkDetailNavContext';
+import { EASE_FLUID } from '@/components/ui/MotionPrimitives';
 
 function PlatformLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -63,16 +65,20 @@ function PlatformLayoutInner({ children }: { children: React.ReactNode }) {
       {/* Main Full-Width Content View */}
       <main className="flex-1 w-full flex flex-col min-w-0 transition-all duration-300 ease-in-out">
         {!isFullBleedEditor && <TrialBanner />}
-        {/* Page Body - Expands gracefully for link detail & builder editors */}
-        <div
+        {/* Page Body - Organic spring-eased page entry on route transitions */}
+        <motion.div
+          key={pathname}
+          initial={isFullBleedEditor ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.26, ease: EASE_FLUID }}
           className={
             isFullBleedEditor
               ? 'w-full flex-1'
-              : `p-4 sm:p-6 md:p-8 w-full ${isLinkDetail ? 'max-w-[1680px]' : 'max-w-7xl'} mx-auto transition-all duration-300`
+              : `p-4 sm:p-6 md:p-8 w-full ${isLinkDetail ? 'max-w-[1680px]' : 'max-w-7xl'} mx-auto`
           }
         >
           {children}
-        </div>
+        </motion.div>
       </main>
     </div>
   );
@@ -84,8 +90,10 @@ export default function PlatformLayout({
   children: React.ReactNode;
 }) {
   return (
-    <LinkDetailNavProvider>
-      <PlatformLayoutInner>{children}</PlatformLayoutInner>
-    </LinkDetailNavProvider>
+    <MotionConfig reducedMotion="user">
+      <LinkDetailNavProvider>
+        <PlatformLayoutInner>{children}</PlatformLayoutInner>
+      </LinkDetailNavProvider>
+    </MotionConfig>
   );
 }

@@ -83,12 +83,12 @@ export function Drawer({
                         onClick={onClose}
                     />
                     <motion.div 
-                        className={`relative bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md w-full ${widthClass} h-full shadow-2xl flex flex-col z-10 ${isLeft ? 'border-r' : 'border-l'} border-gray-200/80 dark:border-white/10`}
+                        className={`relative bg-white/95 dark:bg-[#0b0b0e]/95 backdrop-blur-2xl w-full ${widthClass} h-full shadow-2xl flex flex-col z-10 ${isLeft ? 'border-r' : 'border-l'} border-gray-200/80 dark:border-white/10`}
                         variants={slideVariants}
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                        transition={{ type: 'spring', stiffness: 320, damping: 32, mass: 0.72 }}
                     >
                         <div className="p-6 border-b border-gray-200/80 dark:border-white/10 flex items-start justify-between shrink-0 bg-white/50 dark:bg-zinc-900/50">
                             <div className="flex flex-col gap-1 min-w-0 pr-4">

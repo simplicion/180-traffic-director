@@ -7,6 +7,7 @@ import { FeatureLock } from '@workspace/ui';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { migrateLegacySection } from '../advertising/[id]/edit/ElementFactory';
+import { AliveModal } from '@/components/ui/MotionPrimitives';
 
 const TOP_FONTS = [
     'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat',
@@ -249,12 +250,9 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
         (billingInfo.currentSubscription?.plan?.maxWebsites !== -1) &&
         (billingInfo.activeWebsitesCount >= billingInfo.currentSubscription?.plan?.maxWebsites);
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
-            <div className="relative w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden max-h-[90vh] flex flex-col">
+        <AliveModal isOpen={isOpen} onClose={handleClose} maxWidthClass="max-w-md">
+            <div className="relative w-full bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-white/10 overflow-hidden max-h-[90vh] flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
                     <div className="flex items-center gap-3">
@@ -349,7 +347,7 @@ export default function CreateWebsiteModal({ isOpen, onClose, onSuccess, website
                     </>
                 )}
             </div>
-        </div>
+        </AliveModal>
     );
 }
 

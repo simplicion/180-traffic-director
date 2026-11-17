@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { 
   Activity, RefreshCw, Filter, Bot, ShieldCheck, 
   ExternalLink, Search, Globe, Smartphone, X, Clock,
@@ -11,6 +12,7 @@ import toast from 'react-hot-toast';
 import { LogoLoader, UniversalDateTimePicker } from '@workspace/ui';
 import { Drawer } from '@/components/ui/Drawer';
 import { ensureExternalUrl } from '@/lib/url';
+import { AlivePillTabs, AliveModal, EASE_FLUID } from '@/components/ui/MotionPrimitives';
 
 export default function TrafficStreamLogsPage() {
   const [logs, setLogs] = useState<any[]>([]);
@@ -167,35 +169,26 @@ export default function TrafficStreamLogsPage() {
       {/* Filter Toolbar */}
       <div className="p-4 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 shadow-sm space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          {/* Time Range Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-gray-100 dark:bg-gray-800/70 rounded-xl">
-            {[
-              { id: 'all', label: 'All Time' },
-              { id: 'today', label: 'Today' },
-              { id: 'yesterday', label: 'Yesterday' },
-              { id: '24h', label: 'Last 24h' },
-              { id: '7d', label: 'Last 7 Days' },
-              { id: '30d', label: 'Last 30 Days' },
-              { id: 'custom', label: 'Custom Range' },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setTimeRange(tab.id as any);
-                  if (tab.id === 'custom') {
-                    setIsCustomModalOpen(true);
-                  }
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  timeRange === tab.id
-                    ? 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md text-indigo-600 dark:text-indigo-400 shadow-xs'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {/* Time Range Tabs with Organic Gliding Pill */}
+          <AlivePillTabs
+            layoutId="logs-timerange-pill"
+            value={timeRange}
+            onChange={(next) => {
+              setTimeRange(next);
+              if (next === 'custom') {
+                setIsCustomModalOpen(true);
+              }
+            }}
+            options={[
+              { id: 'all', label: 'All Time', activeTextClass: 'text-indigo-600 dark:text-indigo-400' },
+              { id: 'today', label: 'Today', activeTextClass: 'text-indigo-600 dark:text-indigo-400' },
+              { id: 'yesterday', label: 'Yesterday', activeTextClass: 'text-indigo-600 dark:text-indigo-400' },
+              { id: '24h', label: 'Last 24h', activeTextClass: 'text-indigo-600 dark:text-indigo-400' },
+              { id: '7d', label: 'Last 7 Days', activeTextClass: 'text-indigo-600 dark:text-indigo-400' },
+              { id: '30d', label: 'Last 30 Days', activeTextClass: 'text-indigo-600 dark:text-indigo-400' },
+              { id: 'custom', label: 'Custom Range', activeTextClass: 'text-indigo-600 dark:text-indigo-400' },
+            ]}
+          />
 
           {/* Decision Action & Search */}
           <div className="flex flex-wrap items-center gap-3">
@@ -232,10 +225,13 @@ export default function TrafficStreamLogsPage() {
           </div>
         </div>
 
-        {/* Custom Range Popover */}
-        {isCustomModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+        {/* Custom Range Popover with Organic Spring Modal */}
+        <AliveModal
+          isOpen={isCustomModalOpen}
+          onClose={() => setIsCustomModalOpen(false)}
+          maxWidthClass="max-w-md"
+        >
+          <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl w-full p-6 space-y-4 shadow-2xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-indigo-600" />
@@ -286,8 +282,7 @@ export default function TrafficStreamLogsPage() {
                 </button>
               </div>
             </div>
-          </div>
-        )}
+        </AliveModal>
       </div>
 
       {/* Logs Table */}
@@ -311,13 +306,16 @@ export default function TrafficStreamLogsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {logs.map((log) => {
+                {logs.map((log, idx) => {
                   const isTarget = log.destinationUrl && log.destinationUrl !== log.link?.fallbackUrl && !log.isBot;
                   return (
-                    <tr
+                    <motion.tr
                       key={log.id}
+                      initial={idx < 14 ? { opacity: 0, y: 6 } : false}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: Math.min(idx * 0.02, 0.24), ease: EASE_FLUID }}
                       onClick={() => setSelectedLog(log)}
-                      className="hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 cursor-pointer transition"
+                      className="hover:bg-indigo-50/50 dark:hover:bg-indigo-950/25 cursor-pointer transition-colors"
                     >
                       <td className="py-3 px-4 text-gray-500 font-mono">
                         {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -350,7 +348,7 @@ export default function TrafficStreamLogsPage() {
                       <td className="py-3 px-4 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold">
                         {log.latencyMs || 1}ms
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })}
               </tbody>
