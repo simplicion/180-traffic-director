@@ -21,6 +21,7 @@ import {
 import clsx from 'clsx';
 import { getAuthToken } from '@/lib/api';
 import { useSubscription } from '@/lib/useSubscription';
+import { WEBSITE_BUILDER_COMING_SOON } from '@/lib/feature-flags';
 
 interface NavItem {
   label: string;
@@ -179,6 +180,7 @@ export function TrafficDirectorSidebar() {
       href: '/advertising',
       icon: Globe,
       isActive: (p) => p.startsWith('/advertising'),
+      badge: WEBSITE_BUILDER_COMING_SOON ? 'SOON' : null,
     },
     {
       label: 'Live Logs',

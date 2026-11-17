@@ -4,7 +4,7 @@ const isExport = process.env.NEXT_EXPORT === 'true' || process.env.CF_PAGES === 
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  ...(isExport ? { output: 'export', images: { unoptimized: true } } : {}),
+  ...(isExport ? { output: 'export', distDir: '.next-export', images: { unoptimized: true } } : {}),
   transpilePackages: ['@workspace/ui'],
   reactStrictMode: true,
   poweredByHeader: false,
@@ -29,7 +29,7 @@ const nextConfig = {
   webpack: (config, { dev }) => {
     if (dev) {
       config.watchOptions = {
-        ignored: ['**/.git/**', '**/.next/**', '**/node_modules/**'],
+        ignored: ['**/.git/**', '**/.next/**', '**/.next-export/**', '**/out/**', '**/node_modules/**'],
         aggregateTimeout: 300,
         poll: false,
       };

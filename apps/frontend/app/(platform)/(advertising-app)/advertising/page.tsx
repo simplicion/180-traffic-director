@@ -12,8 +12,18 @@ import WebsiteCard from "@/app/(platform)/(advertising-app)/_components/WebsiteC
 import CreateWebsiteModal from "@/app/(platform)/(advertising-app)/_components/CreateWebsiteModal";
 import { useSubscription } from '@/lib/useSubscription';
 import { AliveProgressBar } from '@/components/ui/MotionPrimitives';
+import { WEBSITE_BUILDER_COMING_SOON } from '@/lib/feature-flags';
+import { WebsiteBuilderComingSoon } from '@/components/shared/WebsiteBuilderComingSoon';
 
 export default function AdvertisingPage() {
+    if (WEBSITE_BUILDER_COMING_SOON) {
+        return <WebsiteBuilderComingSoon />;
+    }
+
+    return <AdvertisingPageContent />;
+}
+
+function AdvertisingPageContent() {
     const router = useRouter();
     const {
         hasApp,

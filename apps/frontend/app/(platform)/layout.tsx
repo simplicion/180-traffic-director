@@ -9,6 +9,7 @@ import { TrafficDirectorSidebar } from '@/components/layout/TrafficDirectorSideb
 import { TrialBanner } from '@/components/shared/TrialBanner';
 import { LinkDetailNavProvider, useLinkDetailNav } from '@/context/LinkDetailNavContext';
 import { EASE_FLUID } from '@/components/ui/MotionPrimitives';
+import { WEBSITE_BUILDER_COMING_SOON } from '@/lib/feature-flags';
 
 function PlatformLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -54,7 +55,7 @@ function PlatformLayoutInner({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const isFullBleedEditor =
-    (pathname.startsWith('/advertising/') && pathname.endsWith('/edit')) ||
+    (!WEBSITE_BUILDER_COMING_SOON && pathname.startsWith('/advertising/') && pathname.endsWith('/edit')) ||
     (pathname.startsWith('/forms/') && pathname !== '/forms');
 
   return (
