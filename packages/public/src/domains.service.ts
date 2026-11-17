@@ -12,8 +12,9 @@ export interface DnsRecord {
 
 export interface DomainConfig {
   domain: string;
-  type: 'ADVERTISING_WEBSITE' | 'TRAFFIC_LINK' | 'COMPANY_PROFILE';
+  type: 'ADVERTISING_WEBSITE' | 'TRAFFIC_LINK' | 'COMPANY_PROFILE' | 'USER_PROFILE';
   targetId: string;
+  userId?: string;
   companyId?: string;
   status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'FAILED' | 'REMOVED';
   sslStatus: 'PENDING' | 'ACTIVE' | 'FAILED';
@@ -126,19 +127,19 @@ export class DomainsService {
     }
 
     // Check if domain is already registered
-    const existing = await prisma.domainRegistry.findUnique({
+    const existing = await (prisma as any).domainRegistry.findUnique({
       where: { domain: cleanDomain },
       select: {
         id: true,
         domain: true,
         type: true,
         targetId: true,
-        companyId: true
+        userId: true
       }
     });
 
-    if (existing && existing.companyId && existing.companyId !== companyId) {
-      throw new Error('This domain is already connected to another organization.');
+    if (existing && existing.userId && existing.userId !== companyId) {
+      throw new Error('This domain is already connected to another account.');
     }
 
     const isApex = this.isApexDomain(cleanDomain);
@@ -201,25 +202,30 @@ export class DomainsService {
     }
 
     // Upsert into DomainRegistry
-    const registry = await prisma.domainRegistry.upsert({
+    const registry = await (prisma as any).domainRegistry.upsert({
       where: { domain: cleanDomain },
       update: {
         type: params.type,
         targetId: params.targetId,
-        companyId
+        userId: companyId,
+        isApex
       },
       create: {
         domain: cleanDomain,
         type: params.type,
         targetId: params.targetId,
-        companyId
+        userId: companyId,
+        isApex
       },
       select: {
         id: true,
         domain: true,
         type: true,
         targetId: true,
-        companyId: true
+        userId: true,
+        status: true,
+        sslStatus: true,
+        verifiedAt: true
       }
     });
 
@@ -235,7 +241,7 @@ export class DomainsService {
         domain: registry.domain,
         type: registry.type as any,
         targetId: registry.targetId,
-        companyId: registry.companyId || undefined,
+        userId: registry.userId || undefined,
         status: ((registry as any).status || initialStatus) as any,
         sslStatus: ((registry as any).sslStatus || initialSslStatus) as any,
         isApex,
@@ -266,14 +272,14 @@ export class DomainsService {
     };
   }> {
     const cleanDomain = this.normalizeDomain(domain);
-    const registry = await prisma.domainRegistry.findUnique({
+    const registry = await (prisma as any).domainRegistry.findUnique({
       where: { domain: cleanDomain },
       select: {
         id: true,
         domain: true,
         type: true,
         targetId: true,
-        companyId: true,
+        userId: true,
         createdAt: true,
         updatedAt: true
       }
@@ -310,7 +316,7 @@ export class DomainsService {
           method: 'GET',
           headers
         });
-        const cfData = await cfRes.json();
+        const cfData: any = await cfRes.json();
         if (cfData?.result && cfData.result.length > 0) {
           const item = cfData.result[0];
           if (item.status === 'active' || item.ssl?.status === 'active') {
@@ -335,7 +341,7 @@ export class DomainsService {
             }
           }
         );
-        const vData = await verifyRes.json();
+        const vData: any = await verifyRes.json();
         if (vData?.verified) {
           isVercelVerified = true;
           isDnsValid = true;
@@ -376,12 +382,16 @@ export class DomainsService {
     const newSslStatus = isDnsValid ? 'ACTIVE' : 'PENDING';
 
     try {
-      await prisma.domainRegistry.update({
+      await (prisma as any).domainRegistry.update({
         where: { domain: cleanDomain },
         data: {
           type: registry.type,
           targetId: registry.targetId,
-          companyId: registry.companyId
+          userId: registry.userId,
+          status: newStatus,
+          sslStatus: newSslStatus,
+          lastCheckedAt: new Date(),
+          ...(isDnsValid ? { verifiedAt: new Date() } : {})
         }
       });
     } catch (updateErr) {
@@ -419,14 +429,14 @@ export class DomainsService {
    */
   static async getDomainStatus(companyId: string, domain: string): Promise<DomainConfig | null> {
     const cleanDomain = this.normalizeDomain(domain);
-    const registry = await prisma.domainRegistry.findUnique({
+    const registry = await (prisma as any).domainRegistry.findUnique({
       where: { domain: cleanDomain },
       select: {
         id: true,
         domain: true,
         type: true,
         targetId: true,
-        companyId: true,
+        userId: true,
         createdAt: true,
         updatedAt: true
       }
@@ -440,7 +450,7 @@ export class DomainsService {
       domain: registry.domain,
       type: registry.type as any,
       targetId: registry.targetId,
-      companyId: registry.companyId || undefined,
+      userId: registry.userId || undefined,
       status: 'ACTIVE' as any,
       sslStatus: 'ACTIVE' as any,
       isApex: this.isApexDomain(cleanDomain),
@@ -455,14 +465,14 @@ export class DomainsService {
    */
   static async removeDomain(companyId: string, domain: string): Promise<{ success: boolean; message: string }> {
     const cleanDomain = this.normalizeDomain(domain);
-    const registry = await prisma.domainRegistry.findUnique({
+    const registry = await (prisma as any).domainRegistry.findUnique({
       where: { domain: cleanDomain },
       select: {
         id: true,
         domain: true,
         type: true,
         targetId: true,
-        companyId: true,
+        userId: true,
         createdAt: true,
         updatedAt: true
       }
@@ -522,17 +532,8 @@ export class DomainsService {
     reason?: string;
   }> {
     const cleanSlug = (slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
-    const root = options?.rootDomain || process.env.ROOT_DOMAIN || process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
-    const fullDomain = `${cleanSlug}.${root}`;
-
-    if (!root) {
-      return {
-        available: false,
-        slug: cleanSlug,
-        fullDomain,
-        reason: 'Platform root domain is not configured (ROOT_DOMAIN).'
-      };
-    }
+    const root = options?.rootDomain || process.env.ROOT_DOMAIN || process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || process.env.DEFAULT_EDGE_DOMAIN || '';
+    const fullDomain = root ? `${cleanSlug}.${root}` : cleanSlug;
 
     if (!cleanSlug || cleanSlug.length < 2) {
       return {
@@ -570,15 +571,24 @@ export class DomainsService {
       };
     }
 
+    if (!root) {
+      return {
+        available: false,
+        slug: cleanSlug,
+        fullDomain,
+        reason: 'Platform root domain is not configured (ROOT_DOMAIN).'
+      };
+    }
+
     // Check database domain registry
-    const existing = await prisma.domainRegistry.findUnique({
+    const existing = await (prisma as any).domainRegistry.findUnique({
       where: { domain: fullDomain },
       select: {
         id: true,
         domain: true,
         type: true,
         targetId: true,
-        companyId: true,
+        userId: true,
         createdAt: true,
         updatedAt: true
       }
@@ -654,12 +664,7 @@ export class DomainsService {
           });
         }
       } else if (type === 'TRAFFIC_LINK') {
-        await prisma.trafficLink.update({
-          where: { id: targetId },
-          data: { customDomain: domain }
-        });
-      } else if (type === 'COMPANY_PROFILE') {
-        await prisma.company.update({
+        await (prisma as any).trafficLink.update({
           where: { id: targetId },
           data: { customDomain: domain }
         });

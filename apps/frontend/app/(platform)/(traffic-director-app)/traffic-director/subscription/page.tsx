@@ -32,11 +32,19 @@ interface SubscriptionData {
   nextBillingDate?: string;
   autoRenew: boolean;
   maxLinks: number;
+  maxForms?: number;
+  maxWebsites?: number;
   isUnlimited: boolean;
   currentLinksCount: number;
   activeLinksCount: number;
+  currentFormsCount?: number;
+  currentWebsitesCount?: number;
   quotaUsedPercent: number;
+  formsQuotaUsedPercent?: number;
+  websitesQuotaUsedPercent?: number;
   canCreateMoreLinks: boolean;
+  canCreateMoreForms?: boolean;
+  canCreateMoreWebsites?: boolean;
 }
 
 interface PlanTierItem {
@@ -265,10 +273,10 @@ export default function SubscriptionPage() {
             <span className="text-xs text-zinc-400">· Powered by 180 Pay</span>
           </div>
           <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight mt-1">
-            Subscription & Link Quota Management
+            Subscription & Resource Quota Management
           </h1>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-2xl">
-            Manage your high-performance Anycast edge subscription, expand smart link allocations, and configure automated 180 Pay renewals.
+            Every account starts with a 7-day free trial including 1 Smart Link, 1 Form, and 1 Website. Upgrade anytime to expand your unified Limits across Smart Links, 180 Forms, and Website Builder.
           </p>
         </div>
 
@@ -321,8 +329,8 @@ export default function SubscriptionPage() {
             </div>
             <p className="text-[11px] text-zinc-500">
               {isPaid
-                ? (currentTier === 'ENTERPRISE' ? 'Unlimited Allocation' : `${subData?.maxLinks ?? (currentTier === 'PRO' ? 5 : 2)} Smart Links Allocation`)
-                : `${subData?.trialDaysLeft ?? 7} Days Remaining · ${subData?.maxLinks ?? 1} Smart Link Allocation`}
+                ? (currentTier === 'ENTERPRISE' ? 'Unlimited Links · Forms · Websites' : `${subData?.maxLinks ?? (currentTier === 'PRO' ? 5 : 2)} Links · ${subData?.maxForms ?? (subData?.maxLinks ?? (currentTier === 'PRO' ? 5 : 2))} Forms · ${subData?.maxWebsites ?? (subData?.maxLinks ?? (currentTier === 'PRO' ? 5 : 2))} Websites`)
+                : `${subData?.trialDaysLeft ?? 7} Days Remaining · 1 Link · 1 Form · 1 Website Free`}
             </p>
           </div>
 
@@ -384,45 +392,66 @@ export default function SubscriptionPage() {
             </p>
           </div>
 
-          {/* Smart Link Usage Quota */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Links Quota Usage</span>
-              <span className="font-bold text-zinc-900 dark:text-white">
-                {subData?.isUnlimited
-                  ? `${subData.currentLinksCount} (Unlimited)`
-                  : `${subData?.currentLinksCount || 0} / ${subData?.maxLinks ?? (currentTier === 'PRO' ? 5 : currentTier === 'STARTER' ? 2 : 1)} Links`}
-              </span>
-            </div>
-            <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full transition-all duration-500 ${
-                  (subData?.quotaUsedPercent || 0) >= 100 
-                    ? 'bg-rose-500' 
-                    : (subData?.quotaUsedPercent || 0) >= 80 
-                    ? 'bg-amber-500' 
-                    : 'bg-gradient-to-r from-blue-600 to-indigo-600'
-                }`}
-                style={{ width: subData?.isUnlimited ? '15%' : `${subData?.quotaUsedPercent || 0}%` }}
-              />
-            </div>
-            <span className="text-[10px] text-zinc-500 block">
-              {(subData?.canCreateMoreLinks ?? ((subData?.currentLinksCount || 0) < (subData?.maxLinks ?? (currentTier === 'PRO' ? 5 : currentTier === 'STARTER' ? 2 : 1))))
-                ? 'Link quota healthy. You can create additional links.'
-                : 'Quota reached. Upgrade tier to launch more smart links.'}
-            </span>
+          {/* Unified Resource Usage Quotas (Links, Forms, Websites) */}
+          <div className="space-y-2.5">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">Plan Quota Usage</span>
+            {[
+              {
+                label: 'Smart Links',
+                used: subData?.currentLinksCount || 0,
+                max: subData?.maxLinks ?? (currentTier === 'PRO' ? 5 : currentTier === 'STARTER' ? 2 : 1),
+                pct: subData?.quotaUsedPercent || 0,
+              },
+              {
+                label: '180 Forms',
+                used: subData?.currentFormsCount || 0,
+                max: subData?.maxForms ?? subData?.maxLinks ?? (currentTier === 'PRO' ? 5 : currentTier === 'STARTER' ? 2 : 1),
+                pct: subData?.formsQuotaUsedPercent || 0,
+              },
+              {
+                label: 'Websites',
+                used: subData?.currentWebsitesCount || 0,
+                max: subData?.maxWebsites ?? subData?.maxLinks ?? (currentTier === 'PRO' ? 5 : currentTier === 'STARTER' ? 2 : 1),
+                pct: subData?.websitesQuotaUsedPercent || 0,
+              },
+            ].map((q) => (
+              <div key={q.label} className="space-y-1">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-zinc-600 dark:text-zinc-400">{q.label}</span>
+                  <span className="font-bold text-zinc-900 dark:text-white">
+                    {subData?.isUnlimited || q.max === -1 ? `${q.used} (Unlimited)` : `${q.used} / ${q.max}`}
+                  </span>
+                </div>
+                <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      q.pct >= 100
+                        ? 'bg-rose-500'
+                        : q.pct >= 80
+                        ? 'bg-amber-500'
+                        : 'bg-gradient-to-r from-blue-600 to-indigo-600'
+                    }`}
+                    style={{ width: subData?.isUnlimited || q.max === -1 ? '18%' : `${q.pct}%` }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
       {/* 3-Tier Pricing Plan Matrix */}
       <div>
-        <div className="text-center max-w-xl mx-auto mb-8 space-y-1">
+        <div className="text-center max-w-2xl mx-auto mb-8 space-y-1.5">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/70 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold mb-1">
+            <Sparkles className="w-3.5 h-3.5" />
+            7-Day Free Trial: 1 Smart Link + 1 Form + 1 Website Free
+          </div>
           <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
-            Choose Your Edge Routing Tier
+            Choose Your Edge Routing, Forms & Website Tier
           </h2>
           <p className="text-xs text-zinc-500">
-            Scale your sovereign bot shields and high-throughput link allocation with zero downtime.
+            Start free for 7 days with 1 Smart Link, 1 Form, and 1 Website — then scale all three together under one unified plan.
           </p>
         </div>
 
@@ -466,7 +495,7 @@ export default function SubscriptionPage() {
               <div className="p-3 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-800/40 mb-5">
                 <span className="text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5" />
-                  Max 2 Smart Links
+                  2 Smart Links · 2 Forms · 2 Websites
                 </span>
               </div>
 
@@ -474,19 +503,19 @@ export default function SubscriptionPage() {
               <ul className="space-y-2.5 text-xs text-zinc-600 dark:text-zinc-400">
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span>2 Active Smart Links</span>
+                  <span>Up to 2 Active Smart Links</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span>Zero-Latency Anycast Routing</span>
+                  <span>Up to 2 180 Forms & Headless Endpoints</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span>Official Tor Exit Node Blacklist</span>
+                  <span>Up to 2 Published Websites</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span>Basic Bot & Spider Shields</span>
+                  <span>Zero-Latency Anycast Routing & Bot Shields</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -560,7 +589,7 @@ export default function SubscriptionPage() {
               <div className="p-3 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/50 dark:border-indigo-800/40 mb-5">
                 <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5" />
-                  Max 5 Smart Links
+                  5 Smart Links · 5 Forms · 5 Websites
                 </span>
               </div>
 
@@ -568,7 +597,7 @@ export default function SubscriptionPage() {
               <ul className="space-y-2.5 text-xs text-zinc-600 dark:text-zinc-400">
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                  <span className="font-semibold text-zinc-900 dark:text-white">Up to 5 Smart Links</span>
+                  <span className="font-semibold text-zinc-900 dark:text-white">Up to 5 Smart Links, 5 Forms & 5 Websites</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
@@ -655,7 +684,7 @@ export default function SubscriptionPage() {
               <div className="p-3 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200/50 dark:border-purple-800/40 mb-5">
                 <span className="text-xs font-bold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" />
-                  Unlimited Smart Links
+                  Unlimited Links · Forms · Websites
                 </span>
               </div>
 
@@ -663,7 +692,7 @@ export default function SubscriptionPage() {
               <ul className="space-y-2.5 text-xs text-zinc-600 dark:text-zinc-400">
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-purple-500 shrink-0" />
-                  <span className="font-semibold text-zinc-900 dark:text-white">Unlimited Smart Links</span>
+                  <span className="font-semibold text-zinc-900 dark:text-white">Unlimited Smart Links, Forms & Websites</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 text-purple-500 shrink-0" />

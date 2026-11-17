@@ -26,11 +26,19 @@ export interface SubscriptionData {
   nextBillingDate?: string | null;
   autoRenew: boolean;
   maxLinks: number;
+  maxForms?: number;
+  maxWebsites?: number;
   isUnlimited: boolean;
   currentLinksCount: number;
   activeLinksCount: number;
+  currentFormsCount?: number;
+  currentWebsitesCount?: number;
   quotaUsedPercent: number;
+  formsQuotaUsedPercent?: number;
+  websitesQuotaUsedPercent?: number;
   canCreateMoreLinks: boolean;
+  canCreateMoreForms?: boolean;
+  canCreateMoreWebsites?: boolean;
   hasAdvancedAnalytics: boolean;
   cloakingEnabled: boolean;
 }
@@ -78,6 +86,17 @@ export function useSubscription() {
   const canCreateMoreLinks = subscription !== null 
     ? Boolean(subscription?.canCreateMoreLinks) 
     : true; // Graceful optimistic default for new/loading accounts
+  const maxLimit = subscription?.maxLinks ?? 1;
+  const maxForms = subscription?.maxForms ?? maxLimit;
+  const maxWebsites = subscription?.maxWebsites ?? maxLimit;
+  const currentFormsCount = subscription?.currentFormsCount ?? 0;
+  const currentWebsitesCount = subscription?.currentWebsitesCount ?? 0;
+  const canCreateMoreForms = subscription !== null
+    ? Boolean(subscription?.canCreateMoreForms ?? (isSubscriptionActive && (maxForms === -1 || currentFormsCount < maxForms)))
+    : true;
+  const canCreateMoreWebsites = subscription !== null
+    ? Boolean(subscription?.canCreateMoreWebsites ?? (isSubscriptionActive && (maxWebsites === -1 || currentWebsitesCount < maxWebsites)))
+    : true;
   const hasAdvancedAnalytics = Boolean(subscription?.hasAdvancedAnalytics);
   const trialDaysLeft = subscription?.trialDaysLeft ?? 0;
 
@@ -85,20 +104,28 @@ export function useSubscription() {
     subscription,
     currentSubscription: subscription,
     planTier,
-    planName: subscription?.planName || 'Free Trial',
+    planName: subscription?.planName || '7-Day Free Trial',
     status,
     isSubscriptionActive,
     isTrialing,
     trialDaysLeft,
     isTrialExpired,
     canCreateMoreLinks,
+    canCreateMoreForms,
+    canCreateMoreWebsites,
     hasAdvancedAnalytics,
     cloakingEnabled: Boolean(subscription?.cloakingEnabled),
-    maxLinks: subscription?.maxLinks ?? 1,
-    isUnlimited: Boolean(subscription?.isUnlimited || subscription?.maxLinks === -1),
+    maxLinks: maxLimit,
+    maxForms,
+    maxWebsites,
+    isUnlimited: Boolean(subscription?.isUnlimited || maxLimit === -1),
     currentLinksCount: subscription?.currentLinksCount ?? 0,
     activeLinksCount: subscription?.activeLinksCount ?? 0,
+    currentFormsCount,
+    currentWebsitesCount,
     quotaUsedPercent: subscription?.quotaUsedPercent ?? 0,
+    formsQuotaUsedPercent: subscription?.formsQuotaUsedPercent ?? 0,
+    websitesQuotaUsedPercent: subscription?.websitesQuotaUsedPercent ?? 0,
     isPaidPlan: planTier === 'STARTER' || planTier === 'PRO' || planTier === 'ENTERPRISE',
     daysLeft: trialDaysLeft,
     isExpired: isTrialExpired || status === 'EXPIRED',
@@ -106,6 +133,6 @@ export function useSubscription() {
     refresh: () => fetchStatus(true),
     // Platform compatibility
     hasApp: (appId?: string) => true,
-    enabledApps: ['traffic-director']
+    enabledApps: ['traffic-director', 'forms', 'advertising', 'website-builder']
   };
 }

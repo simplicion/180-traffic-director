@@ -59,7 +59,8 @@ const handleResponse = async (res: Response) => {
   if (!res.ok) {
     if (res.status === 401 && typeof window !== 'undefined') {
       console.warn('[Traffic Director API] 401 Unauthorized encountered from:', res.url, data);
-      if (window.location.pathname.startsWith('/traffic-director')) {
+      const p = window.location.pathname;
+      if (p.startsWith('/traffic-director') || p.startsWith('/forms') || p.startsWith('/advertising')) {
         clearAuthTokens();
         window.location.href = '/';
       }
@@ -67,12 +68,18 @@ const handleResponse = async (res: Response) => {
     const error: any = new Error(data?.error || data?.message || `Request failed with status ${res.status}`);
     error.status = res.status;
     error.data = data;
+    error.response = { status: res.status, data };
     throw error;
   }
   return { data };
 };
 
 export const api = {
+  defaults: {
+    get baseURL(): string {
+      return getApiBase();
+    },
+  },
   async get(endpoint: string, options: { params?: Record<string, any>; headers?: Record<string, string> } = {}) {
     const token = getAuthToken();
     let url = `${getApiBase()}${endpoint}`;
@@ -103,51 +110,68 @@ export const api = {
   async post(endpoint: string, body: any = {}, options: { headers?: Record<string, string> } = {}) {
     const token = getAuthToken();
     const url = `${getApiBase()}${endpoint}`;
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
 
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     };
+    if (isFormData) {
+      delete headers['Content-Type'];
+      delete headers['content-type'];
+    }
 
     const res = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body),
+      body: isFormData ? body : JSON.stringify(body),
     });
     return handleResponse(res);
   },
 
-  async put(endpoint: string, body: any = {}) {
+  async put(endpoint: string, body: any = {}, options: { headers?: Record<string, string> } = {}) {
     const token = getAuthToken();
     const url = `${getApiBase()}${endpoint}`;
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
 
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
     };
+    if (isFormData) {
+      delete headers['Content-Type'];
+      delete headers['content-type'];
+    }
 
     const res = await fetch(url, {
       method: 'PUT',
       headers,
-      body: JSON.stringify(body),
+      body: isFormData ? body : JSON.stringify(body),
     });
     return handleResponse(res);
   },
 
-  async patch(endpoint: string, body: any = {}) {
+  async patch(endpoint: string, body: any = {}, options: { headers?: Record<string, string> } = {}) {
     const token = getAuthToken();
     const url = `${getApiBase()}${endpoint}`;
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
 
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
     };
+    if (isFormData) {
+      delete headers['Content-Type'];
+      delete headers['content-type'];
+    }
 
     const res = await fetch(url, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify(body),
+      body: isFormData ? body : JSON.stringify(body),
     });
     return handleResponse(res);
   },

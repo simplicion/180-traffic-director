@@ -37,7 +37,7 @@ export function TrialBanner() {
               <AlertTriangle className="w-3.5 h-3.5 text-white" />
             </span>
             <span>
-              <strong>Free Trial Expired:</strong> New link creation and cloaking power routing are paused. Select a plan to restore full traffic routing.
+              <strong>Free Trial Expired:</strong> Creating new Smart Links, Forms, and Websites plus live edge cloaking are paused. Select a plan to restore full access.
             </span>
           </div>
           <Link
@@ -62,7 +62,7 @@ export function TrialBanner() {
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
             </span>
             <span>
-              <strong>7-Day Free Trial Active:</strong> You have <strong>{trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'}</strong> remaining. Free accounts can create 1 Smart Link free of cost.
+              <strong>7-Day Free Trial Active:</strong> You have <strong>{trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'}</strong> remaining — includes <strong>1 Smart Link, 1 Form, and 1 Website</strong> free for 7 days.
             </span>
           </div>
           <Link

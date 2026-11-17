@@ -76,6 +76,8 @@ model User {
 
   trafficLinks                TrafficLink[]
   trafficDirectorSubscription TrafficDirectorSubscription?
+  forms                       Form[]
+  websites                    Website[]
 
   @@index([email])
 }
@@ -291,4 +293,152 @@ model TrafficPixelLog {
   @@index([eventId])
   @@index([userId])
   @@index([platform])
+}
+
+// ==========================================
+// 180 FORMS & WEBSITE BUILDER SCHEMA (USER-SCOPED)
+// ==========================================
+
+model Form {
+  id          String   @id @default(uuid())
+  userId      String
+  companyId   String?
+  title       String
+  description String?
+  slug        String   @unique
+  isActive    Boolean  @default(true)
+  formType    String   @default("GENERAL_SURVEY") // "GENERAL_SURVEY" | "SALES_ACTIVITY" | "HEADLESS_ENDPOINT"
+  formCode    String?
+  apiKey      String?  @unique
+  settings    Json?    @default("{}")
+  viewsCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  fields      FormField[]
+  submissions FormSubmission[]
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([apiKey])
+  @@index([formType])
+}
+
+model FormField {
+  id          String  @id @default(uuid())
+  formId      String
+  label       String
+  type        String  // TEXT, EMAIL, PHONE, NUMBER, TEXTAREA, RADIO, SELECT, CHECKBOX, FILE_UPLOAD, DATE, DATETIME, RATING, HEADING, PARAGRAPH, DIVIDER
+  required    Boolean @default(false)
+  placeholder String?
+  description String?
+  options     Json?
+  validation  Json?
+  order       Int     @default(0)
+  mapping     String?
+
+  form   Form                  @relation(fields: [formId], references: [id], onDelete: Cascade)
+  values FormSubmissionValue[]
+
+  @@index([formId])
+}
+
+model FormSubmission {
+  id          String   @id @default(uuid())
+  formId      String
+  userId      String?
+  companyId   String?
+  status      String   @default("new")
+  submittedAt DateTime @default(now())
+  ipAddress   String?
+  userAgent   String?
+  referrer    String?
+  leadId      String?
+  clientId    String?
+
+  form   Form                  @relation(fields: [formId], references: [id], onDelete: Cascade)
+  values FormSubmissionValue[]
+
+  @@index([formId])
+  @@index([userId])
+}
+
+model FormSubmissionValue {
+  id           String  @id @default(uuid())
+  submissionId String
+  fieldId      String
+  value        String? @db.Text
+  fileUrl      String?
+  fileName     String?
+
+  submission FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  field      FormField      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+  @@index([fieldId])
+}
+
+model Website {
+  id              String   @id @default(uuid())
+  userId          String
+  companyId       String?
+  name            String
+  slug            String   @unique
+  customDomain    String?  @unique
+  template        String?
+  config          Json?    @default("{}")
+  publishedConfig Json?
+  isPublished     Boolean  @default(false)
+  owner           String
+  status          String   @default("active")
+  stats           Json?    @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  pixels      Pixel[]
+  submissions WebsiteFormSubmission[]
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
+}
+
+model Pixel {
+  id        String   @id @default(uuid())
+  websiteId String
+  userId    String?
+  companyId String?
+  provider  String   // facebook, google, tiktok
+  pixelId   String
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId])
+  @@index([userId])
+}
+
+model WebsiteFormSubmission {
+  id        String   @id @default(uuid())
+  websiteId String
+  userId    String?
+  companyId String?
+  name      String?
+  email     String?
+  phone     String?
+  message   String?  @db.Text
+  data      Json?
+  status    String   @default("new")
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId])
+  @@index([userId])
 }

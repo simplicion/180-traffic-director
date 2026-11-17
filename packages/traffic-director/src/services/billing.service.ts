@@ -20,6 +20,8 @@ export interface PlanDefinition {
   currency: string;
   interval: string;
   maxLinks: number;
+  maxForms: number;
+  maxWebsites: number;
   features: string[];
   basePriceUsd?: number;
   currencySymbol?: string;
@@ -85,13 +87,15 @@ export const DEFAULT_TRAFFIC_DIRECTOR_PLANS: Record<TrafficDirectorTier, PlanDef
     price: 0,
     currency: 'USD',
     interval: '7_days',
-    maxLinks: 1, // Free accounts can create only 1 Smart Link
+    maxLinks: 1,
+    maxForms: 1,
+    maxWebsites: 1,
     features: [
-      '7-Day Full Platform Trial',
-      '1 Active Smart Link (Free Tier)',
-      'Zero-Latency Anycast Routing',
-      'Basic Bot & Spider Shields',
-      'Standard Traffic Analytics',
+      '7-Day Full Platform Trial (All Apps Included)',
+      '1 Active Smart Link',
+      '1 180 Form & Headless Capture Endpoint',
+      '1 Marketing Website (Website Builder)',
+      'Zero-Latency Anycast Routing & Basic Shields',
     ],
   },
   STARTER: {
@@ -101,13 +105,15 @@ export const DEFAULT_TRAFFIC_DIRECTOR_PLANS: Record<TrafficDirectorTier, PlanDef
     currency: 'USD',
     interval: 'monthly',
     maxLinks: 2,
+    maxForms: 2,
+    maxWebsites: 2,
     features: [
       'Up to 2 Active Smart Links',
+      'Up to 2 180 Forms & Lead Endpoints',
+      'Up to 2 Published Websites',
       'Zero-Latency Anycast Routing',
-      'Official Tor Exit Node Blacklist',
-      'Basic Bot & Spider Shields',
-      'Basic Traffic Analytics & Logs',
-      '1 Custom Domain Allocation',
+      'Official Tor Exit Node Blacklist & Bot Shields',
+      'Live Traffic Analytics & Logs',
     ],
   },
   PRO: {
@@ -117,14 +123,16 @@ export const DEFAULT_TRAFFIC_DIRECTOR_PLANS: Record<TrafficDirectorTier, PlanDef
     currency: 'USD',
     interval: 'monthly',
     maxLinks: 5,
+    maxForms: 5,
+    maxWebsites: 5,
     features: [
       'Up to 5 Active Smart Links',
+      'Up to 5 180 Forms & Headless Endpoints',
+      'Up to 5 Published Websites',
       'Dynamic Client-Side Shield Injection',
       'Meta, Google & TikTok AdBot Cloaking',
-      'Subpath Media Proxy & Live Asset Cloaking',
-      'Automated Ramp-Up Traffic Warmer',
+      'Subpath Media Proxy & Automated Ramp-Up Warmer',
       '5 Custom Domain Allocations',
-      'Priority Anycast Edge Routing',
       'Advanced Geo & Device Telemetry',
     ],
   },
@@ -135,13 +143,15 @@ export const DEFAULT_TRAFFIC_DIRECTOR_PLANS: Record<TrafficDirectorTier, PlanDef
     currency: 'USD',
     interval: 'monthly',
     maxLinks: -1, // Unlimited
+    maxForms: -1, // Unlimited
+    maxWebsites: -1, // Unlimited
     features: [
-      'Unlimited Smart Links (Full Allocation)',
+      'Unlimited Smart Links, 180 Forms & Websites',
       'Sub-Millisecond Zero-Database Tor RAM Sets',
       'Comprehensive Spy-Tool & Competitor Shields',
       'Sovereign Dedicated Edge Shield Generation',
       'Unlimited Custom Domains & Safe Pages',
-      'AI White Page Builder Integration',
+      'Full Website Builder & Lead Capture Suite',
       '24/7 Dedicated Account Operations Support',
       'Real-Time Live Edge Telemetry Stream',
     ],
@@ -207,7 +217,7 @@ export class TrafficDirectorBillingService {
 
           const maxLinks = typeof meta.maxLinks === 'number'
             ? meta.maxLinks
-            : (tier === 'ENTERPRISE' ? -1 : tier === 'PRO' ? 5 : 2);
+            : (tier === 'ENTERPRISE' ? -1 : tier === 'PRO' ? 5 : tier === 'FREE' ? 1 : 2);
 
           resolved[tier] = {
             tier,
@@ -216,6 +226,8 @@ export class TrafficDirectorBillingService {
             currency: p.currency || 'USD',
             interval: p.interval || 'monthly',
             maxLinks,
+            maxForms: typeof meta.maxForms === 'number' ? meta.maxForms : maxLinks,
+            maxWebsites: typeof meta.maxWebsites === 'number' ? meta.maxWebsites : maxLinks,
             features: rawFeatures.map((f: any) => (typeof f === 'object' && f ? f.text : String(f))),
           };
         }
@@ -556,30 +568,35 @@ export class TrafficDirectorBillingService {
 
     const isSubscriptionActive = sub.status === 'ACTIVE' || (sub.status === 'TRIALING' && !isTrialExpired);
 
-    const currentLinksCount = await (db as any).trafficLink.count({
-      where: { userId },
-    });
-
-    const activeLinksCount = await (db as any).trafficLink.count({
-      where: { userId, isActive: true },
-    });
+    const [currentLinksCount, activeLinksCount, currentFormsCount, currentWebsitesCount] = await Promise.all([
+      (db as any).trafficLink.count({ where: { userId } }),
+      (db as any).trafficLink.count({ where: { userId, isActive: true } }),
+      (db as any).form?.count ? (db as any).form.count({ where: { userId } }).catch(() => 0) : Promise.resolve(0),
+      (db as any).website?.count ? (db as any).website.count({ where: { userId } }).catch(() => 0) : Promise.resolve(0),
+    ]);
 
     const planTier = (sub.planTier?.toUpperCase() as TrafficDirectorTier) || 'FREE';
     const dynamicPlans = await this.getPlans();
     const planMeta = dynamicPlans[planTier] || dynamicPlans.STARTER;
-    // Free accounts are strictly capped to 1 Smart Link. Paid tiers receive at least the tier allocation
+    // Free 7-day trial accounts get 1 Smart Link, 1 Form, and 1 Website. Paid tiers apply the same limit across all three.
     const maxLinks =
       planTier === 'FREE'
         ? 1
         : planMeta.maxLinks === -1
         ? -1
         : Math.max(sub.maxLinks !== undefined ? sub.maxLinks : 0, planMeta.maxLinks);
+    const maxForms = maxLinks;
+    const maxWebsites = maxLinks;
 
     const isUnlimited = maxLinks === -1;
     const quotaUsedPercent = isUnlimited ? 0 : Math.min(100, Math.round((currentLinksCount / maxLinks) * 100));
+    const formsQuotaUsedPercent = isUnlimited ? 0 : Math.min(100, Math.round((currentFormsCount / maxForms) * 100));
+    const websitesQuotaUsedPercent = isUnlimited ? 0 : Math.min(100, Math.round((currentWebsitesCount / maxWebsites) * 100));
 
-    // canCreateMoreLinks: active subscription or trial AND quota available
+    // canCreateMore*: active subscription or unexpired 7-day trial AND quota available
     const canCreateMoreLinks = isSubscriptionActive && (isUnlimited || currentLinksCount < maxLinks);
+    const canCreateMoreForms = isSubscriptionActive && (isUnlimited || currentFormsCount < maxForms);
+    const canCreateMoreWebsites = isSubscriptionActive && (isUnlimited || currentWebsitesCount < maxWebsites);
 
     // Advanced analytics unlocked only for PRO and ENTERPRISE when subscription is active
     const hasAdvancedAnalytics = isSubscriptionActive && (planTier === 'PRO' || planTier === 'ENTERPRISE');
@@ -624,11 +641,19 @@ export class TrafficDirectorBillingService {
         nextBillingDate: sub.nextBillingDate,
         autoRenew: sub.autoRenew,
         maxLinks,
+        maxForms,
+        maxWebsites,
         isUnlimited,
         currentLinksCount,
         activeLinksCount,
+        currentFormsCount,
+        currentWebsitesCount,
         quotaUsedPercent,
+        formsQuotaUsedPercent,
+        websitesQuotaUsedPercent,
         canCreateMoreLinks,
+        canCreateMoreForms,
+        canCreateMoreWebsites,
         hasAdvancedAnalytics,
         cloakingEnabled: isSubscriptionActive,
       },
@@ -672,6 +697,76 @@ export class TrafficDirectorBillingService {
       }
       throw new Error(
         `SUBSCRIPTION_REQUIRED: Plan link limit reached: Your ${sub.planName || sub.planTier} plan allows a maximum of ${sub.maxLinks} Smart Links (${sub.currentLinksCount}/${sub.maxLinks} used). Please upgrade your subscription in Billing to create more links.`
+      );
+    }
+  }
+
+  /**
+   * Server-side gatekeeper for 180 Forms creation (mirrors Smart Link tier limits & 7-day free trial).
+   */
+  static async assertCanCreateForm(userId: string): Promise<void> {
+    if (!userId) {
+      throw new Error('SUBSCRIPTION_REQUIRED: Authentication user context required.');
+    }
+
+    const billingStatus = await this.getSubscriptionStatus(userId);
+    const sub = billingStatus?.subscription;
+
+    if (!sub) {
+      throw new Error('SUBSCRIPTION_REQUIRED: Unable to verify billing account status.');
+    }
+
+    if (sub.isTrialExpired) {
+      throw new Error('SUBSCRIPTION_REQUIRED: Your 7-day free trial has expired. Upgrade your plan in Subscription to create new Forms.');
+    }
+
+    if (!sub.isSubscriptionActive) {
+      throw new Error('SUBSCRIPTION_REQUIRED: An active subscription is required to create Forms. Please select a plan in Subscription.');
+    }
+
+    if (!sub.canCreateMoreForms) {
+      if (sub.planTier === 'FREE') {
+        throw new Error(
+          `SUBSCRIPTION_REQUIRED: Free 7-day trial includes 1 Form (${sub.currentFormsCount}/${sub.maxForms} used). Upgrade to Starter (2), Pro (5), or Enterprise (Unlimited) to create more forms.`
+        );
+      }
+      throw new Error(
+        `SUBSCRIPTION_REQUIRED: Plan form limit reached: Your ${sub.planName || sub.planTier} plan allows a maximum of ${sub.maxForms} Forms (${sub.currentFormsCount}/${sub.maxForms} used). Please upgrade your plan to create more forms.`
+      );
+    }
+  }
+
+  /**
+   * Server-side gatekeeper for Website Builder creation (mirrors Smart Link tier limits & 7-day free trial).
+   */
+  static async assertCanCreateWebsite(userId: string): Promise<void> {
+    if (!userId) {
+      throw new Error('SUBSCRIPTION_REQUIRED: Authentication user context required.');
+    }
+
+    const billingStatus = await this.getSubscriptionStatus(userId);
+    const sub = billingStatus?.subscription;
+
+    if (!sub) {
+      throw new Error('SUBSCRIPTION_REQUIRED: Unable to verify billing account status.');
+    }
+
+    if (sub.isTrialExpired) {
+      throw new Error('SUBSCRIPTION_REQUIRED: Your 7-day free trial has expired. Upgrade your plan in Subscription to create new Websites.');
+    }
+
+    if (!sub.isSubscriptionActive) {
+      throw new Error('SUBSCRIPTION_REQUIRED: An active subscription is required to create Websites. Please select a plan in Subscription.');
+    }
+
+    if (!sub.canCreateMoreWebsites) {
+      if (sub.planTier === 'FREE') {
+        throw new Error(
+          `SUBSCRIPTION_REQUIRED: Free 7-day trial includes 1 Website (${sub.currentWebsitesCount}/${sub.maxWebsites} used). Upgrade to Starter (2), Pro (5), or Enterprise (Unlimited) to create more websites.`
+        );
+      }
+      throw new Error(
+        `SUBSCRIPTION_REQUIRED: Plan website limit reached: Your ${sub.planName || sub.planTier} plan allows a maximum of ${sub.maxWebsites} Websites (${sub.currentWebsitesCount}/${sub.maxWebsites} used). Please upgrade your plan to create more websites.`
       );
     }
   }

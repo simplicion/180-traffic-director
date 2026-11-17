@@ -9,6 +9,15 @@ import { getJwtSecret } from './src/config/secrets';
 import trafficDirectorRoutes from './src/routes/traffic-director.routes';
 import publicRoutingRoutes from './src/routes/public-routing.routes';
 import { PublicRoutingController } from './src/controllers/public-routing.controller';
+import {
+  advertisingProtectedRoutes,
+  advertisingPublicRoutes,
+  formBuilderRoutes,
+  websiteRoutes,
+  mediaUploadRoutes,
+  domainsRoutes,
+  uploadDir,
+} from './src/advertising';
 import { TorExitSyncService } from '@workspace/traffic-director';
 
 // Load environment configuration
@@ -403,8 +412,47 @@ app.all('/api/v1/traffic-director/asset-proxy', PublicRoutingController.handlePr
 // Public redirect route /r/:slug
 app.use('/r', publicRoutingRoutes);
 
+// Static uploads for Website Builder & 180 Forms media
+app.use('/uploads', express.static(uploadDir));
+
+// ─── Public 180 Forms, Headless Capture & Website Builder Resolution ────────
+app.use('/api/public', advertisingPublicRoutes);
+
 // ─── Authenticated Management API ───────────────────────────────────────────
 app.use('/api/v1/traffic-director', protect, trafficDirectorRoutes);
+app.use('/api/v1/advertising', protect, advertisingProtectedRoutes);
+app.use('/api/v1/domains', protect, domainsRoutes);
+app.use('/api/forms', protect, formBuilderRoutes);
+app.use('/api/websites', protect, websiteRoutes);
+app.use('/api/files', protect, mediaUploadRoutes);
+app.use('/api/v1/workspace-tools/storage', protect, mediaUploadRoutes);
+
+// Compatibility endpoints used by 180 Forms & AI Drawer components
+app.get('/api/users', protect, async (req: any, res) => {
+  try {
+    const userId = req.userId || req.user?.id;
+    const { prisma } = require('@workspace/db');
+    const user = userId
+      ? await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, name: true, email: true, avatarUrl: true, role: true }
+        })
+      : null;
+    return res.json({ success: true, users: user ? [user] : [], data: { users: user ? [user] : [] } });
+  } catch (err: any) {
+    return res.json({ success: true, users: [], data: { users: [] } });
+  }
+});
+
+app.get('/api/v1/ai/status', protect, (_req, res) => {
+  const configured = Boolean(process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY);
+  return res.json({
+    success: true,
+    configured,
+    available: configured,
+    provider: process.env.GEMINI_API_KEY ? 'gemini' : process.env.OPENAI_API_KEY ? 'openai' : null
+  });
+});
 
 // 404 Fallback for unmapped routes
 app.use((req, res) => {

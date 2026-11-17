@@ -275,7 +275,149 @@ export async function syncDatabase(connectionUrl?: string) {
     `ALTER TABLE public."TrafficLog" ADD COLUMN IF NOT EXISTS "isEmulated" BOOLEAN DEFAULT false;`,
     `ALTER TABLE public."TrafficLog" ADD COLUMN IF NOT EXISTS "destinationUrl" TEXT;`,
     `ALTER TABLE public."TrafficLog" ADD COLUMN IF NOT EXISTS "responseStatus" INTEGER DEFAULT 200;`,
-    `ALTER TABLE public."TrafficLog" ADD COLUMN IF NOT EXISTS "latencyMs" INTEGER DEFAULT 0;`
+    `ALTER TABLE public."TrafficLog" ADD COLUMN IF NOT EXISTS "latencyMs" INTEGER DEFAULT 0;`,
+
+    // 10. 180 Forms & Website Builder Tables (User-Scoped)
+    `CREATE TABLE IF NOT EXISTS public."Form" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "companyId" TEXT,
+      "title" TEXT NOT NULL,
+      "description" TEXT,
+      "slug" TEXT NOT NULL,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "formType" TEXT NOT NULL DEFAULT 'GENERAL_SURVEY',
+      "formCode" TEXT,
+      "apiKey" TEXT,
+      "settings" JSONB DEFAULT '{}',
+      "viewsCount" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Form_pkey" PRIMARY KEY ("id")
+    );`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Form_slug_key" ON public."Form"("slug");`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Form_apiKey_key" ON public."Form"("apiKey");`,
+    `CREATE INDEX IF NOT EXISTS "Form_userId_idx" ON public."Form"("userId");`,
+    `CREATE INDEX IF NOT EXISTS "Form_formType_idx" ON public."Form"("formType");`,
+
+    `CREATE TABLE IF NOT EXISTS public."FormField" (
+      "id" TEXT NOT NULL,
+      "formId" TEXT NOT NULL,
+      "label" TEXT NOT NULL,
+      "type" TEXT NOT NULL,
+      "required" BOOLEAN NOT NULL DEFAULT false,
+      "placeholder" TEXT,
+      "description" TEXT,
+      "options" JSONB,
+      "validation" JSONB,
+      "order" INTEGER NOT NULL DEFAULT 0,
+      "mapping" TEXT,
+      CONSTRAINT "FormField_pkey" PRIMARY KEY ("id"),
+      CONSTRAINT "FormField_formId_fkey" FOREIGN KEY ("formId") REFERENCES public."Form"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );`,
+    `CREATE INDEX IF NOT EXISTS "FormField_formId_idx" ON public."FormField"("formId");`,
+
+    `CREATE TABLE IF NOT EXISTS public."FormSubmission" (
+      "id" TEXT NOT NULL,
+      "formId" TEXT NOT NULL,
+      "userId" TEXT,
+      "companyId" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'new',
+      "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "ipAddress" TEXT,
+      "userAgent" TEXT,
+      "referrer" TEXT,
+      "leadId" TEXT,
+      "clientId" TEXT,
+      CONSTRAINT "FormSubmission_pkey" PRIMARY KEY ("id"),
+      CONSTRAINT "FormSubmission_formId_fkey" FOREIGN KEY ("formId") REFERENCES public."Form"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );`,
+    `CREATE INDEX IF NOT EXISTS "FormSubmission_formId_idx" ON public."FormSubmission"("formId");`,
+    `CREATE INDEX IF NOT EXISTS "FormSubmission_userId_idx" ON public."FormSubmission"("userId");`,
+
+    `CREATE TABLE IF NOT EXISTS public."FormSubmissionValue" (
+      "id" TEXT NOT NULL,
+      "submissionId" TEXT NOT NULL,
+      "fieldId" TEXT NOT NULL,
+      "value" TEXT,
+      "fileUrl" TEXT,
+      "fileName" TEXT,
+      CONSTRAINT "FormSubmissionValue_pkey" PRIMARY KEY ("id"),
+      CONSTRAINT "FormSubmissionValue_submissionId_fkey" FOREIGN KEY ("submissionId") REFERENCES public."FormSubmission"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT "FormSubmissionValue_fieldId_fkey" FOREIGN KEY ("fieldId") REFERENCES public."FormField"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );`,
+    `CREATE INDEX IF NOT EXISTS "FormSubmissionValue_submissionId_idx" ON public."FormSubmissionValue"("submissionId");`,
+    `CREATE INDEX IF NOT EXISTS "FormSubmissionValue_fieldId_idx" ON public."FormSubmissionValue"("fieldId");`,
+
+    `CREATE TABLE IF NOT EXISTS public."Website" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "companyId" TEXT,
+      "name" TEXT NOT NULL,
+      "slug" TEXT NOT NULL,
+      "customDomain" TEXT,
+      "template" TEXT,
+      "config" JSONB DEFAULT '{}',
+      "publishedConfig" JSONB,
+      "isPublished" BOOLEAN NOT NULL DEFAULT false,
+      "owner" TEXT NOT NULL,
+      "status" TEXT NOT NULL DEFAULT 'active',
+      "stats" JSONB DEFAULT '{}',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Website_pkey" PRIMARY KEY ("id")
+    );`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Website_slug_key" ON public."Website"("slug");`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Website_customDomain_key" ON public."Website"("customDomain");`,
+    `CREATE INDEX IF NOT EXISTS "Website_userId_idx" ON public."Website"("userId");`,
+
+    `CREATE TABLE IF NOT EXISTS public."Pixel" (
+      "id" TEXT NOT NULL,
+      "websiteId" TEXT NOT NULL,
+      "userId" TEXT,
+      "companyId" TEXT,
+      "provider" TEXT NOT NULL,
+      "pixelId" TEXT NOT NULL,
+      "status" TEXT NOT NULL DEFAULT 'active',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Pixel_pkey" PRIMARY KEY ("id"),
+      CONSTRAINT "Pixel_websiteId_fkey" FOREIGN KEY ("websiteId") REFERENCES public."Website"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );`,
+    `CREATE INDEX IF NOT EXISTS "Pixel_websiteId_idx" ON public."Pixel"("websiteId");`,
+    `CREATE INDEX IF NOT EXISTS "Pixel_userId_idx" ON public."Pixel"("userId");`,
+
+    `CREATE TABLE IF NOT EXISTS public."WebsiteFormSubmission" (
+      "id" TEXT NOT NULL,
+      "websiteId" TEXT NOT NULL,
+      "userId" TEXT,
+      "companyId" TEXT,
+      "name" TEXT,
+      "email" TEXT,
+      "phone" TEXT,
+      "message" TEXT,
+      "data" JSONB,
+      "status" TEXT NOT NULL DEFAULT 'new',
+      "ipAddress" TEXT,
+      "userAgent" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "WebsiteFormSubmission_pkey" PRIMARY KEY ("id"),
+      CONSTRAINT "WebsiteFormSubmission_websiteId_fkey" FOREIGN KEY ("websiteId") REFERENCES public."Website"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );`,
+    `CREATE INDEX IF NOT EXISTS "WebsiteFormSubmission_websiteId_idx" ON public."WebsiteFormSubmission"("websiteId");`,
+    `CREATE INDEX IF NOT EXISTS "WebsiteFormSubmission_userId_idx" ON public."WebsiteFormSubmission"("userId");`,
+
+    // Safe column additions for existing Form / Website tables if migrated from legacy DB
+    `ALTER TABLE public."Form" ADD COLUMN IF NOT EXISTS "userId" TEXT;`,
+    `ALTER TABLE public."Form" ALTER COLUMN "companyId" DROP NOT NULL;`,
+    `ALTER TABLE public."FormSubmission" ADD COLUMN IF NOT EXISTS "userId" TEXT;`,
+    `ALTER TABLE public."FormSubmission" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'new';`,
+    `ALTER TABLE public."FormSubmission" ALTER COLUMN "companyId" DROP NOT NULL;`,
+    `ALTER TABLE public."Website" ADD COLUMN IF NOT EXISTS "userId" TEXT;`,
+    `ALTER TABLE public."Website" ALTER COLUMN "companyId" DROP NOT NULL;`,
+    `ALTER TABLE public."Pixel" ADD COLUMN IF NOT EXISTS "userId" TEXT;`,
+    `ALTER TABLE public."WebsiteFormSubmission" ADD COLUMN IF NOT EXISTS "userId" TEXT;`
   ];
 
   for (const stmt of statements) {

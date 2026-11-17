@@ -11,7 +11,9 @@ import {
   Sun, 
   Moon, 
   Zap,
-  ArrowRight
+  ArrowRight,
+  FileText,
+  Globe
 } from 'lucide-react';
 import clsx from 'clsx';
 import { getAuthToken } from '@/lib/api';
@@ -133,6 +135,32 @@ export function TrafficDirectorTopNav() {
             >
               <LinkIcon className="w-3.5 h-3.5" />
               <span>Smart Links</span>
+            </Link>
+
+            <Link
+              href="/forms"
+              className={clsx(
+                "flex items-center gap-2 px-3 py-1.5 rounded-xl font-semibold transition-all",
+                pathname.startsWith('/forms')
+                  ? "bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900"
+              )}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>180 Forms</span>
+            </Link>
+
+            <Link
+              href="/advertising"
+              className={clsx(
+                "flex items-center gap-2 px-3 py-1.5 rounded-xl font-semibold transition-all",
+                pathname.startsWith('/advertising')
+                  ? "bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900"
+              )}
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span>Website Builder</span>
             </Link>
 
             <Link

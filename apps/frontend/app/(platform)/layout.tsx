@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { getAuthToken, clearAuthTokens } from '@/lib/api';
-import { TrafficDirectorTopNav } from '@/components/layout/TrafficDirectorTopNav';
+import { TrafficDirectorSidebar } from '@/components/layout/TrafficDirectorSidebar';
+import { TrialBanner } from '@/components/shared/TrialBanner';
 import { LinkDetailNavProvider, useLinkDetailNav } from '@/context/LinkDetailNavContext';
 
 function PlatformLayoutInner({ children }: { children: React.ReactNode }) {
@@ -50,15 +51,26 @@ function PlatformLayoutInner({ children }: { children: React.ReactNode }) {
     } catch (_) {}
   }, [router]);
 
+  const isFullBleedEditor =
+    (pathname.startsWith('/advertising/') && pathname.endsWith('/edit')) ||
+    (pathname.startsWith('/forms/') && pathname !== '/forms');
+
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-black text-gray-900 dark:text-zinc-100 transition-colors duration-200">
-      {/* 180 Traffic Director Unified Top Navigation Bar */}
-      <TrafficDirectorTopNav />
+    <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50 dark:bg-black text-gray-900 dark:text-zinc-100 transition-colors duration-200">
+      {/* 180 Traffic Director Collapsible Side Menu Navigation */}
+      {!isFullBleedEditor && <TrafficDirectorSidebar />}
 
       {/* Main Full-Width Content View */}
       <main className="flex-1 w-full flex flex-col min-w-0 transition-all duration-300 ease-in-out">
-        {/* Page Body - Expands gracefully for link detail page */}
-        <div className={`p-4 sm:p-6 md:p-8 w-full ${isLinkDetail ? 'max-w-[1680px]' : 'max-w-7xl'} mx-auto transition-all duration-300`}>
+        {!isFullBleedEditor && <TrialBanner />}
+        {/* Page Body - Expands gracefully for link detail & builder editors */}
+        <div
+          className={
+            isFullBleedEditor
+              ? 'w-full flex-1'
+              : `p-4 sm:p-6 md:p-8 w-full ${isLinkDetail ? 'max-w-[1680px]' : 'max-w-7xl'} mx-auto transition-all duration-300`
+          }
+        >
           {children}
         </div>
       </main>

@@ -5,3 +5,13 @@
 # support 200 reverse-proxy rules to external origins.
 /traffic-director/links/*.txt    /traffic-director/links/default.txt   200
 /traffic-director/links/*        /traffic-director/links/default       200
+/forms/*.txt                     /forms/default.txt                    200
+/forms/*                         /forms/default                        200
+/advertising/*/edit.txt          /advertising/default/edit.txt         200
+/advertising/*/edit              /advertising/default/edit             200
+/advertising/*.txt               /advertising/default.txt              200
+/advertising/*                   /advertising/default                  200
+/f/*.txt                         /f/default.txt                        200
+/f/*                             /f/default                            200
+/sites/*.txt                     /sites/default.txt                    200
+/sites/*                         /sites/default                        200

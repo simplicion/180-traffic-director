@@ -14,8 +14,9 @@ const outDir = path.join(root, 'out');
 const templatePath = path.join(root, 'redirects.template');
 const workerTemplatePath = path.join(root, 'worker.template.js');
 
-if (!fs.existsSync(outDir)) {
-  console.log('No static export output found; skipping Cloudflare Pages routing generation.');
+const isExportBuild = process.env.CF_PAGES === 'true' || process.env.NEXT_EXPORT === 'true';
+if (!isExportBuild || !fs.existsSync(outDir)) {
+  console.log('No static export output found (or non-export build); skipping Cloudflare Pages routing generation.');
   process.exit(0);
 }
 
@@ -49,9 +50,26 @@ const routesConfig = {
     '/asset-proxy',
     '/asset-proxy/*',
     '/api/v1/traffic-director/*',
+    '/api/v1/advertising/*',
+    '/api/v1/domains',
+    '/api/v1/domains/*',
+    '/api/v1/ai/*',
+    '/api/v1/workspace-tools/*',
+    '/api/forms',
+    '/api/forms/*',
+    '/api/websites',
+    '/api/websites/*',
+    '/api/users',
+    '/api/public/*',
+    '/api/files/*',
+    '/uploads/*',
     '/oauth/*',
     '/health',
     '/traffic-director/links/*',
+    '/forms/*',
+    '/advertising/*',
+    '/f/*',
+    '/sites/*',
   ],
   exclude: [
     '/traffic-director/links',
@@ -59,6 +77,25 @@ const routesConfig = {
     '/traffic-director/links/default',
     '/traffic-director/links/default.html',
     '/traffic-director/links/default.txt',
+    '/forms',
+    '/forms/',
+    '/forms/default',
+    '/forms/default.html',
+    '/forms/default.txt',
+    '/advertising',
+    '/advertising/',
+    '/advertising/default',
+    '/advertising/default.html',
+    '/advertising/default.txt',
+    '/advertising/default/edit',
+    '/advertising/default/edit.html',
+    '/advertising/default/edit.txt',
+    '/f/default',
+    '/f/default.html',
+    '/f/default.txt',
+    '/sites/default',
+    '/sites/default.html',
+    '/sites/default.txt',
   ],
 };
 fs.writeFileSync(path.join(outDir, '_routes.json'), JSON.stringify(routesConfig, null, 2) + '\n');

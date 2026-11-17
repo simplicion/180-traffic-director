@@ -61,6 +61,46 @@ const nextConfig = {
         destination: `${backendUrl}/api/v1/traffic-director/:path*`,
       },
       {
+        source: '/api/v1/advertising/:path*',
+        destination: `${backendUrl}/api/v1/advertising/:path*`,
+      },
+      {
+        source: '/api/v1/domains/:path*',
+        destination: `${backendUrl}/api/v1/domains/:path*`,
+      },
+      {
+        source: '/api/v1/ai/:path*',
+        destination: `${backendUrl}/api/v1/ai/:path*`,
+      },
+      {
+        source: '/api/users',
+        destination: `${backendUrl}/api/users`,
+      },
+      {
+        source: '/api/v1/workspace-tools/:path*',
+        destination: `${backendUrl}/api/v1/workspace-tools/:path*`,
+      },
+      {
+        source: '/api/forms/:path*',
+        destination: `${backendUrl}/api/forms/:path*`,
+      },
+      {
+        source: '/api/websites/:path*',
+        destination: `${backendUrl}/api/websites/:path*`,
+      },
+      {
+        source: '/api/public/:path*',
+        destination: `${backendUrl}/api/public/:path*`,
+      },
+      {
+        source: '/api/files/:path*',
+        destination: `${backendUrl}/api/files/:path*`,
+      },
+      {
+        source: '/uploads/:path*',
+        destination: `${backendUrl}/uploads/:path*`,
+      },
+      {
         source: '/pixel/event',
         destination: `${backendUrl}/pixel/event`,
       },

@@ -22,6 +22,15 @@ const PROXY_PREFIXES = [
   '/stream-proxy/',
   '/asset-proxy/',
   '/api/v1/traffic-director/',
+  '/api/v1/advertising/',
+  '/api/v1/domains/',
+  '/api/v1/ai/',
+  '/api/v1/workspace-tools/',
+  '/api/forms/',
+  '/api/websites/',
+  '/api/public/',
+  '/api/files/',
+  '/uploads/',
   '/oauth/',
 ];
 
@@ -29,6 +38,10 @@ const PROXY_EXACT_PATHS = new Set([
   '/r',
   '/stream-proxy',
   '/asset-proxy',
+  '/api/forms',
+  '/api/websites',
+  '/api/users',
+  '/api/v1/domains',
   '/health',
 ]);
 
@@ -95,19 +108,71 @@ export default {
       });
     }
 
-    // 2. SPA rewrites for dynamic Traffic Director link detail routes
+    // 2. SPA rewrites for dynamic routes (Smart Links, 180 Forms, Website Builder, Public Forms & Sites)
+    const rewriteAsset = (targetPath) => {
+      const rewriteUrl = new URL(url.toString());
+      rewriteUrl.pathname = targetPath;
+      return env.ASSETS.fetch(new Request(rewriteUrl.toString(), request));
+    };
+
     if (
       pathname.startsWith('/traffic-director/links/') &&
       pathname !== '/traffic-director/links/' &&
-      pathname !== '/traffic-director/links/default' &&
-      pathname !== '/traffic-director/links/default.html' &&
-      pathname !== '/traffic-director/links/default.txt'
+      !pathname.startsWith('/traffic-director/links/default')
     ) {
-      const rewriteUrl = new URL(url.toString());
-      rewriteUrl.pathname = pathname.endsWith('.txt')
-        ? '/traffic-director/links/default.txt'
-        : '/traffic-director/links/default';
-      return env.ASSETS.fetch(new Request(rewriteUrl.toString(), request));
+      return rewriteAsset(
+        pathname.endsWith('.txt')
+          ? '/traffic-director/links/default.txt'
+          : '/traffic-director/links/default'
+      );
+    }
+
+    if (
+      pathname.startsWith('/forms/') &&
+      pathname !== '/forms/' &&
+      !pathname.startsWith('/forms/default')
+    ) {
+      return rewriteAsset(
+        pathname.endsWith('.txt') ? '/forms/default.txt' : '/forms/default'
+      );
+    }
+
+    if (/^\/advertising\/[^\/]+\/edit(\.txt)?\/?$/.test(pathname) && !pathname.startsWith('/advertising/default/edit')) {
+      return rewriteAsset(
+        pathname.endsWith('.txt')
+          ? '/advertising/default/edit.txt'
+          : '/advertising/default/edit'
+      );
+    }
+
+    if (
+      pathname.startsWith('/advertising/') &&
+      pathname !== '/advertising/' &&
+      !pathname.startsWith('/advertising/default')
+    ) {
+      return rewriteAsset(
+        pathname.endsWith('.txt') ? '/advertising/default.txt' : '/advertising/default'
+      );
+    }
+
+    if (
+      pathname.startsWith('/f/') &&
+      pathname !== '/f/' &&
+      !pathname.startsWith('/f/default')
+    ) {
+      return rewriteAsset(
+        pathname.endsWith('.txt') ? '/f/default.txt' : '/f/default'
+      );
+    }
+
+    if (
+      pathname.startsWith('/sites/') &&
+      pathname !== '/sites/' &&
+      !pathname.startsWith('/sites/default')
+    ) {
+      return rewriteAsset(
+        pathname.endsWith('.txt') ? '/sites/default.txt' : '/sites/default'
+      );
     }
 
     // 3. Fallback to Cloudflare Pages static assets
