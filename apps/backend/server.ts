@@ -284,8 +284,8 @@ app.post(['/oauth/exchange', '/oauth/token', '/api/auth/exchange'], async (req, 
       return res.status(400).json({ success: false, error: 'Authorization code is required' });
     }
 
-    const clientId = process.env.TRAFFIC_DIRECTOR_CLIENT_ID;
-    const clientSecret = process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET;
+    const clientId = (process.env.TRAFFIC_DIRECTOR_CLIENT_ID || process.env.CLIENT_ID || '').trim();
+    const clientSecret = (process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || process.env.CLIENT_SECRET || '').trim();
     if (!clientId || !clientSecret) {
       return res.status(500).json({ success: false, error: 'OAuth client credentials are not configured in environment' });
     }
@@ -464,6 +464,47 @@ app.listen(PORT, () => {
   console.log(` ⚡ CAPI Beacon Ingest:    /pixel/event`);
   console.log(` 🔑 Management API:       /api/v1/traffic-director`);
   console.log(`================================================================\n`);
+
+  // Ensure legacy non-Prisma columns (e.g. TrafficRule.ruleType / matchMode) do not block inserts
+  (async () => {
+    try {
+      const { prisma } = require('@workspace/db');
+      await prisma.$executeRawUnsafe(`
+        DO $$
+        DECLARE
+          col_spec RECORD;
+        BEGIN
+          FOR col_spec IN
+            SELECT * FROM (VALUES
+              ('TrafficRule', 'ruleType', '''custom'''),
+              ('TrafficRule', 'matchMode', '''match'''),
+              ('TrafficRule', 'companyId', NULL),
+              ('TrafficLog', 'actionTaken', '''REDIRECT'''),
+              ('TrafficLog', 'isTor', 'false'),
+              ('TrafficLog', 'isVpn', 'false'),
+              ('TrafficLog', 'isDatacenter', 'false'),
+              ('TrafficPixelConfig', 'fireOnBot', 'false'),
+              ('TrafficPixelConfig', 'deduplicateEvents', 'true')
+            ) AS t(tbl, col, def_val)
+          LOOP
+            IF EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = col_spec.tbl
+                AND column_name = col_spec.col
+            ) THEN
+              IF col_spec.def_val IS NOT NULL THEN
+                EXECUTE format('ALTER TABLE public.%I ALTER COLUMN %I SET DEFAULT %s', col_spec.tbl, col_spec.col, col_spec.def_val);
+              END IF;
+              EXECUTE format('ALTER TABLE public.%I ALTER COLUMN %I DROP NOT NULL', col_spec.tbl, col_spec.col);
+            END IF;
+          END LOOP;
+        END $$;
+      `);
+    } catch (e: any) {
+      console.warn('[SchemaGuard] Legacy column check skipped:', e.message);
+    }
+  })();
 
   // Start background Tor exit node synchronization
   TorExitSyncService.syncTorExitNodes().catch((e: any) => {

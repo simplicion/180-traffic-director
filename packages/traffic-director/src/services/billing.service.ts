@@ -275,8 +275,8 @@ export class TrafficDirectorBillingService {
 
   private static getClientCredentials(): { clientId: string; clientSecret: string } {
     return {
-      clientId: process.env.TRAFFIC_DIRECTOR_CLIENT_ID || '',
-      clientSecret: process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || '',
+      clientId: (process.env.TRAFFIC_DIRECTOR_CLIENT_ID || process.env.CLIENT_ID || '').trim(),
+      clientSecret: (process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || process.env.CLIENT_SECRET || '').trim(),
     };
   }
 
@@ -690,6 +690,7 @@ export class TrafficDirectorBillingService {
     const candidateAppIds = [
       process.env.TRAFFIC_DIRECTOR_PROJECT_ID,
       process.env.TRAFFIC_DIRECTOR_CLIENT_ID,
+      process.env.CLIENT_ID,
     ].filter(Boolean) as string[];
 
     // Fetch matching coupon from 180 Core database if connected or via remote API
@@ -1048,7 +1049,7 @@ export class TrafficDirectorBillingService {
    * Verify HMAC-SHA256 signature from 180 Pay webhook dispatcher
    */
   static verifyWebhookSignature(payloadString: string, signatureHeader: string, secret?: string, timestampHeader?: string): boolean {
-    const webhookSecret = secret || process.env.TRAFFIC_DIRECTOR_WEBHOOK_SECRET || process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET;
+    const webhookSecret = secret || process.env.TRAFFIC_DIRECTOR_WEBHOOK_SECRET || process.env.TRAFFIC_DIRECTOR_CLIENT_SECRET || process.env.CLIENT_SECRET;
     if (!webhookSecret || !signatureHeader) return true;
 
     try {

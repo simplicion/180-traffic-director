@@ -145,14 +145,52 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Remote SSH Deployment on EC2
-        uses: appleboy/ssh-action@v1.0.3
-        continue-on-error: true
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          envs: DATABASE_URL,JWT_SECRET
-          script: |
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TRAFFIC_DIRECTOR_CLIENT_ID: ${{ vars.TRAFFIC_DIRECTOR_CLIENT_ID }}
+          TRAFFIC_DIRECTOR_CLIENT_SECRET: ${{ secrets.TRAFFIC_DIRECTOR_CLIENT_SECRET }}
+          TRAFFIC_DIRECTOR_WEBHOOK_SECRET: ${{ secrets.TRAFFIC_DIRECTOR_WEBHOOK_SECRET }}
+          PUBLIC_EDGE_URL: ${{ vars.PUBLIC_EDGE_URL }}
+          TRAFFIC_DIRECTOR_WEB_URL: ${{ vars.TRAFFIC_DIRECTOR_WEB_URL }}
+          DEFAULT_EDGE_DOMAIN: ${{ vars.DEFAULT_EDGE_DOMAIN }}
+          AVAILABLE_EDGE_DOMAINS: ${{ vars.AVAILABLE_EDGE_DOMAINS }}
+          CORE_BACKEND_URL: ${{ vars.CORE_BACKEND_URL }}
+          AUTH_SERVER_URL: ${{ vars.AUTH_SERVER_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" | tr -d '\r' > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+
+          # Build production .env locally and transfer cleanly via scp
+          cat << ENVFILE > /tmp/td.env
+          PORT=4005
+          TD_PORT=4005
+          TRAFFIC_DIRECTOR_PORT=4005
+          JWT_SECRET="${JWT_SECRET}"
+          DATABASE_URL="${DATABASE_URL}"
+          TRAFFIC_DIRECTOR_CLIENT_ID="${TRAFFIC_DIRECTOR_CLIENT_ID}"
+          TRAFFIC_DIRECTOR_CLIENT_SECRET="${TRAFFIC_DIRECTOR_CLIENT_SECRET}"
+          TRAFFIC_DIRECTOR_WEBHOOK_SECRET="${TRAFFIC_DIRECTOR_WEBHOOK_SECRET}"
+          PUBLIC_EDGE_URL="${PUBLIC_EDGE_URL}"
+          NEXT_PUBLIC_API_URL="${PUBLIC_EDGE_URL}"
+          TRAFFIC_DIRECTOR_WEB_URL="${TRAFFIC_DIRECTOR_WEB_URL}"
+          DEFAULT_EDGE_DOMAIN="${DEFAULT_EDGE_DOMAIN}"
+          AVAILABLE_EDGE_DOMAINS="${AVAILABLE_EDGE_DOMAINS}"
+          ONE_EIGHTY_PAY_CORE_URL="${CORE_BACKEND_URL}"
+          CORE_BACKEND_URL="${CORE_BACKEND_URL}"
+          AUTH_SERVER_URL="${AUTH_SERVER_URL}"
+          NODE_ENV="production"
+          ENVFILE
+
+          scp -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no /tmp/td.env "${EC2_USERNAME}@${EC2_HOST}:/tmp/td.env"
+          rm -f /tmp/td.env
+
+          ssh -i ~/.ssh/ec2_key.pem -o StrictHostKeyChecking=no "${EC2_USERNAME}@${EC2_HOST}" 'bash -s' << 'REMOTE'
             set -e
             echo "==> Deploying 180 Traffic Director Edge Backend to EC2 via SSH..."
             mkdir -p /opt/traffic-director
@@ -163,30 +201,12 @@ jobs:
               git checkout -f -B main origin/main || true
             fi
 
+            mv /tmp/td.env /opt/traffic-director/.env
+            chmod 600 /opt/traffic-director/.env
+
             # Install dependencies and update prisma client
             pnpm install --no-frozen-lockfile
             pnpm --filter @workspace/db exec prisma generate
-
-            # Ensure production .env is populated
-            cat << 'ENVFILE' > .env
-            PORT=4005
-            TD_PORT=4005
-            TRAFFIC_DIRECTOR_PORT=4005
-            JWT_SECRET="${{ secrets.JWT_SECRET }}"
-            DATABASE_URL="${{ secrets.DATABASE_URL }}"
-            TRAFFIC_DIRECTOR_CLIENT_ID="${{ vars.TRAFFIC_DIRECTOR_CLIENT_ID }}"
-            TRAFFIC_DIRECTOR_CLIENT_SECRET="${{ secrets.TRAFFIC_DIRECTOR_CLIENT_SECRET }}"
-            TRAFFIC_DIRECTOR_WEBHOOK_SECRET="${{ secrets.TRAFFIC_DIRECTOR_WEBHOOK_SECRET }}"
-            PUBLIC_EDGE_URL="${{ vars.PUBLIC_EDGE_URL }}"
-            NEXT_PUBLIC_API_URL="${{ vars.PUBLIC_EDGE_URL }}"
-            TRAFFIC_DIRECTOR_WEB_URL="${{ vars.TRAFFIC_DIRECTOR_WEB_URL }}"
-            DEFAULT_EDGE_DOMAIN="${{ vars.DEFAULT_EDGE_DOMAIN }}"
-            AVAILABLE_EDGE_DOMAINS="${{ vars.AVAILABLE_EDGE_DOMAINS }}"
-            ONE_EIGHTY_PAY_CORE_URL="${{ vars.CORE_BACKEND_URL }}"
-            CORE_BACKEND_URL="${{ vars.CORE_BACKEND_URL }}"
-            AUTH_SERVER_URL="${{ vars.AUTH_SERVER_URL }}"
-            NODE_ENV="production"
-            ENVFILE
 
             # Sync production database schema
             cd apps/backend && npx tsx scripts/sync_production_db_schemas.ts && cd ../..
@@ -200,6 +220,7 @@ jobs:
             sleep 4
             curl -f http://127.0.0.1:4005/health
             echo "==> 180 Traffic Director Backend deployed and healthy!"
+          REMOTE
 
   # ====================================================
   # Phase 5: Sync Cloudflare DNS Records to EC2 Host

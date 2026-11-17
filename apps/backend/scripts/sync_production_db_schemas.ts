@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config();
 
 /**
@@ -103,13 +105,13 @@ export async function syncDatabase(connectionUrl?: string) {
       "name" TEXT NOT NULL,
       "priority" INTEGER NOT NULL DEFAULT 0,
       "isActive" BOOLEAN NOT NULL DEFAULT true,
-      "ruleType" TEXT NOT NULL DEFAULT 'geo',
-      "actionType" TEXT DEFAULT 'redirect',
-      "matchMode" TEXT NOT NULL DEFAULT 'match',
+      "ruleType" TEXT DEFAULT 'custom',
+      "actionType" TEXT NOT NULL DEFAULT 'redirect_302',
+      "matchMode" TEXT DEFAULT 'match',
       "conditions" JSONB NOT NULL DEFAULT '[]',
       "destinationUrl" TEXT NOT NULL,
-      "weight" INTEGER DEFAULT 100,
-      "matchCount" INTEGER DEFAULT 0,
+      "weight" INTEGER NOT NULL DEFAULT 100,
+      "matchCount" INTEGER NOT NULL DEFAULT 0,
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "TrafficRule_pkey" PRIMARY KEY ("id")
@@ -258,9 +260,49 @@ export async function syncDatabase(connectionUrl?: string) {
     `ALTER TABLE public."TrafficLink" ADD COLUMN IF NOT EXISTS "threatFeeds" JSONB;`,
     `ALTER TABLE public."TrafficLink" ADD COLUMN IF NOT EXISTS "customThreatList" JSONB;`,
     `ALTER TABLE public."TrafficLink" ADD COLUMN IF NOT EXISTS "warmupUntil" TIMESTAMP(3);`,
-    `ALTER TABLE public."TrafficRule" ADD COLUMN IF NOT EXISTS "actionType" TEXT DEFAULT 'redirect';`,
+    `ALTER TABLE public."TrafficRule" ADD COLUMN IF NOT EXISTS "actionType" TEXT DEFAULT 'redirect_302';`,
     `ALTER TABLE public."TrafficRule" ADD COLUMN IF NOT EXISTS "weight" INTEGER DEFAULT 100;`,
     `ALTER TABLE public."TrafficRule" ADD COLUMN IF NOT EXISTS "matchCount" INTEGER DEFAULT 0;`,
+    `ALTER TABLE public."TrafficRule" ADD COLUMN IF NOT EXISTS "userId" TEXT;`,
+    `CREATE INDEX IF NOT EXISTS "TrafficRule_userId_idx" ON public."TrafficRule"("userId");`,
+    // Relax legacy NOT NULL constraints on columns no longer managed by Prisma schema
+    `DO $$
+    DECLARE
+      col_spec RECORD;
+    BEGIN
+      FOR col_spec IN
+        SELECT * FROM (VALUES
+          ('TrafficRule', 'ruleType', '''custom'''),
+          ('TrafficRule', 'matchMode', '''match'''),
+          ('TrafficRule', 'companyId', NULL),
+          ('TrafficRule', 'userId', NULL),
+          ('TrafficLog', 'actionTaken', '''REDIRECT'''),
+          ('TrafficLog', 'isTor', 'false'),
+          ('TrafficLog', 'isVpn', 'false'),
+          ('TrafficLog', 'isDatacenter', 'false'),
+          ('TrafficLog', 'companyId', NULL),
+          ('TrafficPixelConfig', 'fireOnBot', 'false'),
+          ('TrafficPixelConfig', 'deduplicateEvents', 'true'),
+          ('TrafficPixelConfig', 'companyId', NULL),
+          ('TrafficLink', 'companyId', NULL),
+          ('TrafficDirectorSubscription', 'companyId', NULL),
+          ('TrafficPixelEvent', 'companyId', NULL),
+          ('TrafficPixelLog', 'companyId', NULL)
+        ) AS t(tbl, col, def_val)
+      LOOP
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = col_spec.tbl
+            AND column_name = col_spec.col
+        ) THEN
+          IF col_spec.def_val IS NOT NULL THEN
+            EXECUTE format('ALTER TABLE public.%I ALTER COLUMN %I SET DEFAULT %s', col_spec.tbl, col_spec.col, col_spec.def_val);
+          END IF;
+          EXECUTE format('ALTER TABLE public.%I ALTER COLUMN %I DROP NOT NULL', col_spec.tbl, col_spec.col);
+        END IF;
+      END LOOP;
+    END $$;`,
     `ALTER TABLE public."TrafficLog" ADD COLUMN IF NOT EXISTS "deviceType" TEXT;`,
     `ALTER TABLE public."TrafficLog" ADD COLUMN IF NOT EXISTS "userAgent" TEXT;`,
     `ALTER TABLE public."TrafficLog" ADD COLUMN IF NOT EXISTS "referrer" TEXT;`,
