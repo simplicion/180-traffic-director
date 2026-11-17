@@ -57,9 +57,10 @@ export class TrafficRulesService {
       ? data.priority 
       : (link.rules[0]?.priority !== undefined ? link.rules[0].priority + 1 : 0);
 
-    const rule = await db.trafficRule.create({
+    const createPayload = {
       data: {
         linkId: data.linkId,
+        userId: effectiveUserId || link.userId,
         name: data.name,
         priority: nextPriority,
         destinationUrl: data.destinationUrl,
@@ -68,7 +69,41 @@ export class TrafficRulesService {
         weight: data.weight !== undefined ? data.weight : 100,
         isActive: data.isActive !== undefined ? data.isActive : true
       }
-    });
+    };
+
+    let rule;
+    try {
+      rule = await db.trafficRule.create(createPayload);
+    } catch (err: any) {
+      const msg = String(err?.message || '');
+      const isLegacyNullConstraint =
+        err?.code === 'P2011' ||
+        /null constraint violation/i.test(msg) && /(ruleType|matchMode|companyId)/i.test(msg);
+
+      if (!isLegacyNullConstraint) {
+        throw err;
+      }
+
+      // Self-heal legacy NOT NULL columns (e.g., ruleType / matchMode) in existing databases and retry once
+      await db.$executeRawUnsafe(`
+        DO $$
+        BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='TrafficRule' AND column_name='ruleType') THEN
+            ALTER TABLE public."TrafficRule" ALTER COLUMN "ruleType" SET DEFAULT 'custom';
+            ALTER TABLE public."TrafficRule" ALTER COLUMN "ruleType" DROP NOT NULL;
+          END IF;
+          IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='TrafficRule' AND column_name='matchMode') THEN
+            ALTER TABLE public."TrafficRule" ALTER COLUMN "matchMode" SET DEFAULT 'match';
+            ALTER TABLE public."TrafficRule" ALTER COLUMN "matchMode" DROP NOT NULL;
+          END IF;
+          IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='TrafficRule' AND column_name='companyId') THEN
+            ALTER TABLE public."TrafficRule" ALTER COLUMN "companyId" DROP NOT NULL;
+          END IF;
+        END $$;
+      `);
+
+      rule = await db.trafficRule.create(createPayload);
+    }
 
     return { rule };
   }

@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import { LogoLoader, ConfirmModal } from '@workspace/ui';
 import { useSubscription } from '@/lib/useSubscription';
 import { ensureExternalUrl } from '@/lib/url';
+import { getDefaultEdgeDomain } from '@/lib/domains';
 import { useLinkDetailNav } from '@/context/LinkDetailNavContext';
 import CreateRuleModal from '../../../_components/CreateRuleModal';
 import EditRuleModal from '../../../_components/EditRuleModal';
@@ -234,8 +235,16 @@ export default function SmartLinkRuleCanvasPage() {
     }
   };
 
+  const defaultEdgeDomain = getDefaultEdgeDomain();
+  const activeEdgeDomain = (linkData?.customDomain || defaultEdgeDomain || '')
+    .trim()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/+$/, '');
+
   const handleCopyUrl = () => {
-    const url = `${window.location.origin}/r/${linkData?.slug}`;
+    const url = activeEdgeDomain
+      ? `https://${activeEdgeDomain}/r/${linkData?.slug}`
+      : `${window.location.origin}/r/${linkData?.slug}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast.success('Routing URL copied!');
@@ -347,7 +356,9 @@ export default function SmartLinkRuleCanvasPage() {
               )}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs text-gray-400 font-mono">/r/{linkData.slug}</span>
+              <span className="text-xs text-gray-400 font-mono">
+                {activeEdgeDomain ? `${activeEdgeDomain}/r/${linkData.slug}` : `/r/${linkData.slug}`}
+              </span>
               <button onClick={handleCopyUrl} className="text-gray-400 hover:text-indigo-600 transition text-xs flex items-center gap-1 cursor-pointer">
                 {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
               </button>

@@ -101,6 +101,7 @@ export class SignalExtractor {
     const body = req.body || {};
 
     const rawIp = 
+      (typeof headers['x-td-visitor-ip'] === 'string' ? headers['x-td-visitor-ip'] : '') ||
       (typeof headers['cf-connecting-ip'] === 'string' ? headers['cf-connecting-ip'] : '') ||
       (typeof headers['true-client-ip'] === 'string' ? headers['true-client-ip'] : '') ||
       (typeof headers['x-client-ip'] === 'string' ? headers['x-client-ip'] : '') ||
@@ -115,15 +116,36 @@ export class SignalExtractor {
     
     // Country detection (Edge headers or fallback)
     const country = 
+      (typeof headers['x-td-visitor-country'] === 'string' ? headers['x-td-visitor-country'] : '') ||
       (typeof headers['cf-ipcountry'] === 'string' ? headers['cf-ipcountry'] : '') || 
       (typeof headers['x-country-code'] === 'string' ? headers['x-country-code'] : '') || 
       (typeof headers['x-geo-country'] === 'string' ? headers['x-geo-country'] : '') || 
       'US';
 
-    const city = (typeof headers['cf-ipcity'] === 'string' ? headers['cf-ipcity'] : '') || (typeof headers['x-geo-city'] === 'string' ? headers['x-geo-city'] : '') || 'Unknown';
-    const postalCode = (typeof headers['cf-postal-code'] === 'string' ? headers['cf-postal-code'] : '') || (typeof headers['x-geo-postal-code'] === 'string' ? headers['x-geo-postal-code'] : '') || (typeof headers['x-postal-code'] === 'string' ? headers['x-postal-code'] : '') || (typeof headers['x-zip-code'] === 'string' ? headers['x-zip-code'] : '') || (typeof query.zip === 'string' ? query.zip : undefined) || (typeof query.postal_code === 'string' ? query.postal_code : undefined);
-    const region = (typeof headers['cf-region'] === 'string' ? headers['cf-region'] : '') || (typeof headers['cf-region-code'] === 'string' ? headers['cf-region-code'] : '') || (typeof headers['x-geo-region'] === 'string' ? headers['x-geo-region'] : '') || undefined;
-    const timezone = (typeof headers['cf-timezone'] === 'string' ? headers['cf-timezone'] : '') || (typeof headers['x-timezone'] === 'string' ? headers['x-timezone'] : '') || (typeof query.tz === 'string' ? query.tz : undefined);
+    const city =
+      (typeof headers['x-td-visitor-city'] === 'string' ? headers['x-td-visitor-city'] : '') ||
+      (typeof headers['cf-ipcity'] === 'string' ? headers['cf-ipcity'] : '') ||
+      (typeof headers['x-geo-city'] === 'string' ? headers['x-geo-city'] : '') ||
+      'Unknown';
+    const postalCode =
+      (typeof headers['x-td-visitor-postal'] === 'string' ? headers['x-td-visitor-postal'] : '') ||
+      (typeof headers['cf-postal-code'] === 'string' ? headers['cf-postal-code'] : '') ||
+      (typeof headers['x-geo-postal-code'] === 'string' ? headers['x-geo-postal-code'] : '') ||
+      (typeof headers['x-postal-code'] === 'string' ? headers['x-postal-code'] : '') ||
+      (typeof headers['x-zip-code'] === 'string' ? headers['x-zip-code'] : '') ||
+      (typeof query.zip === 'string' ? query.zip : undefined) ||
+      (typeof query.postal_code === 'string' ? query.postal_code : undefined);
+    const region =
+      (typeof headers['x-td-visitor-region'] === 'string' ? headers['x-td-visitor-region'] : '') ||
+      (typeof headers['cf-region'] === 'string' ? headers['cf-region'] : '') ||
+      (typeof headers['cf-region-code'] === 'string' ? headers['cf-region-code'] : '') ||
+      (typeof headers['x-geo-region'] === 'string' ? headers['x-geo-region'] : '') ||
+      undefined;
+    const timezone =
+      (typeof headers['x-td-visitor-timezone'] === 'string' ? headers['x-td-visitor-timezone'] : '') ||
+      (typeof headers['cf-timezone'] === 'string' ? headers['cf-timezone'] : '') ||
+      (typeof headers['x-timezone'] === 'string' ? headers['x-timezone'] : '') ||
+      (typeof query.tz === 'string' ? query.tz : undefined);
     const language = typeof headers['accept-language'] === 'string' ? headers['accept-language'].split(',')[0]?.split(';')[0]?.trim() || 'en' : 'en';
 
     // Fetch Metadata headers (Detect direct scrapers mimicking ad clicks)
@@ -158,8 +180,13 @@ export class SignalExtractor {
     }
 
     // Datacenter & ASN classification
-    const rawAsn = (headers['cf-ipasn'] as string) || (headers['x-asn'] as string) || '';
+    const rawAsn =
+      (headers['x-td-visitor-asn'] as string) ||
+      (headers['cf-ipasn'] as string) ||
+      (headers['x-asn'] as string) ||
+      '';
     const rawAsnOrg = 
+      (headers['x-td-visitor-as-org'] as string) ||
       (headers['cf-as-organization'] as string) || 
       (headers['cf-iporganization'] as string) ||
       (headers['x-asn-org'] as string) || 

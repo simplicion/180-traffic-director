@@ -305,6 +305,7 @@ export class TrafficLinksService {
         const rule = await db.trafficRule.create({
           data: {
             linkId: link.id,
+            userId: effectiveUserId,
             name: 'Default Cloak Rule',
             priority: 0,
             isActive: true,
