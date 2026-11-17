@@ -3,11 +3,8 @@
 import { Queue, Worker } from 'bullmq';
 import Redis from 'ioredis';
 
-const redisUrl = process.env.REDIS_URL;
-if (!redisUrl) {
-    throw new Error('REDIS_URL is not configured in environment');
-}
-const redis = new Redis(redisUrl, { maxRetriesPerRequest: null });
+const redisUrl = (process.env.REDIS_URL || '').trim();
+const redis = redisUrl ? new Redis(redisUrl, { maxRetriesPerRequest: null }) : null;
 
 let emailQueue = null;
 let notificationQueue = null;

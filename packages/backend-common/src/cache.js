@@ -5,23 +5,26 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.clearCache = exports.setCachedData = exports.getCachedData = exports.delCache = exports.setCache = exports.getCache = exports.redisClient = void 0;
 const ioredis_1 = __importDefault(require("ioredis"));
-// Re-use connection from .env
-const redisUrl = process.env.REDIS_URL;
-if (!redisUrl) {
-    throw new Error('REDIS_URL is not configured in environment');
+// Re-use connection from .env (gracefully disabled when REDIS_URL is not configured)
+const redisUrl = (process.env.REDIS_URL || '').trim();
+// Initialize a single shared Redis client instance only when REDIS_URL is provided
+exports.redisClient = redisUrl
+    ? new ioredis_1.default(redisUrl, {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false
+    })
+    : null;
+if (exports.redisClient) {
+    exports.redisClient.on('error', (err) => {
+        console.error('[Redis Cache] Error:', err);
+    });
+    exports.redisClient.on('connect', () => {
+        console.log('[Redis Cache] Connected successfully');
+    });
 }
-// Initialize a single shared Redis client instance
-exports.redisClient = new ioredis_1.default(redisUrl, {
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false
-});
-exports.redisClient.on('error', (err) => {
-    console.error('[Redis Cache] Error:', err);
-});
-exports.redisClient.on('connect', () => {
-    console.log('[Redis Cache] Connected successfully');
-});
 const getCache = async (key) => {
+    if (!exports.redisClient)
+        return null;
     try {
         const data = await exports.redisClient.get(key);
         if (data)
@@ -35,6 +38,8 @@ const getCache = async (key) => {
 };
 exports.getCache = getCache;
 const setCache = async (key, value, ttlSeconds = 300) => {
+    if (!exports.redisClient)
+        return;
     try {
         await exports.redisClient.setex(key, ttlSeconds, JSON.stringify(value));
     }
@@ -44,6 +49,8 @@ const setCache = async (key, value, ttlSeconds = 300) => {
 };
 exports.setCache = setCache;
 const delCache = async (key) => {
+    if (!exports.redisClient)
+        return;
     try {
         await exports.redisClient.del(key);
     }

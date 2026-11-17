@@ -12,11 +12,8 @@ exports.queueAITask = queueAITask;
 exports.queueFileTask = queueFileTask;
 const bullmq_1 = require("bullmq");
 const ioredis_1 = __importDefault(require("ioredis"));
-const redisUrl = process.env.REDIS_URL;
-if (!redisUrl) {
-    throw new Error('REDIS_URL is not configured in environment');
-}
-const redis = new ioredis_1.default(redisUrl, { maxRetriesPerRequest: null });
+const redisUrl = (process.env.REDIS_URL || '').trim();
+const redis = redisUrl ? new ioredis_1.default(redisUrl, { maxRetriesPerRequest: null }) : null;
 let emailQueue = null;
 let notificationQueue = null;
 let automationQueue = null;
