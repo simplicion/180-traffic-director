@@ -10,10 +10,18 @@
 
 /**
  * Returns the default edge domain configured in .env (NEXT_PUBLIC_DEFAULT_EDGE_DOMAIN)
+ * Safely defaults to window.location.host in production or 180trafficdirector.pro
  */
 export const getDefaultEdgeDomain = (): string => {
-  const domain = process.env.NEXT_PUBLIC_DEFAULT_EDGE_DOMAIN || '';
-  return domain.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  const envDomain = process.env.NEXT_PUBLIC_DEFAULT_EDGE_DOMAIN || '';
+  const cleaned = envDomain.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  if (cleaned && cleaned !== 'lokaya.shop') {
+    return cleaned;
+  }
+  if (typeof window !== 'undefined' && window.location.hostname && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
+    return window.location.host;
+  }
+  return '180trafficdirector.pro';
 };
 
 /**
@@ -27,13 +35,18 @@ export const getAvailableEdgeDomains = (customDomain?: string | null): string[] 
   const envDomains = rawList
     .split(',')
     .map((d) => d.trim().replace(/^https?:\/\//, '').replace(/\/+$/, ''))
-    .filter(Boolean);
+    .filter((d) => Boolean(d) && d !== 'lokaya.shop');
 
   const domains: string[] = [];
 
   // Default domain always appears first
   if (defaultDomain && !domains.includes(defaultDomain)) {
     domains.push(defaultDomain);
+  }
+
+  // Ensure production edge domain is always included
+  if (!domains.includes('180trafficdirector.pro')) {
+    domains.push('180trafficdirector.pro');
   }
 
   // Add all other configured edge domains from environment
