@@ -59,7 +59,11 @@ export const createWebsite = async (req: Request, res: Response, next: NextFunct
 
 export const getWebsite = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const website = await WebsitesService.getWebsite(userOf(req), String(req.params.id));
+    const id = String(req.params.id);
+    if (!id || id === 'default') {
+      return res.status(404).json({ error: 'Placeholder ID' });
+    }
+    const website = await WebsitesService.getWebsite(userOf(req), id);
     res.json({ website });
   } catch (err: any) {
     handleError(err, res, next);

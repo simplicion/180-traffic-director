@@ -15,13 +15,13 @@ import { getApiBase } from '@/lib/api';
 export default function PublicFormClient() {
   const params = useParams();
   const resolveSlug = () => {
-    const pSlug = params?.slug as string;
-    if (pSlug && pSlug !== 'default') return pSlug;
     if (typeof window !== 'undefined') {
       const match = window.location.pathname.match(/\/f\/([^\/\?#]+)/);
       if (match && match[1] && match[1] !== 'default') return decodeURIComponent(match[1]);
     }
-    return pSlug || 'default';
+    const pSlug = params?.slug as string;
+    if (pSlug && pSlug !== 'default') return pSlug;
+    return '';
   };
   const [slug, setSlug] = useState<string>(resolveSlug);
   useEffect(() => {
@@ -63,6 +63,7 @@ export default function PublicFormClient() {
   };
 
   useEffect(() => {
+    if (!slug || slug === 'default') return;
     const fetchForm = async () => {
       try {
         const apiBase = getApiBaseUrl();
@@ -511,7 +512,7 @@ export default function PublicFormClient() {
     </div>
   );
 
-  if (isLoading) {
+  if (isLoading || !slug || slug === 'default') {
     return (
       <div className="flex justify-center items-center min-h-[350px] bg-transparent">
         {ThemeToggle}

@@ -17,10 +17,10 @@ function PlatformLayoutInner({ children }: { children: React.ReactNode }) {
   const { isLinkDetail } = useLinkDetailNav();
 
   useEffect(() => {
-    // Sync initial theme
+    // Sync initial theme (Obsidian Dark is the canonical default)
     try {
       const storedTheme = localStorage.getItem('180_theme');
-      if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      if (storedTheme === 'dark' || !storedTheme) {
         document.documentElement.classList.add('dark');
       } else if (storedTheme === 'light') {
         document.documentElement.classList.remove('dark');

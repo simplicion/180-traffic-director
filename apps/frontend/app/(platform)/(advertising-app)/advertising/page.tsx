@@ -65,8 +65,8 @@ function AdvertisingPageContent() {
 
         try {
             const res = await api.get('/api/websites');
-            const fetchedWebsites = res.data.websites || [];
-            const fetchedCompany = res.data.company || null;
+            const fetchedWebsites = res.data?.websites || res.data?.data?.websites || [];
+            const fetchedCompany = res.data?.company || res.data?.data?.company || null;
             setWebsites(fetchedWebsites);
             setCompanyData(fetchedCompany);
             swrCacheRef.current.set(cacheKey, {
@@ -75,7 +75,7 @@ function AdvertisingPageContent() {
             });
         } catch (error: any) {
             if (!cached) {
-                toast.error(error?.response?.data?.error || 'Failed to load websites');
+                toast.error(error?.response?.data?.error || error?.message || 'Failed to load websites');
             }
         } finally {
             setLoading(false);

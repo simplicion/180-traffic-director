@@ -227,13 +227,13 @@ function EditorSkeleton() {
 export default function WebsiteEditorClient() {
     const params = useParams();
     const resolveWebsiteId = () => {
-        const pId = params?.id as string;
-        if (pId && pId !== 'default') return pId;
         if (typeof window !== 'undefined') {
             const match = window.location.pathname.match(/\/advertising\/([^\/\?#]+)\/edit/);
             if (match && match[1] && match[1] !== 'default') return match[1];
         }
-        return pId || 'default';
+        const pId = params?.id as string;
+        if (pId && pId !== 'default') return pId;
+        return '';
     };
     const [id, setId] = useState<string>(resolveWebsiteId);
     useEffect(() => {
@@ -330,6 +330,7 @@ export default function WebsiteEditorClient() {
     };
 
     useEffect(() => {
+        if (!id || id === 'default') return;
         fetchWebsite();
     }, [id]);
 
@@ -373,6 +374,10 @@ export default function WebsiteEditorClient() {
     };
 
     const fetchWebsite = async () => {
+        if (!id || id === 'default') {
+            setLoading(false);
+            return;
+        }
         try {
             setLoading(true);
             setLoadError(null);
@@ -1026,7 +1031,7 @@ export default function WebsiteEditorClient() {
         }
     };
 
-    if (loading) {
+    if (loading || !id || id === 'default') {
         return <EditorSkeleton />;
     }
 

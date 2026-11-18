@@ -49,7 +49,11 @@ export const getForms = async (req: Request, res: Response, next: NextFunction) 
 
 export const getForm = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const form = await FormsService.getFormById(String(req.params.id), userOf(req));
+    const id = String(req.params.id);
+    if (!id || id === 'default') {
+      return res.status(404).json({ error: 'Placeholder ID' });
+    }
+    const form = await FormsService.getFormById(id, userOf(req));
 
     res.status(200).json({
       status: 'success',

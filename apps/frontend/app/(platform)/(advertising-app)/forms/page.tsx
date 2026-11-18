@@ -55,13 +55,13 @@ export default function FormsListPage() {
 
     try {
       const response = await api.get('/api/forms');
-      const fetched = response.data.data.forms || [];
+      const fetched = response.data?.data?.forms || response.data?.forms || [];
       setForms(fetched);
       swrCacheRef.current.set(cacheKey, { data: fetched, timestamp: Date.now() });
-    } catch (error) {
+    } catch (error: any) {
       if (!cached) {
         console.error('Failed to fetch forms:', error);
-        toast.error('Failed to load forms');
+        toast.error(error?.response?.data?.error || error?.message || 'Failed to load forms');
       }
     } finally {
       if (showLoader) setIsLoading(false);

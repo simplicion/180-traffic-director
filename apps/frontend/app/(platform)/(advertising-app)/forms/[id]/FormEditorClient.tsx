@@ -126,13 +126,13 @@ const FIELD_TYPE_OPTIONS: { value: FieldType; label: string }[] = [
 export default function FormEditorClient() {
   const params = useParams();
   const resolveFormId = () => {
-    const pId = params?.id as string;
-    if (pId && pId !== 'default') return pId;
     if (typeof window !== 'undefined') {
       const match = window.location.pathname.match(/\/forms\/([^\/\?#]+)/);
       if (match && match[1] && match[1] !== 'default') return match[1];
     }
-    return pId || 'default';
+    const pId = params?.id as string;
+    if (pId && pId !== 'default') return pId;
+    return '';
   };
   const [formId, setFormId] = useState<string>(resolveFormId);
   useEffect(() => {
@@ -454,6 +454,7 @@ export default function FormEditorClient() {
   };
 
   useEffect(() => {
+    if (!formId || formId === 'default') return;
     fetchForm();
     fetchUsers();
   }, [formId]);
@@ -476,6 +477,10 @@ export default function FormEditorClient() {
   };
 
   const fetchForm = async (showLoader = true) => {
+    if (!formId || formId === 'default') {
+      if (showLoader) setIsLoading(false);
+      return;
+    }
     if (showLoader) setIsLoading(true);
     try {
       const response = await api.get(`/api/forms/${formId}`);
@@ -577,7 +582,8 @@ export default function FormEditorClient() {
       setTimeout(() => {
         isInitialLoadRef.current = false;
       }, 300);
-    } catch (error) {
+    } catch (error: any) {
+      if (!formId || formId === 'default') return;
       console.error('Failed to fetch form:', error);
       toast.error('Failed to load form details');
       router.push('/forms');
@@ -587,7 +593,7 @@ export default function FormEditorClient() {
   };
 
   const performAutoSave = async (customPayload?: any) => {
-    if (isInitialLoadRef.current || !formId || isLoading) return;
+    if (isInitialLoadRef.current || !formId || formId === 'default' || isLoading) return;
 
     const isHeadlessMode = formType === 'HEADLESS_ENDPOINT' || settings.isHeadless;
     const isSalesMode = isHeadlessMode
@@ -1293,7 +1299,7 @@ export default function FormEditorClient() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !formId || formId === 'default') {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-[70vh] gap-3">
         <LogoLoader size={48} className="w-12 h-12 text-indigo-600 animate-spin" />
