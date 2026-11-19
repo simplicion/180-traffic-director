@@ -234,13 +234,37 @@ export class ClientShieldGenerator {
     })
     .then(function(res) { return res.json(); })
     .then(function(data) {
-      // Only execute redirection when edge evaluation confirms a target offer match
+      // Only execute delivery when edge evaluation confirms a target offer match
       if (data && data.success && data.route === 'target' && data.destinationUrl) {
         var curUrl = window.location.href;
         var destUrl = data.destinationUrl;
         if (curUrl === destUrl || curUrl.indexOf(destUrl) === 0 || (destUrl.indexOf(window.location.pathname) !== -1 && window.location.pathname !== '/')) {
           return;
         }
+
+        // If rule action is In-Place Reverse Proxy (200 OK - Cloaked), display target in-place on the same URL
+        if (data.actionType === 'proxy_target_offer' || data.actionType === 'rewrite') {
+          try {
+            var f = document.createElement('iframe');
+            f.src = data.destinationUrl;
+            f.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;border:none;margin:0;padding:0;overflow:hidden;z-index:2147483647;background:#fff;';
+            f.setAttribute('allow', 'fullscreen; payment; camera; microphone; geolocation; clipboard-read; clipboard-write');
+            f.setAttribute('sandbox', 'allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts allow-top-navigation-by-user-activation');
+
+            function mountFrame() {
+              if (document.body) {
+                document.body.style.overflow = 'hidden';
+                document.body.appendChild(f);
+              } else {
+                document.addEventListener('DOMContentLoaded', mountFrame);
+              }
+            }
+            mountFrame();
+            return;
+          } catch(frameErr) {}
+        }
+
+        // Standard 302 / Location replace
         try {
           window.location.replace(data.destinationUrl);
         } catch(err) {
