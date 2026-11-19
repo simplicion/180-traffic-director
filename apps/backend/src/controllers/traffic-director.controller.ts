@@ -230,37 +230,51 @@ export class TrafficDirectorController {
           : checks.some(c => c.status === 'warning') 
             ? 'warning' 
             : 'verified';
+        const isVerified = overallStatus === 'verified';
+        const score = Math.round((passedCount / totalChecks) * 100);
+        const summary = isVerified
+          ? `All ${checks.length} deployment checks passed successfully! Tag is active on ${targetUrl}.`
+          : `Some verification checks failed or require attention.`;
+
+        const resultPayload = {
+          verified: isVerified,
+          overallStatus,
+          score,
+          summary,
+          checks,
+          url: targetUrl,
+          slug: cleanSlug,
+          latencyMs,
+          verifiedAt: new Date().toISOString()
+        };
 
         return res.json({
           success: true,
-          data: {
-            overallStatus,
-            score: Math.round((passedCount / totalChecks) * 100),
-            checks,
-            url: targetUrl,
-            slug: cleanSlug,
-            latencyMs,
-            verifiedAt: new Date().toISOString()
-          }
+          ...resultPayload,
+          data: resultPayload
         });
       } catch (fetchErr: any) {
         clearTimeout(timeoutId);
+        const failPayload = {
+          verified: false,
+          overallStatus: 'unverified',
+          score: 0,
+          summary: `Failed to connect to ${targetUrl}: ${fetchErr.message}`,
+          checks: [
+            {
+              name: 'Connection',
+              status: 'failed' as const,
+              message: `Failed to connect to ${targetUrl}: ${fetchErr.message}. Make sure your domain is active and online.`
+            }
+          ],
+          url: targetUrl,
+          slug: cleanSlug,
+          verifiedAt: new Date().toISOString()
+        };
         return res.json({
           success: true,
-          data: {
-            overallStatus: 'unverified',
-            score: 0,
-            checks: [
-              {
-                name: 'Connection',
-                status: 'failed',
-                message: `Failed to connect to ${targetUrl}: ${fetchErr.message}. Make sure your domain is active and online.`
-              }
-            ],
-            url: targetUrl,
-            slug: cleanSlug,
-            verifiedAt: new Date().toISOString()
-          }
+          ...failPayload,
+          data: failPayload
         });
       }
     } catch (error: any) {

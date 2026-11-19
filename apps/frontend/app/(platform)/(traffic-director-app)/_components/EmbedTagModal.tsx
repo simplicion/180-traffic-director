@@ -617,8 +617,19 @@ serve_safe_page($config);
         url: verificationUrl,
         slug
       });
-      setDiagnosticResult(res.data);
-      if (res.data.verified) {
+      const data = res.data?.data || res.data;
+      const isVerified = Boolean(
+        data?.verified === true ||
+        data?.overallStatus === 'verified' ||
+        res.data?.verified === true ||
+        res.data?.overallStatus === 'verified'
+      );
+      setDiagnosticResult({
+        ...res.data,
+        ...data,
+        verified: isVerified
+      });
+      if (isVerified) {
         toast.success('Safe page pixel verified active!');
       } else {
         toast.error('Could not detect active tag on this page');
