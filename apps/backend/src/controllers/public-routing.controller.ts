@@ -312,10 +312,11 @@ export class PublicRoutingController {
       // Generated scripts call back to the host they were served from (e.g. the edge domain
       // the user selected), falling back to the configured public edge URL.
       const host = req.get('host');
-      const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+      const isLocal = host?.includes('localhost') || host?.includes('127.0.0.1');
+      const protocol = isLocal ? (req.protocol || 'http') : 'https';
       const apiBaseUrl = host
         ? `${protocol}://${host}`
-        : (process.env.PUBLIC_EDGE_URL || '').replace(/\/+$/, '');
+        : (process.env.PUBLIC_EDGE_URL || 'https://api.180trafficdirector.pro').replace(/\/+$/, '');
       if (!apiBaseUrl) {
         return res.status(500).type('application/javascript').send('// Edge host is not configured');
       }
