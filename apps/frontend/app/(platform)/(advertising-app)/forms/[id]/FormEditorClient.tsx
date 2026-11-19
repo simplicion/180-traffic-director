@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, usePathname } from 'next/navigation';
 import { 
   ArrowLeft, Save, Plus, Trash2, Send,
   ExternalLink, GripHorizontal, Copy, CheckCircle,
@@ -125,7 +125,12 @@ const FIELD_TYPE_OPTIONS: { value: FieldType; label: string }[] = [
 
 export default function FormEditorClient() {
   const params = useParams();
+  const pathname = usePathname();
   const resolveFormId = () => {
+    if (pathname) {
+      const match = pathname.match(/\/forms\/([^\/\?#]+)/);
+      if (match && match[1] && match[1] !== 'default') return match[1];
+    }
     if (typeof window !== 'undefined') {
       const match = window.location.pathname.match(/\/forms\/([^\/\?#]+)/);
       if (match && match[1] && match[1] !== 'default') return match[1];
@@ -138,7 +143,7 @@ export default function FormEditorClient() {
   useEffect(() => {
     const resolved = resolveFormId();
     if (resolved && resolved !== formId) setFormId(resolved);
-  }, [params?.id]);
+  }, [params?.id, pathname]);
   const router = useRouter();
   
   const [isLoading, setIsLoading] = useState(true);
@@ -484,7 +489,11 @@ export default function FormEditorClient() {
     if (showLoader) setIsLoading(true);
     try {
       const response = await api.get(`/api/forms/${formId}`);
-      const form = response.data.data.form;
+      const form = response.data?.data?.form;
+      if (!form) {
+        if (showLoader) setIsLoading(false);
+        return;
+      }
       setTitle(form.title);
       setDescription(form.description || '');
       setIsActive(form.isActive);

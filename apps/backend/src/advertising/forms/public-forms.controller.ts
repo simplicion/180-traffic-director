@@ -5,7 +5,7 @@ export const getFormBySlug = async (req: Request, res: Response, next: NextFunct
   try {
     const slug = String(req.params.slug);
     if (!slug || slug === 'default') {
-      return res.status(404).json({ error: 'Placeholder slug' });
+      return res.status(200).json({ success: true, data: { form: null } });
     }
     const isViewEvent = req.query.view !== 'false';
     const form = await FormsService.getFormBySlug(slug, isViewEvent);

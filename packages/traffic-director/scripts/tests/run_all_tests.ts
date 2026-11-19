@@ -32,7 +32,8 @@ const testFiles = [
   'test_26_bot_gated_pixel_filtering.ts',
   'test_27_capi_event_deduplication.ts',
   'test_28_browser_client_event_simulation.ts',
-  'test_29_dedicated_domain_e2e_pipeline.ts'
+  'test_29_dedicated_domain_e2e_pipeline.ts',
+  'test_32_all_filters_comprehensive_matrix.ts'
 ];
 
 let totalPassed = 0;

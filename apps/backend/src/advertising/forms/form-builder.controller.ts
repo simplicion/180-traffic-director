@@ -51,7 +51,7 @@ export const getForm = async (req: Request, res: Response, next: NextFunction) =
   try {
     const id = String(req.params.id);
     if (!id || id === 'default') {
-      return res.status(404).json({ error: 'Placeholder ID' });
+      return res.status(200).json({ status: 'success', data: { form: null } });
     }
     const form = await FormsService.getFormById(id, userOf(req));
 

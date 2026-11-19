@@ -61,7 +61,7 @@ export const getWebsite = async (req: Request, res: Response, next: NextFunction
   try {
     const id = String(req.params.id);
     if (!id || id === 'default') {
-      return res.status(404).json({ error: 'Placeholder ID' });
+      return res.status(200).json({ website: null });
     }
     const website = await WebsitesService.getWebsite(userOf(req), id);
     res.json({ website });
