@@ -8,6 +8,7 @@ import {
   TrafficDirectorBillingService,
   PixelManagerService
 } from '@workspace/traffic-director';
+import { PublicRoutingController } from './public-routing.controller';
 
 export class TrafficDirectorController {
   /**
@@ -749,6 +750,7 @@ export class TrafficDirectorController {
         ...body,
         linkId
       });
+      PublicRoutingController.clearTagCache();
       return res.json({ success: true, data: result });
     } catch (error: any) {
       console.error('[TrafficDirectorController.upsertPixelConfig]', error);
@@ -761,6 +763,7 @@ export class TrafficDirectorController {
       const userId = await TrafficDirectorController.getUserId(req);
       const { linkId } = req.params;
       const result = await PixelManagerService.deletePixelConfig(linkId, userId);
+      PublicRoutingController.clearTagCache();
       return res.json({ success: true, deleted: result });
     } catch (error: any) {
       console.error('[TrafficDirectorController.deletePixelConfig]', error);

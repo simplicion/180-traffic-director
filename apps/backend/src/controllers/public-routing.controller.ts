@@ -288,6 +288,18 @@ export class PublicRoutingController {
   // In-memory cache to prevent re-obfuscating scripts on high volume requests
   private static dynamicTagCache = new Map<string, { scriptJs: string; expiresAt: number }>();
 
+  public static clearTagCache(slug?: string) {
+    if (slug) {
+      for (const key of this.dynamicTagCache.keys()) {
+        if (key.startsWith(`${slug}:`)) {
+          this.dynamicTagCache.delete(key);
+        }
+      }
+    } else {
+      this.dynamicTagCache.clear();
+    }
+  }
+
   static async handleDynamicTag(req: Request, res: Response) {
     try {
       const { slug } = req.params;
