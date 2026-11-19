@@ -68,9 +68,13 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
   const [simulating, setSimulating] = useState(false);
 
   // New Event Modal / Input State
-  const [newEventName, setNewEventName] = useState('Lead');
-  const [newTriggerType, setNewTriggerType] = useState('form_submit');
+  const [newEventName, setNewEventName] = useState('Purchase');
+  const [newTriggerType, setNewTriggerType] = useState('url_match');
   const [newSelector, setNewSelector] = useState('');
+  const [newUrlPattern, setNewUrlPattern] = useState('thankyou.html');
+  const [newEventValueKey, setNewEventValueKey] = useState('amount');
+  const [newCurrency, setNewCurrency] = useState('INR');
+  const [newCustomEventName, setNewCustomEventName] = useState('');
   const [isAddingEvent, setIsAddingEvent] = useState(false);
 
   const fetchPixelConfig = async () => {
@@ -151,21 +155,35 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
   };
 
   const handleAddEvent = () => {
-    if (!newEventName) {
+    const finalEventName = newEventName === 'Custom' ? newCustomEventName.trim() : newEventName;
+    if (!finalEventName) {
       toast.error('Event name is required');
       return;
     }
-    const newEvt = {
+    const newEvt: any = {
       id: 'temp_' + Date.now(),
-      eventName: newEventName,
+      eventName: finalEventName,
       triggerType: newTriggerType,
-      selector: newSelector.trim() || undefined,
       isEnabled: true
     };
+    if (newTriggerType === 'url_match') {
+      if (!newUrlPattern.trim()) {
+        toast.error('URL path pattern is required (e.g. thankyou.html)');
+        return;
+      }
+      newEvt.urlPattern = newUrlPattern.trim();
+      if (newEventValueKey.trim()) newEvt.eventValueKey = newEventValueKey.trim();
+      if (newCurrency.trim()) newEvt.currency = newCurrency.trim();
+    } else {
+      if (newSelector.trim()) newEvt.selector = newSelector.trim();
+    }
     setEvents([...events, newEvt]);
     setNewSelector('');
+    setNewUrlPattern('thankyou.html');
+    setNewEventValueKey('amount');
+    setNewCustomEventName('');
     setIsAddingEvent(false);
-    toast.success(`Added ${newEventName} trigger`);
+    toast.success(`Added ${finalEventName} trigger`);
   };
 
   const handleRemoveEvent = (idx: number) => {
@@ -953,50 +971,152 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                          Event Name
+                          Event Name (Meta & Google Standard)
                         </label>
                         <select
                           value={newEventName}
-                          onChange={(e) => setNewEventName(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNewEventName(val);
+                            if (val === 'Purchase' || val === 'Donate') {
+                              setNewTriggerType('url_match');
+                              setNewUrlPattern('thankyou.html');
+                            }
+                          }}
                           className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-zinc-700 text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
-                          <option value="Lead">Lead (Form Submit)</option>
-                          <option value="AddToCart">AddToCart (Button Click)</option>
-                          <option value="Purchase">Purchase (Checkout/Thank You)</option>
-                          <option value="CompleteRegistration">CompleteRegistration</option>
-                          <option value="Contact">Contact</option>
-                          <option value="Custom">Custom Event</option>
+                          <optgroup label="E-Commerce & Transactions">
+                            <option value="Purchase">Purchase (Order Confirmation)</option>
+                            <option value="Donate">Donate (Charity / NGO Contribution)</option>
+                            <option value="InitiateCheckout">InitiateCheckout (Checkout Started)</option>
+                            <option value="AddPaymentInfo">AddPaymentInfo (Payment Entered)</option>
+                            <option value="AddToCart">AddToCart (Cart Added)</option>
+                            <option value="AddToWishlist">AddToWishlist (Wishlist Added)</option>
+                            <option value="ViewContent">ViewContent (Product / Offer Viewed)</option>
+                          </optgroup>
+                          <optgroup label="Lead Gen & User Actions">
+                            <option value="Lead">Lead (Form Submit / Inquiry)</option>
+                            <option value="CompleteRegistration">CompleteRegistration (Sign Up / KYC)</option>
+                            <option value="SubmitApplication">SubmitApplication (Application Filed)</option>
+                            <option value="Contact">Contact (Phone / WhatsApp / Email)</option>
+                            <option value="Schedule">Schedule (Appointment / Demo Booked)</option>
+                            <option value="StartTrial">StartTrial (Free Trial Started)</option>
+                            <option value="Subscribe">Subscribe (Paid Subscription)</option>
+                          </optgroup>
+                          <optgroup label="Search & Discovery">
+                            <option value="Search">Search (Site Search)</option>
+                            <option value="CustomizeProduct">CustomizeProduct (Configured Option)</option>
+                            <option value="FindLocation">FindLocation (Store / Center Found)</option>
+                          </optgroup>
+                          <optgroup label="Custom Events">
+                            <option value="Custom">Custom Event Name...</option>
+                          </optgroup>
                         </select>
                       </div>
 
                       <div>
                         <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                          Trigger Type
+                          Trigger Mechanism
                         </label>
                         <select
                           value={newTriggerType}
                           onChange={(e) => setNewTriggerType(e.target.value)}
                           className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-zinc-700 text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
-                          <option value="form_submit">Form Submit</option>
-                          <option value="click">Element / Button Click</option>
-                          <option value="url_match">URL Match</option>
+                          <option value="url_match">URL Match / Page Visit (e.g. thankyou.html)</option>
+                          <option value="form_submit">Form Submit (Captures Inputs + User Data)</option>
+                          <option value="click">Element / Button Click (CSS Selector)</option>
                         </select>
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                        CSS Selector (Optional, e.g. #lead-form, .cta-btn)
-                      </label>
-                      <input
-                        type="text"
-                        value={newSelector}
-                        onChange={(e) => setNewSelector(e.target.value)}
-                        placeholder="Leave blank to match all forms or enter selector"
-                        className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-zinc-700 text-xs font-mono text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
+                    {newEventName === 'Custom' && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                          Custom Event Name (e.g. DonationStep2, DownloadPDF)
+                        </label>
+                        <input
+                          type="text"
+                          value={newCustomEventName}
+                          onChange={(e) => setNewCustomEventName(e.target.value)}
+                          placeholder="Enter alphanumeric event name"
+                          className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-zinc-700 text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    )}
+
+                    {newTriggerType === 'url_match' && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            URL Pattern / Path <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={newUrlPattern}
+                            onChange={(e) => setNewUrlPattern(e.target.value)}
+                            placeholder="e.g. thankyou.html, /success, *order*"
+                            className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-zinc-700 text-xs font-mono text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Value Query Key (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={newEventValueKey}
+                            onChange={(e) => setNewEventValueKey(e.target.value)}
+                            placeholder="e.g. amount, value, price"
+                            className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-zinc-700 text-xs font-mono text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            Currency
+                          </label>
+                          <input
+                            type="text"
+                            value={newCurrency}
+                            onChange={(e) => setNewCurrency(e.target.value.toUpperCase())}
+                            placeholder="e.g. INR, USD, EUR"
+                            className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-zinc-700 text-xs font-mono text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {newTriggerType === 'form_submit' && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                          Form CSS Selector (Optional, leave blank to match all forms)
+                        </label>
+                        <input
+                          type="text"
+                          value={newSelector}
+                          onChange={(e) => setNewSelector(e.target.value)}
+                          placeholder="e.g. #donation-form, form.lead-capture"
+                          className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-zinc-700 text-xs font-mono text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    )}
+
+                    {newTriggerType === 'click' && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                          Button / Element CSS Selector <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={newSelector}
+                          onChange={(e) => setNewSelector(e.target.value)}
+                          placeholder="e.g. #donate-now-btn, .checkout-btn, button[type='submit']"
+                          className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-zinc-700 text-xs font-mono text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    )}
 
                     <div className="flex justify-end gap-2 pt-1">
                       <button
@@ -1031,7 +1151,10 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
                           <div>
                             <span className="font-bold text-gray-900 dark:text-white">{evt.eventName}</span>
                             <span className="ml-2 text-[10.5px] text-gray-400 font-mono">
-                              Trigger: {evt.triggerType} {evt.selector ? `(${evt.selector})` : ''}
+                              Trigger: {evt.triggerType}
+                              {evt.triggerType === 'url_match' && evt.urlPattern
+                                ? ` (Pattern: ${evt.urlPattern}${evt.eventValueKey ? `, Key: ?${evt.eventValueKey}=...` : ''}${evt.currency ? ` [${evt.currency}]` : ''})`
+                                : evt.selector ? ` (${evt.selector})` : ''}
                             </span>
                           </div>
                         </div>

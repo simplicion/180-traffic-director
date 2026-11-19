@@ -844,13 +844,34 @@ export default async function middleware(request) {
           var gPayload = {
             value: customData.value || 0,
             currency: customData.currency || 'USD',
-            transaction_id: eventId
+            transaction_id: customData.transaction_id || customData.order_id || eventId
           };
           if (sendToLabel) {
             gPayload.send_to = sendToLabel;
           }
 
           w.gtag('event', 'conversion', gPayload);
+
+          // Standard Google Ads / GA4 event mapping
+          var gStandardEvents = {
+            'Purchase': 'purchase',
+            'Donate': 'donate',
+            'InitiateCheckout': 'begin_checkout',
+            'AddPaymentInfo': 'add_payment_info',
+            'AddToCart': 'add_to_cart',
+            'AddToWishlist': 'add_to_wishlist',
+            'ViewContent': 'view_item',
+            'Lead': 'generate_lead',
+            'CompleteRegistration': 'sign_up',
+            'Contact': 'contact',
+            'SubmitApplication': 'submit_application',
+            'Schedule': 'book_appointment',
+            'Search': 'search'
+          };
+          var gStdName = gStandardEvents[eventName];
+          if (gStdName) {
+            w.gtag('event', gStdName, gPayload);
+          }
         } catch(gErr) {}
       }
 ` : '';
@@ -1066,17 +1087,112 @@ export default async function middleware(request) {
       }
     }, true);
 
+    // URL Match & Confirmation Page Triggers (e.g. thankyou.html, /success, /order-received)
+    function evaluateUrlTriggers() {
+      try {
+        var currentHref = (w.location.href || '').toLowerCase();
+        var currentPath = (w.location.pathname || '').toLowerCase();
+        var searchStr = w.location.search || '';
+
+        // Parse query parameters
+        var qParams = {};
+        if (searchStr.length > 1) {
+          var pairs = searchStr.substring(1).split('&');
+          for (var p = 0; p < pairs.length; p++) {
+            var kv = pairs[p].split('=');
+            if (kv[0]) {
+              qParams[decodeURIComponent(kv[0]).toLowerCase()] = decodeURIComponent(kv.slice(1).join('=') || '');
+            }
+          }
+        }
+
+        for (var r = 0; r < _rules.length; r++) {
+          var rule = _rules[r];
+          if (rule.triggerType === 'url_match') {
+            var pattern = (rule.urlPattern || rule.selector || '').trim().toLowerCase();
+            if (!pattern) continue;
+
+            var matched = false;
+            if (pattern.indexOf('*') !== -1) {
+              var escaped = pattern.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&').replace(/\\\*/g, '.*');
+              matched = new RegExp(escaped, 'i').test(currentHref) || new RegExp(escaped, 'i').test(currentPath);
+            } else {
+              matched = currentHref.indexOf(pattern) !== -1 || currentPath.indexOf(pattern) !== -1;
+            }
+
+            if (matched) {
+              // Extract dynamic or static value
+              var val = 0;
+              if (rule.eventValueKey && qParams[rule.eventValueKey.toLowerCase()]) {
+                val = parseFloat(qParams[rule.eventValueKey.toLowerCase()]) || 0;
+              } else if (qParams['amount']) {
+                val = parseFloat(qParams['amount']) || 0;
+              } else if (qParams['value']) {
+                val = parseFloat(qParams['value']) || 0;
+              } else if (qParams['val']) {
+                val = parseFloat(qParams['val']) || 0;
+              } else if (qParams['price']) {
+                val = parseFloat(qParams['price']) || 0;
+              } else if (rule.value) {
+                val = parseFloat(rule.value) || 0;
+              }
+
+              // Extract currency
+              var cur = rule.currency || qParams['currency'] || qParams['curr'] || 'INR';
+
+              // Extract order / transaction ID
+              var orderId = qParams['txnid'] || qParams['order_id'] || qParams['orderid'] || qParams['transaction_id'] || qParams['payment_id'] || qParams['paymentid'] || '';
+
+              // Extract customer details from URL query params (Enhanced Matching)
+              var customer = {
+                firstName: qParams['name'] || qParams['fname'] || qParams['first_name'] || '',
+                phone: qParams['phone'] || qParams['mobile'] || qParams['tel'] || '',
+                email: qParams['email'] || qParams['mail'] || ''
+              };
+
+              var payloadData = {
+                value: val,
+                currency: cur,
+                content_name: qParams['item'] || qParams['cause'] || qParams['product'] || d.title || rule.eventName
+              };
+              if (orderId) {
+                payloadData.order_id = orderId;
+                payloadData.transaction_id = orderId;
+              }
+
+              dispatchEvent(rule.eventName || 'Purchase', payloadData, customer);
+            }
+          }
+        }
+      } catch(urlEx) {}
+    }
+
+    // Evaluate URL triggers on page initialization
+    evaluateUrlTriggers();
+
     // SPA Route Change Listener
-    if (_trackPv && w.history && w.history.pushState) {
+    if (w.history && w.history.pushState) {
       var origPush = w.history.pushState;
       w.history.pushState = function() {
         origPush.apply(this, arguments);
-        ${hasMeta ? "dispatchEvent('PageView');" : ''}
+        if (_trackPv) {
+          ${hasMeta ? "dispatchEvent('PageView');" : ''}
+        }
+        evaluateUrlTriggers();
       };
       w.addEventListener('popstate', function() {
-        ${hasMeta ? "dispatchEvent('PageView');" : ''}
+        if (_trackPv) {
+          ${hasMeta ? "dispatchEvent('PageView');" : ''}
+        }
+        evaluateUrlTriggers();
       });
     }
+
+    // Global Developer / Checkout Bridge API
+    w._td_track = function(eName, cData, uData) {
+      dispatchEvent(eName, cData, uData);
+    };
+    w._td_convert = w._td_track;
 
   } catch(fatal) {}
 })(window, document, 'script');`;
