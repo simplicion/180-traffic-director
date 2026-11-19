@@ -1,4 +1,5 @@
 import http from 'http';
+import https from 'https';
 
 // Backend under test, e.g. the local dev server. Requires ENABLE_DEV_LOGIN=true and DEV_LOGIN_EMAIL on that server.
 const testApiUrl = (process.env.TEST_API_URL || '').trim();
@@ -42,7 +43,8 @@ function req(options: http.RequestOptions, postData?: any): Promise<{ status: nu
       reqHeaders['Content-Type'] = reqHeaders['Content-Type'] || 'application/json';
       reqHeaders['Content-Length'] = Buffer.byteLength(payload);
     }
-    const r = http.request({
+    const transport = testApi.protocol === 'https:' ? https : http;
+    const r = transport.request({
       host: testApi.hostname,
       port: Number(testApi.port) || (testApi.protocol === 'https:' ? 443 : 80),
       ...options,

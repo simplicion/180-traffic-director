@@ -187,8 +187,8 @@ export class ClientShieldGenerator {
       return;
     }
 
-    // Fast-path client heuristic check: Bot / Automation detected -> stay on safe page quietly
-    if (isWd || (isMobile && !hasTouch && tp === 0)) {
+    // Fast-path client heuristic check: Headless webdriver automation detected -> stay on safe page quietly
+    if (isWd) {
       return;
     }
 
@@ -234,7 +234,8 @@ export class ClientShieldGenerator {
     })
     .then(function(res) { return res.json(); })
     .then(function(data) {
-      if (data && data.success && data.destinationUrl) {
+      // Only execute redirection when edge evaluation confirms a target offer match
+      if (data && data.success && data.route === 'target' && data.destinationUrl) {
         var curUrl = window.location.href;
         var destUrl = data.destinationUrl;
         if (curUrl === destUrl || curUrl.indexOf(destUrl) === 0 || (destUrl.indexOf(window.location.pathname) !== -1 && window.location.pathname !== '/')) {
