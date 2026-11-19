@@ -166,8 +166,8 @@ export class ClientShieldGenerator {
    * Generates a stealth, zero-footprint JavaScript snippet for embedding in the <head>
    * of an advertiser's self-hosted safe page on their own domain.
    */
-  static generateSelfHostedPixelJs(config: { slug: string; apiBaseUrl: string; targetUrl?: string; fallbackUrl?: string }): string {
-    const { slug, apiBaseUrl } = config;
+  static generateSelfHostedPixelJs(config: { slug: string; apiBaseUrl: string; targetUrl?: string; fallbackUrl?: string; obfuscate?: boolean }): string {
+    const { slug, apiBaseUrl, obfuscate = true } = config;
     const safeBaseUrl = JSON.stringify(apiBaseUrl.replace(/\/+$/, ''));
     const safeSlug = JSON.stringify(slug);
 
@@ -308,6 +308,10 @@ export class ClientShieldGenerator {
       stringArrayWrappersType: 'function',
       unicodeEscapeSequence: false
     });
+
+    if (obfuscate === false) {
+      return rawScript;
+    }
 
     return obfuscated.getObfuscatedCode();
   }
