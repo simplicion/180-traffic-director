@@ -3,7 +3,7 @@ import {
   Copy, Check, Shield, Globe, 
   Sparkles, CheckCircle2, AlertCircle, AlertTriangle,
   Terminal, MonitorSmartphone, Settings2,
-  Code2, ChevronDown, Zap, Server, Download
+  Code, Code2, ChevronDown, Zap, Server, Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api, { getApiBase } from '@/lib/api';
@@ -27,6 +27,7 @@ interface EmbedTagModalProps {
   linkId?: string;
   customDomain?: string | null;
   shieldMode?: 'server' | 'client_shield' | 'hybrid' | string;
+  initialTab?: 'smart_link' | 'script_injection';
   onDomainUpdated?: () => void;
 }
 
@@ -38,11 +39,26 @@ export default function EmbedTagModal({
   linkId,
   customDomain,
   shieldMode = 'server',
+  initialTab,
   onDomainUpdated
 }: EmbedTagModalProps) {
   type SnippetFormat = 'vercel_edge' | 'node_express' | 'standalone_php' | 'wordpress_php' | 'html_script' | 'inline_shield';
   const [snippetType, setSnippetType] = useState<SnippetFormat>('vercel_edge');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'smart_link' | 'script_injection'>(() => {
+    if (initialTab) return initialTab;
+    return shieldMode === 'client_shield' ? 'script_injection' : 'smart_link';
+  });
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    } else if (shieldMode === 'client_shield') {
+      setActiveTab('script_injection');
+    } else {
+      setActiveTab('smart_link');
+    }
+  }, [initialTab, shieldMode, isOpen]);
   const [copiedType, setCopiedType] = useState<string | null>(null);
   const [verificationUrl, setVerificationUrl] = useState('');
   const [verifying, setVerifying] = useState(false);
@@ -773,13 +789,42 @@ serve_safe_page($config);
       <Drawer
         isOpen={isOpen}
         onClose={onClose}
-        title={shieldMode === 'server' ? 'Smart Link Deployment' : 'Code Injection Deployment'}
+        title={activeTab === 'smart_link' ? 'Smart Link Deployment' : 'Script & Code Injection'}
         description={`${linkName} (/r/${slug})`}
         maxWidth="max-w-xl"
       >
+        <div className="px-5 pt-3">
+          <div className="grid grid-cols-2 p-1 bg-gray-100 dark:bg-zinc-800 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setActiveTab('smart_link')}
+              className={`py-2 px-3 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 transition cursor-pointer ${
+                activeTab === 'smart_link'
+                  ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span>Smart Link Setup</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('script_injection')}
+              className={`py-2 px-3 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 transition cursor-pointer ${
+                activeTab === 'script_injection'
+                  ? 'bg-white dark:bg-zinc-900 text-purple-600 dark:text-purple-400 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <Code className="w-3.5 h-3.5" />
+              <span>Script Injection</span>
+            </button>
+          </div>
+        </div>
+
         <div className="p-5 space-y-4">
-          {/* VIEW 1: CODE INJECTION (ONLY WHEN shieldMode === 'client_shield') */}
-          {shieldMode === 'client_shield' && (
+          {/* VIEW 1: CODE INJECTION */}
+          {activeTab === 'script_injection' && (
             <div className="space-y-3.5 animate-in fade-in duration-200">
               {/* Domain Switcher */}
               {renderDomainSelector('Cloaking Host & Edge Domain')}
@@ -978,8 +1023,8 @@ serve_safe_page($config);
             </div>
           )}
 
-          {/* VIEW 2: SMART LINK (ONLY WHEN shieldMode !== 'client_shield') */}
-          {shieldMode !== 'client_shield' && (
+          {/* VIEW 2: SMART LINK */}
+          {activeTab === 'smart_link' && (
             <div className="space-y-4 animate-in fade-in duration-200">
               <div className="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />

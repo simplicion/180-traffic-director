@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft, Plus, Play, Layers, Power, Check, Copy, Code, 
-  BarChart3, Lock, Sparkles, ShieldCheck 
+  BarChart3, Lock, Sparkles, ShieldCheck, Globe 
 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -58,6 +58,7 @@ export default function SmartLinkRuleCanvasPage() {
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<any>(null);
   const [isEmbedModalOpen, setIsEmbedModalOpen] = useState(false);
+  const [embedModalTab, setEmbedModalTab] = useState<'smart_link' | 'script_injection'>('smart_link');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isThreatDrawerOpen, setIsThreatDrawerOpen] = useState(false);
   const [deleteRuleConfirm, setDeleteRuleConfirm] = useState<{ isOpen: boolean; rule: any; loading: boolean }>({
@@ -76,7 +77,7 @@ export default function SmartLinkRuleCanvasPage() {
   const [blockSpyServices, setBlockSpyServices] = useState(true);
   const [blockVpn, setBlockVpn] = useState(true);
   const [warmupUntil, setWarmupUntil] = useState<string>('');
-  const [rampUpEnabled, setRampUpEnabled] = useState(true);
+  const [rampUpEnabled, setRampUpEnabled] = useState(false);
   const [rampUpDurationHours, setRampUpDurationHours] = useState(12);
   const [shieldMode, setShieldMode] = useState<'server' | 'client_shield'>('server');
   const [savingShield, setSavingShield] = useState(false);
@@ -103,8 +104,8 @@ export default function SmartLinkRuleCanvasPage() {
       setBlockSpyServices(!lk.tags || lk.tags.length === 0 ? true : lk.tags.includes('block_spy'));
       setBlockVpn(!lk.tags || lk.tags.length === 0 ? true : lk.tags.includes('block_vpn'));
       setWarmupUntil(lk.warmupUntil ? new Date(lk.warmupUntil).toISOString() : '');
-      setRampUpEnabled(lk.rampUpEnabled !== undefined && lk.rampUpEnabled !== null ? (lk.rampUpDurationHours === 24 && !lk.rampUpEnabled ? true : lk.rampUpEnabled) : true);
-      setRampUpDurationHours((lk.rampUpDurationHours && lk.rampUpDurationHours !== 24) ? lk.rampUpDurationHours : 12);
+      setRampUpEnabled(lk.rampUpEnabled !== undefined && lk.rampUpEnabled !== null ? Boolean(lk.rampUpEnabled) : false);
+      setRampUpDurationHours(lk.rampUpDurationHours ? Number(lk.rampUpDurationHours) : 12);
       setShieldMode(lk.shieldMode || 'server');
 
       // Synchronize metadata with Platform Sidebar
@@ -180,7 +181,7 @@ export default function SmartLinkRuleCanvasPage() {
   const handleToggleRuleActive = async (rule: any) => {
     try {
       const nextActive = !rule.isActive;
-      await api.put(`/api/v1/traffic-director/links/${linkId}/rules/${rule.id}`, {
+      await api.put(`/api/v1/traffic-director/rules/${rule.id}`, {
         isActive: nextActive
       });
       setLinkData((prev: any) => ({
@@ -188,8 +189,9 @@ export default function SmartLinkRuleCanvasPage() {
         rules: prev.rules.map((r: any) => r.id === rule.id ? { ...r, isActive: nextActive } : r)
       }));
       toast.success(`Rule "${rule.name}" is now ${nextActive ? 'Active' : 'Paused'}`);
-    } catch (error) {
-      toast.error('Failed to update rule status');
+    } catch (error: any) {
+      console.error('Failed to update rule status:', error);
+      toast.error(error.response?.data?.error || 'Failed to update rule status');
     }
   };
 
@@ -197,7 +199,7 @@ export default function SmartLinkRuleCanvasPage() {
     if (!deleteRuleConfirm.rule) return;
     try {
       setDeleteRuleConfirm(prev => ({ ...prev, loading: true }));
-      await api.delete(`/api/v1/traffic-director/links/${linkId}/rules/${deleteRuleConfirm.rule.id}`);
+      await api.delete(`/api/v1/traffic-director/rules/${deleteRuleConfirm.rule.id}`);
       setLinkData((prev: any) => {
         const remainingRules = prev.rules.filter((r: any) => r.id !== deleteRuleConfirm.rule.id);
         updateMetadata({ rulesCount: remainingRules.length });
@@ -208,8 +210,9 @@ export default function SmartLinkRuleCanvasPage() {
       });
       toast.success('Rule deleted successfully');
       setDeleteRuleConfirm({ isOpen: false, rule: null, loading: false });
-    } catch (error) {
-      toast.error('Failed to delete rule');
+    } catch (error: any) {
+      console.error('Failed to delete rule:', error);
+      toast.error(error.response?.data?.error || 'Failed to delete rule');
       setDeleteRuleConfirm(prev => ({ ...prev, loading: false }));
     }
   };
@@ -307,6 +310,7 @@ export default function SmartLinkRuleCanvasPage() {
         linkId={linkId}
         customDomain={linkData.customDomain}
         shieldMode={shieldMode}
+        initialTab={embedModalTab}
         onDomainUpdated={() => fetchLinkDetails()}
       />
 
@@ -425,11 +429,24 @@ export default function SmartLinkRuleCanvasPage() {
             Edit Details
           </button>
           <button
-            onClick={() => setIsEmbedModalOpen(true)}
+            onClick={() => {
+              setEmbedModalTab('smart_link');
+              setIsEmbedModalOpen(true);
+            }}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition cursor-pointer"
           >
-            <Code className="w-3.5 h-3.5" />
-            <span>{shieldMode === 'client_shield' ? 'Get Embed Snippets' : 'Smart Link Setup'}</span>
+            <Globe className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Smart Link Setup</span>
+          </button>
+          <button
+            onClick={() => {
+              setEmbedModalTab('script_injection');
+              setIsEmbedModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-900/50 text-xs font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/60 transition cursor-pointer shadow-xs"
+          >
+            <Code className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+            <span>Script Injection</span>
           </button>
           <button
             onClick={() => {

@@ -20,8 +20,11 @@ import {
   Server,
   Layers,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  Flame
 } from 'lucide-react';
+import { LogoLoader, UniversalDateTimePicker } from '@workspace/ui';
+import InfoTooltip from '@/components/ui/InfoTooltip';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -126,6 +129,15 @@ export default function LinkThreatDrawer({
   const [saving, setSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  // Security & Warmup Shield Controls
+  const [datacenterBlocked, setDatacenterBlocked] = useState(true);
+  const [blockSpyServices, setBlockSpyServices] = useState(true);
+  const [blockVpn, setBlockVpn] = useState(true);
+  const [warmupUntil, setWarmupUntil] = useState<string>('');
+  const [rampUpEnabled, setRampUpEnabled] = useState(false);
+  const [rampUpDurationHours, setRampUpDurationHours] = useState(12);
+  const [savingShield, setSavingShield] = useState(false);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -164,6 +176,13 @@ export default function LinkThreatDrawer({
       } else {
         setCustomThreatList([]);
       }
+
+      setDatacenterBlocked(linkData.datacenterBlocked ?? true);
+      setBlockSpyServices(!linkData.tags || linkData.tags.length === 0 ? true : linkData.tags.includes('block_spy'));
+      setBlockVpn(!linkData.tags || linkData.tags.length === 0 ? true : linkData.tags.includes('block_vpn'));
+      setWarmupUntil(linkData.warmupUntil ? new Date(linkData.warmupUntil).toISOString() : '');
+      setRampUpEnabled(linkData.rampUpEnabled !== undefined && linkData.rampUpEnabled !== null ? Boolean(linkData.rampUpEnabled) : false);
+      setRampUpDurationHours(linkData.rampUpDurationHours ? Number(linkData.rampUpDurationHours) : 12);
     }
   }, [linkData, isOpen]);
 
@@ -263,12 +282,48 @@ export default function LinkThreatDrawer({
     toast.success('Rule removed from link configuration');
   };
 
+  const handleSaveShieldSettings = async () => {
+    try {
+      setSavingShield(true);
+      const existingTags = Array.isArray(linkData?.tags) ? linkData.tags : [];
+      const updatedTags = existingTags.filter((t: string) => t !== 'block_spy' && t !== 'block_vpn');
+      if (blockSpyServices) updatedTags.push('block_spy');
+      if (blockVpn) updatedTags.push('block_vpn');
+
+      await api.put(`/api/v1/traffic-director/links/${linkId}`, {
+        datacenterBlocked,
+        tags: updatedTags,
+        warmupUntil: warmupUntil ? new Date(warmupUntil).toISOString() : null,
+        rampUpEnabled,
+        rampUpDurationHours: Number(rampUpDurationHours) || 12,
+      });
+
+      toast.success('Security & Warmup controls saved successfully');
+      if (onUpdated) onUpdated();
+    } catch (err: any) {
+      console.error('Failed to update shield settings:', err);
+      toast.error(err.response?.data?.error || 'Failed to update security shield settings');
+    } finally {
+      setSavingShield(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
+      const existingTags = Array.isArray(linkData?.tags) ? linkData.tags : [];
+      const updatedTags = existingTags.filter((t: string) => t !== 'block_spy' && t !== 'block_vpn');
+      if (blockSpyServices) updatedTags.push('block_spy');
+      if (blockVpn) updatedTags.push('block_vpn');
+
       await api.put(`/api/v1/traffic-director/links/${linkId}`, {
         threatFeeds,
-        customThreatList
+        customThreatList,
+        datacenterBlocked,
+        tags: updatedTags,
+        warmupUntil: warmupUntil ? new Date(warmupUntil).toISOString() : null,
+        rampUpEnabled,
+        rampUpDurationHours: Number(rampUpDurationHours) || 12,
       });
       toast.success('Link Threat Shield matrix saved successfully');
       if (onUpdated) onUpdated();
@@ -403,6 +458,134 @@ export default function LinkThreatDrawer({
                   </div>
                   <div className="text-[11px] text-gray-500 dark:text-zinc-400 mt-0.5">Filter ByteDance QA bots</div>
                 </button>
+              </div>
+            </div>
+
+            {/* Security & Warmup Controls */}
+            <div className="p-4 rounded-2xl bg-white/80 dark:bg-zinc-900/80 border border-gray-200 dark:border-zinc-800 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
+                    <Shield className="w-4 h-4" />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-xs font-bold text-gray-900 dark:text-white">Security & Warmup Controls</h3>
+                    <InfoTooltip content="Configure scanner evasion, cloud datacenter firewall, and DSP review warmup." />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSaveShieldSettings}
+                  disabled={savingShield}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold disabled:opacity-50 transition shadow-xs cursor-pointer"
+                >
+                  {savingShield ? (
+                    <>
+                      <LogoLoader className="w-3.5 h-3.5 animate-spin text-white" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    'Save Shield Settings'
+                  )}
+                </button>
+              </div>
+
+              <div className="space-y-2.5">
+                {/* 1. Datacenter ASN Firewall */}
+                <div className="p-2.5 px-3 rounded-xl bg-gray-50/80 dark:bg-zinc-800/50 border border-gray-200/80 dark:border-zinc-700/60 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-gray-900 dark:text-white">Datacenter ASN Firewall</span>
+                    <InfoTooltip content="Instantly drops traffic originating from AWS, GCP, Azure, Meta, DigitalOcean, and Hetzner hosting subnets to fallback safe page." />
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={datacenterBlocked}
+                    onChange={(e) => setDatacenterBlocked(e.target.checked)}
+                    className="w-4 h-4 rounded text-purple-600 accent-purple-600 cursor-pointer"
+                  />
+                </div>
+
+                {/* 2. Spy Service Intelligence Shield */}
+                <div className="p-2.5 px-3 rounded-xl bg-gray-50/80 dark:bg-zinc-800/50 border border-gray-200/80 dark:border-zinc-700/60 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-gray-900 dark:text-white">Spy Service Shield</span>
+                    <InfoTooltip content="Drops ad intelligence crawlers (AdPlexity, SpyOver, Anstrex, Dropispy, BigSpy) and commercial proxy ASNs to prevent offer ripping." />
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={blockSpyServices}
+                    onChange={(e) => setBlockSpyServices(e.target.checked)}
+                    className="w-4 h-4 rounded text-purple-600 accent-purple-600 cursor-pointer"
+                  />
+                </div>
+
+                {/* 3. VPN, Proxy & Tor Firewall */}
+                <div className="p-2.5 px-3 rounded-xl bg-gray-50/80 dark:bg-zinc-800/50 border border-gray-200/80 dark:border-zinc-700/60 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-gray-900 dark:text-white">VPN / Proxy & Tor Firewall</span>
+                    <InfoTooltip content="Blocks commercial VPNs, open proxies, Tor exit nodes, and visitors with clock timezone mismatches." />
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={blockVpn}
+                    onChange={(e) => setBlockVpn(e.target.checked)}
+                    className="w-4 h-4 rounded text-purple-600 accent-purple-600 cursor-pointer"
+                  />
+                </div>
+
+                {/* 4. Temporal Warmup Window */}
+                <div className="p-2.5 px-3 rounded-xl bg-gray-50/80 dark:bg-zinc-800/50 border border-gray-200/80 dark:border-zinc-700/60 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-xs font-semibold text-gray-900 dark:text-white">DSP Warmup</span>
+                    <InfoTooltip content="100% of visitors see the clean Safe Page during your ad QA review window." />
+                    {warmupUntil && new Date(warmupUntil).getTime() > Date.now() && (
+                      <span className="text-[9px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/60 px-1 py-0.5 rounded">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <UniversalDateTimePicker
+                    value={warmupUntil}
+                    onChange={(val) => setWarmupUntil(val || '')}
+                    mode="datetime"
+                    disablePast={true}
+                    placeholder="Set warmup end..."
+                    presets={[
+                      { label: '+6h', offsetHours: 6 },
+                      { label: '+12h', offsetHours: 12 },
+                      { label: '+24h', offsetHours: 24 },
+                      { label: '+48h', offsetHours: 48 },
+                    ]}
+                  />
+                </div>
+
+                {/* 5. Stealth Ramp-Up Settings */}
+                <div className="p-2.5 px-3 rounded-xl bg-purple-50/40 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Flame className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                    <span className="text-xs font-semibold text-gray-900 dark:text-white">Stealth Ramp-Up</span>
+                    <InfoTooltip content="Gradually scales redirects (10% → 100%) after DSP warmup expires to eliminate conversion cliffs and protect ad accounts." />
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <label className="text-[11px] text-gray-600 dark:text-gray-400 flex items-center gap-1 font-medium">
+                      <input
+                        type="number"
+                        min="1"
+                        max="168"
+                        value={rampUpDurationHours}
+                        onChange={(e) => setRampUpDurationHours(Number(e.target.value))}
+                        className="w-10 px-1 py-0.5 rounded bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-[11px] text-center text-gray-900 dark:text-white font-mono"
+                      />
+                      <span>h</span>
+                    </label>
+                    <input
+                      type="checkbox"
+                      checked={rampUpEnabled}
+                      onChange={(e) => setRampUpEnabled(e.target.checked)}
+                      className="w-4 h-4 rounded text-purple-600 accent-purple-600 cursor-pointer"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

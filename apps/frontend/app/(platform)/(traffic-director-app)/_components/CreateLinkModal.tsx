@@ -136,7 +136,7 @@ export function CreateLinkModal({ isOpen, onClose, onSuccess }: CreateLinkModalP
         tags: ['block_spy', 'block_vpn'],
         shieldMode,
         safePageProxyMode,
-        rampUpEnabled: true,
+        rampUpEnabled: false,
         rampUpDurationHours: 12
       });
 

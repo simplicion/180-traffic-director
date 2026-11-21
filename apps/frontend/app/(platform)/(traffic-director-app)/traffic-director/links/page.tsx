@@ -373,7 +373,7 @@ export default function SmartLinksDirectoryPage() {
         <AlivePillTabs
           layoutId="links-status-pill"
           value={statusFilter}
-          onChange={setStatusFilter}
+          onChange={(val) => setStatusFilter(val as any)}
           options={[
             {
               id: 'all',
@@ -432,49 +432,62 @@ export default function SmartLinksDirectoryPage() {
           <LogoLoader className="w-8 h-8 animate-spin text-indigo-500" />
         </div>
       ) : filteredLinks.length > 0 ? (
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {filteredLinks.map((link, idx) => (
             <AliveListCard
               key={link.id}
               index={idx}
-              className="p-4 sm:p-5 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-[0_0_30px_rgba(255,255,255,0.04)] hover:border-blue-300/80 dark:hover:border-zinc-700 transition-colors transition-shadow flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              onClick={() => router.push(`/traffic-director/links/${link.id}`)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  router.push(`/traffic-director/links/${link.id}`);
+                }
+              }}
+              className="group p-5 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-gray-200/80 dark:border-white/10 hover:shadow-xl hover:shadow-blue-500/5 dark:hover:shadow-[0_0_30px_rgba(255,255,255,0.04)] hover:border-blue-400 dark:hover:border-blue-500/60 transition-all flex flex-col justify-between gap-4 cursor-pointer select-none"
             >
-              {/* Left Side: Link Name, Rules Configured, Total Clicks */}
-              <div className="flex items-center gap-4 flex-wrap flex-1 min-w-0">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${link.isActive && cloakingEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
-                  <Link
-                    href={`/traffic-director/links/${link.id}`}
-                    className="text-base font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate"
-                    title="Open Link Rules Canvas"
+              {/* Top: Status & Link Name */}
+              <div className="space-y-3">
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1.5 ${link.isActive && cloakingEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+                  <h3
+                    className="text-base font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2 leading-snug break-words"
+                    title={link.name}
                   >
                     {link.name}
-                  </Link>
+                  </h3>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">Rules Configured:</span>
+                {/* Middle: Rules Configured & Total Clicks */}
+                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-zinc-800/80 text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-gray-600 dark:text-gray-300">Rules Configured</span>
                     <span className="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 font-bold">
                       {link.rules?.length || 0}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">Total Clicks:</span>
-                    <span className="font-bold text-gray-900 dark:text-white">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-gray-600 dark:text-gray-300">Total Clicks</span>
+                    <span className="font-bold text-gray-900 dark:text-white font-mono">
                       {(link.totalClicks || 0).toLocaleString()}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Right Side: Switch on/off, Menu button, Delete button */}
-              <div className="flex items-center gap-2.5 shrink-0">
+              {/* Bottom Actions: Switch On/Off, Menu Button, Delete Button */}
+              <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-zinc-800" onClick={(e) => e.stopPropagation()}>
                 {/* Switch on/off button */}
                 <button
-                  onClick={() => handleToggleActive(link)}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleActive(link);
+                  }}
                   className={clsx(
-                    "p-2.5 rounded-xl border transition cursor-pointer relative",
+                    "p-2 rounded-xl border transition cursor-pointer relative",
                     link.isActive && cloakingEnabled
                       ? 'border-emerald-200 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' 
                       : 'border-gray-200 dark:border-zinc-700 text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
@@ -493,23 +506,33 @@ export default function SmartLinksDirectoryPage() {
                   )}
                 </button>
 
-                {/* Menu button (Edit Metadata & Domain) */}
-                <button
-                  onClick={() => setEditingLink(link)}
-                  className="p-2.5 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
-                  title="Edit Metadata & Domain"
-                >
-                  <Settings2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {/* Menu button (Edit Metadata & Domain) */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingLink(link);
+                    }}
+                    className="p-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-500 hover:text-blue-600 hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                    title="Edit Metadata & Domain"
+                  >
+                    <Settings2 className="w-4 h-4" />
+                  </button>
 
-                {/* Delete button */}
-                <button
-                  onClick={() => setDeleteConfirm({ isOpen: true, link, loading: false })}
-                  className="p-2.5 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-400 hover:text-rose-500 hover:border-rose-200 dark:hover:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer"
-                  title="Delete Link"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                  {/* Delete button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteConfirm({ isOpen: true, link, loading: false });
+                    }}
+                    className="p-2 rounded-xl border border-gray-200 dark:border-zinc-700 text-gray-400 hover:text-rose-500 hover:border-rose-200 dark:hover:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer"
+                    title="Delete Link"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </AliveListCard>
           ))}

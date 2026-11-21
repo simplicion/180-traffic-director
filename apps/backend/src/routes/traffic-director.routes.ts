@@ -35,6 +35,9 @@ router.post('/links/:linkId/rules', TrafficDirectorController.createRule);
 router.put('/rules/:ruleId', TrafficDirectorController.updateRule);
 router.patch('/rules/:ruleId', TrafficDirectorController.updateRule);
 router.delete('/rules/:ruleId', TrafficDirectorController.deleteRule);
+router.put('/links/:linkId/rules/:ruleId', TrafficDirectorController.updateRule);
+router.patch('/links/:linkId/rules/:ruleId', TrafficDirectorController.updateRule);
+router.delete('/links/:linkId/rules/:ruleId', TrafficDirectorController.deleteRule);
 router.post('/links/:linkId/rules/reorder', TrafficDirectorController.reorderRules);
 
 // Subscriptions & 180 Pay Billing

@@ -234,7 +234,7 @@ function AdvertisingPageContent() {
                     <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-4">Loading your websites...</p>
                 </div>
             ) : filteredWebsites.length > 0 ? (
-                <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {filteredWebsites.map((website, idx) => (
                         <WebsiteCard
                             key={website.id}

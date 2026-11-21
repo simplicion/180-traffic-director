@@ -288,7 +288,7 @@ export class TrafficLinksService {
         customDomain: data.customDomain,
         tags: data.tags || [],
         warmupUntil: data.warmupUntil ? new Date(data.warmupUntil) : undefined,
-        rampUpEnabled: data.rampUpEnabled !== undefined ? data.rampUpEnabled : true,
+        rampUpEnabled: data.rampUpEnabled !== undefined ? Boolean(data.rampUpEnabled) : false,
         rampUpDurationHours: data.rampUpDurationHours !== undefined ? Number(data.rampUpDurationHours) : 12,
         shieldMode: data.shieldMode || 'server',
         datacenterBlocked: data.datacenterBlocked ?? true,
