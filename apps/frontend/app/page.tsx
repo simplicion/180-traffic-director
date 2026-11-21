@@ -785,9 +785,8 @@ export default function TrafficDirectorLandingPage() {
 
           <div className="flex items-center gap-6 text-xs font-semibold text-slate-500">
             <Link href="/traffic-director/links" className="hover:text-blue-600 transition">Smart Links</Link>
-            <Link href="/traffic-director/threats" className="hover:text-blue-600 transition">Threat Intelligence</Link>
-            <Link href="/traffic-director/logs" className="hover:text-blue-600 transition">Traffic Logs</Link>
-            
+            <Link href="/forms" className="hover:text-blue-600 transition">180 Forms</Link>
+            <Link href="/advertising" className="hover:text-blue-600 transition">Website Builder</Link>
           </div>
 
           <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600">

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   Link as LinkIcon, 
-  Layers, 
   CreditCard, 
   User, 
   Sun, 
@@ -161,24 +160,6 @@ export function TrafficDirectorTopNav() {
             >
               <Globe className="w-3.5 h-3.5" />
               <span>Website Builder</span>
-            </Link>
-
-            <Link
-              href="/traffic-director/logs"
-              className={clsx(
-                "flex items-center gap-2 px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer",
-                pathname === '/traffic-director/logs'
-                  ? "bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900"
-              )}
-              title="Open Live Traffic Stream for all Links"
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <Layers className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-              <span>Live Logs</span>
             </Link>
 
             <Link

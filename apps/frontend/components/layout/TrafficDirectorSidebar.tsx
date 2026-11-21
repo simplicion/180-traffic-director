@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Link as LinkIcon,
-  Layers,
   CreditCard,
   User,
   Sun,
@@ -181,13 +180,6 @@ export function TrafficDirectorSidebar() {
       icon: Globe,
       isActive: (p) => p.startsWith('/advertising'),
       badge: WEBSITE_BUILDER_COMING_SOON ? 'SOON' : null,
-    },
-    {
-      label: 'Live Logs',
-      href: '/traffic-director/logs',
-      icon: Layers,
-      isActive: (p) => p.startsWith('/traffic-director/logs'),
-      liveDot: true,
     },
   ];
 
