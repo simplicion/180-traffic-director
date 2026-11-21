@@ -11,7 +11,7 @@ import { getDefaultElementForType, migrateLegacySection } from './ElementFactory
 import { SITE_ROOT_CLASS, SITE_ROOT_STYLE, ResponsiveStyles } from './responsive-styles';
 
 import {
-    Eye, ArrowLeft, Monitor, Tablet, Smartphone, ChevronLeft, ChevronRight, Palette, Sparkles,
+    Eye, ArrowLeft, Monitor, Tablet, Smartphone, ChevronLeft, ChevronRight, Palette,
     CheckCircle2, Plus, Undo2, Redo2, Upload, AlertCircle, RefreshCw, Menu, X
 } from 'lucide-react';
 import api from '@/lib/api';
@@ -20,7 +20,6 @@ import { useSettings } from '@/lib/settings-context';
 import PropertyPanel from './PropertyPanel';
 import SettingsSidebar from './SettingsSidebar';
 import TextEditor from './TextEditor';
-import { AIWebsiteDrawer } from './_components/AIWebsiteDrawer';
 
 type ViewMode = 'desktop' | 'tablet' | 'mobile';
 
@@ -304,7 +303,6 @@ export default function WebsiteEditorClient() {
     }, [selectedElementId]);
 
     const [isCanvasDragOver, setIsCanvasDragOver] = useState(false);
-    const [showAIDrawer, setShowAIDrawer] = useState(false);
 
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
@@ -1220,14 +1218,6 @@ export default function WebsiteEditorClient() {
                         <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} title="Redo (Ctrl+Shift+Z)" aria-label="Redo" className="min-w-11 min-h-11 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-30 transition-colors"><Redo2 className="w-4 h-4" /></button>
                     </div>
                     <button
-                        onClick={() => setShowAIDrawer(true)}
-                        className="min-h-11 flex items-center gap-1.5 px-3.5 text-sm font-bold bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white rounded-lg transition-all shadow-xs shadow-indigo-600/20 active:scale-95 cursor-pointer border border-indigo-500/30"
-                        title="Open AI Website Builder & Live Synthesis"
-                    >
-                        <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-                        <span>AI Builder</span>
-                    </button>
-                    <button
                         onClick={() => { setShowSettings(true); setIsPanelCollapsed(false); }}
                         className="min-h-11 flex items-center gap-2 px-4 text-sm font-bold rounded-lg transition-all duration-200 border bg-white hover:bg-indigo-50/70 hover:border-indigo-200 hover:text-indigo-600 text-gray-700 border-gray-200 shadow-xs active:scale-95"
                     >
@@ -1739,7 +1729,6 @@ export default function WebsiteEditorClient() {
                                 activePageId={activePageId}
                                 changeActivePage={changeActivePage}
                                 sections={sections}
-                                onOpenAIDrawer={() => setShowAIDrawer(true)}
                                 onSelectElement={(nodeId: string) => setSelectedElementId(nodeId)}
                                 selectedElementId={selectedElementId}
                             />
@@ -1748,21 +1737,6 @@ export default function WebsiteEditorClient() {
                     </div>
                 </div>
             </div>
-
-            {/* AI Live Website Builder Side Drawer */}
-            <AIWebsiteDrawer
-                isOpen={showAIDrawer}
-                onClose={() => setShowAIDrawer(false)}
-                website={website}
-                config={{ ...config, activePageId }}
-                onApplyConfig={(newConfig) => {
-                    commitConfig(newConfig);
-                    if (newConfig?.activePageId && newConfig.activePageId !== activePageId) {
-                        setActivePageId(newConfig.activePageId);
-                    }
-                }}
-            />
-
         </div>
     );
 }

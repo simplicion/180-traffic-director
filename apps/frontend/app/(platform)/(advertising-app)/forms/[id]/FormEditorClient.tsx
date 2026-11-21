@@ -16,7 +16,6 @@ import toast from 'react-hot-toast';
 import api, { getApiBase, getAuthToken } from '@/lib/api';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { ConfirmModal, LogoLoader } from "@workspace/ui";
-import { AIFormDrawer } from './_components/AIFormDrawer';
 import { LeadSubmissionsManager } from './_components/LeadSubmissionsManager';
 import CountryPhoneInput from '@/components/ui/CountryPhoneInput';
 
@@ -153,42 +152,8 @@ export default function FormEditorClient() {
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<'editor' | 'integrations' | 'submissions'>('editor');
   const [showDesignPanel, setShowDesignPanel] = useState<boolean>(true);
-  const [showAIDrawer, setShowAIDrawer] = useState<boolean>(false);
   const [hoveredFieldIndex, setHoveredFieldIndex] = useState<number | null>(null);
 
-  const handleApplyAIForm = (data: {
-    title?: string;
-    description?: string;
-    fields?: any[];
-    settings?: any;
-    pages?: any[];
-  }) => {
-    if (data.title !== undefined) setTitle(data.title);
-    if (data.description !== undefined) setDescription(data.description);
-    if (data.fields !== undefined) {
-      setFields(data.fields.map((f: any, idx: number) => ({
-        ...f,
-        order: idx,
-        pageId: f.pageId || f.validation?.pageId || 'page_1'
-      })));
-    }
-    if (data.settings !== undefined) {
-      setSettings(prev => ({
-        ...prev,
-        ...data.settings
-      }));
-    }
-    if (data.pages !== undefined && Array.isArray(data.pages) && data.pages.length > 0) {
-      setPages(data.pages);
-      if (!data.pages.some((p: any) => p.id === activePageId)) {
-        setActivePageId(data.pages[0].id);
-      } else if (data.pages.length > pages.length) {
-        setActivePageId(data.pages[data.pages.length - 1].id);
-      }
-    }
-    setSaveStatus('saved');
-  };
-  
   // Inline editor state
   const [activeFieldIndex, setActiveFieldIndex] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -1371,15 +1336,7 @@ export default function FormEditorClient() {
         <div className="flex items-center gap-3 flex-wrap">
           {!isHeadless && (
             <>
-              <button
-                type="button"
-                onClick={() => setShowAIDrawer(true)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl transition-all shadow-xs shadow-indigo-600/20 active:scale-95 cursor-pointer border border-indigo-500/30"
-                title="Open AI Form Builder & Dynamic Synthesis"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-                <span>AI Builder</span>
-              </button>
+
 
               <button 
                 type="button"
@@ -1421,16 +1378,7 @@ export default function FormEditorClient() {
             <span className="hidden sm:inline">{isHeadless ? 'Copy Submission URL' : 'Preview'}</span>
           </a>
 
-          {/* AI Form Builder Action Button */}
-          <button 
-            type="button"
-            onClick={() => setShowAIDrawer(true)} 
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-700 hover:to-indigo-700 rounded-xl transition-all shadow-md shadow-indigo-500/20 active:scale-95 border border-indigo-500/30 cursor-pointer"
-            title="Open AI Form Builder & Schema Synthesis"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-            <span>AI Builder</span>
-          </button>
+
 
           {/* Live Auto-Save Status Indicator */}
           {saveStatus === 'saving' && (
@@ -2875,14 +2823,7 @@ print(response.json())`}
         onCancel={() => setShowRegenerateConfirm(false)}
       />
 
-      {/* AI Live Form Builder Side Drawer */}
-      <AIFormDrawer
-        isOpen={showAIDrawer}
-        onClose={() => setShowAIDrawer(false)}
-        formId={formId}
-        formState={{ title, description, fields, settings, pages, activePageId }}
-        onApplyForm={handleApplyAIForm}
-      />
+
     </div>
   );
 }
