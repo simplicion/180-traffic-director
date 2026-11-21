@@ -35,7 +35,8 @@ const testFiles = [
   'test_29_dedicated_domain_e2e_pipeline.ts',
   'test_32_all_filters_comprehensive_matrix.ts',
   'test_33_universal_conversion_events_suite.ts',
-  'test_34_in_place_script_proxy_simulation.ts'
+  'test_34_in_place_script_proxy_simulation.ts',
+  'test_35_meta_ad_rejection_audit_simulation.ts'
 ];
 
 let totalPassed = 0;
