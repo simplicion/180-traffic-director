@@ -1089,39 +1089,39 @@ export default function WebsiteEditorClient() {
                     onClick={() => setViewMode(mode)}
                     aria-pressed={viewMode === mode}
                     title={`${label} view${mode === 'desktop' ? '' : ` (edits become ${label.toLowerCase()} overrides)`}`}
-                    className={`min-h-11 min-w-11 flex items-center justify-center gap-2 rounded-md transition-colors ${compact ? '' : 'px-3'} ${viewMode === mode ? 'bg-white shadow-sm text-indigo-600 ring-1 ring-indigo-100' : 'text-gray-500 hover:text-gray-900 hover:bg-white/70'}`}
+                    className={`flex items-center justify-center rounded-md transition-colors ${compact ? 'w-7 h-7' : 'min-h-11 min-w-11 px-3 gap-2'} ${viewMode === mode ? 'bg-white shadow-2xs text-indigo-600 ring-1 ring-indigo-100' : 'text-gray-500 hover:text-gray-900 hover:bg-white/70'}`}
                 >
-                    <Icon className="w-4 h-4" />
+                    <Icon className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />
                     {!compact && <span className="text-sm font-medium">{label}</span>}
                 </button>
             ))}
         </div>
     );
 
-    const renderSaveStatus = () => (
+    const renderSaveStatus = (compact = false) => (
         <>
             {saveStatus === 'saving' && (
-                <div title="Saving..." className="min-w-11 min-h-11 text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg animate-pulse flex items-center justify-center shadow-xs">
-                    <LogoLoader className="w-4 h-4 animate-spin text-indigo-600" />
+                <div title="Saving..." className={`${compact ? 'w-7 h-7' : 'min-w-11 min-h-11'} text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg animate-pulse flex items-center justify-center shadow-xs shrink-0`}>
+                    <LogoLoader className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} animate-spin text-indigo-600`} />
                 </div>
             )}
             {saveStatus === 'saved' && (
-                <div title="Saved" className="min-w-11 min-h-11 text-emerald-600 bg-emerald-50/80 border border-emerald-100/80 rounded-lg flex items-center justify-center shadow-xs">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <div title="Saved" className={`${compact ? 'w-7 h-7' : 'min-w-11 min-h-11'} text-emerald-600 bg-emerald-50/80 border border-emerald-100/80 rounded-lg flex items-center justify-center shadow-xs shrink-0`}>
+                    <CheckCircle2 className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-emerald-500`} />
                 </div>
             )}
             {saveStatus === 'unsaved' && (
-                <div title="Unsaved changes" className="min-w-11 min-h-11 text-amber-600 bg-amber-50 border border-amber-100 rounded-lg flex items-center justify-center shadow-xs">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+                <div title="Unsaved changes" className={`${compact ? 'w-7 h-7' : 'min-w-11 min-h-11'} text-amber-600 bg-amber-50 border border-amber-100 rounded-lg flex items-center justify-center shadow-xs shrink-0`}>
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
                 </div>
             )}
             {saveStatus === 'error' && (
                 <button
                     onClick={() => performAutoSave()}
-                    className="min-w-11 min-h-11 text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors flex items-center justify-center shadow-xs"
+                    className={`${compact ? 'w-7 h-7' : 'min-w-11 min-h-11'} text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors flex items-center justify-center shadow-xs shrink-0`}
                     title="Save failed. Click to retry"
                 >
-                    <AlertCircle className="w-4 h-4" />
+                    <AlertCircle className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
                 </button>
             )}
         </>
@@ -1647,7 +1647,7 @@ export default function WebsiteEditorClient() {
                 <div
                     className={`bg-white border-l border-gray-200 flex flex-col overflow-visible z-40 relative transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                         (selectedElementId || showSettings)
-                            ? (isPanelCollapsed ? 'w-0 border-l-0 translate-x-0' : 'w-80 translate-x-0 shadow-[-10px_0_30px_rgba(0,0,0,0.06)]')
+                            ? (isPanelCollapsed ? 'w-0 border-l-0 translate-x-0' : 'w-[23.5rem] translate-x-0 shadow-[-10px_0_30px_rgba(0,0,0,0.06)]')
                             : 'w-0 opacity-0 translate-x-12 pointer-events-none border-l-0 overflow-hidden shadow-none'
                     }`}
                 >
@@ -1661,39 +1661,43 @@ export default function WebsiteEditorClient() {
                             {isPanelCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                         </button>
                     )}
-                    <div className="w-80 min-w-[20rem] flex flex-col h-full overflow-hidden">
-                        {/* SIDEBAR HEADER ACTIONS */}
-                        <div className="flex flex-col gap-2 p-3 border-b border-gray-200 bg-gray-50/80 sticky top-0 z-10 backdrop-blur-sm">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-0.5 bg-white p-0.5 rounded-md shadow-sm border border-gray-200">
-                                    <button onClick={handleUndo} disabled={historyIndex <= 0 && !historyTimeoutRef.current} title="Undo (Ctrl+Z)" aria-label="Undo" className="min-w-11 min-h-11 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded disabled:opacity-30 transition-colors"><Undo2 className="w-4 h-4" /></button>
-                                    <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} title="Redo (Ctrl+Shift+Z)" aria-label="Redo" className="min-w-11 min-h-11 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded disabled:opacity-30 transition-colors"><Redo2 className="w-4 h-4" /></button>
-                                </div>
-                                <div className="bg-gray-100 p-0.5 rounded-md">
-                                    {renderDeviceToggle(true)}
-                                </div>
+                    <div className="w-[23.5rem] min-w-[23.5rem] flex flex-col h-full overflow-hidden">
+                        {/* SIDEBAR HEADER ACTIONS: ALL IN ONE SINGLE ROW */}
+                        <div className="flex items-center justify-between gap-1 px-2.5 py-2 border-b border-gray-200 bg-gray-50/90 sticky top-0 z-10 backdrop-blur-sm">
+                            {/* 1. Undo / Redo */}
+                            <div className="flex items-center gap-0.5 bg-white p-0.5 rounded-lg shadow-2xs border border-gray-200 shrink-0">
+                                <button onClick={handleUndo} disabled={historyIndex <= 0 && !historyTimeoutRef.current} title="Undo (Ctrl+Z)" aria-label="Undo" className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded disabled:opacity-30 transition-colors"><Undo2 className="w-3.5 h-3.5" /></button>
+                                <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} title="Redo (Ctrl+Shift+Z)" aria-label="Redo" className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded disabled:opacity-30 transition-colors"><Redo2 className="w-3.5 h-3.5" /></button>
                             </div>
-                            <div className="flex items-center justify-between gap-1.5">
-                                <button onClick={openLivePreview} className="min-h-11 px-3 flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors" title="Preview live site">
-                                    <Eye className="w-4 h-4" /> Preview
+
+                            {/* 2. Viewport Devices */}
+                            <div className="bg-gray-200/70 p-0.5 rounded-lg shrink-0">
+                                {renderDeviceToggle(true)}
+                            </div>
+
+                            {/* 3. Live Preview */}
+                            <button onClick={openLivePreview} className="h-7 px-2 flex items-center gap-1 text-xs font-bold text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:bg-gray-100 rounded-lg transition-colors shadow-2xs shrink-0" title="Preview live site">
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>Preview</span>
+                            </button>
+
+                            {/* 4. Save Status & Publish */}
+                            <div className="flex items-center gap-1 shrink-0">
+                                {renderSaveStatus(true)}
+                                <button
+                                    onClick={performPublish}
+                                    disabled={isPublishing}
+                                    className="h-7 px-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200 border border-indigo-700 shadow-2xs flex items-center gap-1 active:scale-95 shrink-0"
+                                    title={hasUnpublishedChanges ? (publishedSnapshot === null ? "Not live yet — publish to make this website visible to visitors" : "You have changes visitors can't see yet — publish to make them live") : "Visitors see the latest version"}
+                                >
+                                    {isPublishing ? (
+                                        <LogoLoader className="w-3.5 h-3.5 animate-spin text-white" />
+                                    ) : (
+                                        <Upload className="w-3.5 h-3.5" />
+                                    )}
+                                    <span>{hasUnpublishedChanges ? (publishedSnapshot === null ? 'Publish' : 'Publish') : 'Published'}</span>
+                                    {hasUnpublishedChanges && publishedSnapshot !== null && <span className="w-1.5 h-1.5 rounded-full bg-amber-300" aria-hidden="true" />}
                                 </button>
-                                <div className="flex items-center gap-1.5">
-                                    {renderSaveStatus()}
-                                    <button
-                                        onClick={performPublish}
-                                        disabled={isPublishing}
-                                        className="min-h-11 px-3 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200 border border-indigo-700 shadow-xs flex items-center gap-1.5 active:scale-95 shrink-0"
-                                        title={hasUnpublishedChanges ? (publishedSnapshot === null ? "Not live yet — publish to make this website visible to visitors" : "You have changes visitors can't see yet — publish to make them live") : "Visitors see the latest version"}
-                                    >
-                                        {isPublishing ? (
-                                            <LogoLoader className="w-3.5 h-3.5 animate-spin text-white" />
-                                        ) : (
-                                            <Upload className="w-3.5 h-3.5" />
-                                        )}
-                                        <span>{hasUnpublishedChanges ? (publishedSnapshot === null ? 'Publish' : 'Publish changes') : 'Published'}</span>
-                        {hasUnpublishedChanges && publishedSnapshot !== null && <span className="w-2 h-2 rounded-full bg-amber-300" aria-hidden="true" />}
-                                    </button>
-                                </div>
                             </div>
                         </div>
                         {selectedElementId ? (
