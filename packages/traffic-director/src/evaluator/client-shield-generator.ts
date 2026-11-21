@@ -715,45 +715,7 @@ export default async function middleware(request) {
 
     // Dynamic Meta Code Block (Only included if Meta is active)
     const metaInitBlock = hasMeta ? `
-    // --- Meta Pixel (fbevents.js) & Attribution Cookies ---
-    function getCookie(name) {
-      var parts = (d.cookie || '').split('; ');
-      for (var i = 0; i < parts.length; i++) {
-        var c = parts[i].split('=');
-        if (c[0] === name) return decodeURIComponent(c.slice(1).join('='));
-      }
-      return '';
-    }
-    function setCookie(name, val, days) {
-      try {
-        var exp = new Date(Date.now() + (days || 90) * 864e5).toUTCString();
-        var host = w.location.hostname.replace(/^www\./, '');
-        d.cookie = name + '=' + encodeURIComponent(val) + '; expires=' + exp + '; path=/; domain=.' + host + '; SameSite=Lax';
-      } catch(e) {}
-    }
-
-    var _fbc = getCookie('_fbc');
-    try {
-      var searchStr = w.location.search.substring(1);
-      if (searchStr) {
-        var pairs = searchStr.split('&');
-        for (var p = 0; p < pairs.length; p++) {
-          var kv = pairs[p].split('=');
-          if (kv[0] === 'fbclid') {
-            _fbc = 'fb.1.' + Date.now() + '.' + decodeURIComponent(kv[1] || '');
-            setCookie('_fbc', _fbc, 90);
-            break;
-          }
-        }
-      }
-    } catch(e) {}
-
-    var _fbp = getCookie('_fbp');
-    if (!_fbp) {
-      _fbp = 'fb.1.' + Date.now() + '.' + Math.floor(Math.random() * 1e10);
-      setCookie('_fbp', _fbp, 730);
-    }
-
+    // --- Meta Pixel (fbevents.js) ---
     if (!w.fbq) {
       var n = w.fbq = function() {
         n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
@@ -941,9 +903,6 @@ export default async function middleware(request) {
     } catch(e) {}
 
     var isBot = isWd || isEmulatedGpu || (isMobile && !hasTouch && tp === 0);
-    if (isBot && !_fireOnBots) {
-      return; // Bot detected -> suppress conversion engines to protect ML
-    }
 
     // --- First-Party Attribution & Cookie Persistence ---
     function getCookie(name) {

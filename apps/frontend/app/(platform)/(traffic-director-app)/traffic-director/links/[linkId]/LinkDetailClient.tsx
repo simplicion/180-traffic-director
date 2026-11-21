@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
-  ArrowLeft, Plus, Play, Layers, Power, Check, Copy, Code, 
+  ArrowLeft, Plus, Play, Layers, Power, Check, Copy, 
   BarChart3, Lock, Sparkles, ShieldCheck, Globe 
 } from 'lucide-react';
 import api from '@/lib/api';
@@ -434,19 +434,10 @@ export default function SmartLinkRuleCanvasPage() {
               setIsEmbedModalOpen(true);
             }}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition cursor-pointer"
+            title="Connect & Setup Integration"
           >
             <Globe className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Smart Link Setup</span>
-          </button>
-          <button
-            onClick={() => {
-              setEmbedModalTab('script_injection');
-              setIsEmbedModalOpen(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-900/50 text-xs font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/60 transition cursor-pointer shadow-xs"
-          >
-            <Code className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-            <span>Script Injection</span>
+            <span>Connect</span>
           </button>
           <button
             onClick={() => {

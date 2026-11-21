@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Sparkles, Shield, ShieldCheck, CheckCircle2, AlertCircle, Copy, Check,
+  Sparkles, Shield, ShieldCheck, CheckCircle2, AlertCircle, Check,
   Plus, Trash2, Eye, EyeOff, Terminal, Zap, ArrowRight, Play, RefreshCw,
   Globe, Code2, Layers, Key, CheckCheck, HelpCircle, Activity, Sliders,
   Share2, Database, ShieldAlert
 } from 'lucide-react';
-import api, { getApiBase } from '@/lib/api';
-import { getDefaultEdgeDomain } from '@/lib/domains';
+import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { LogoLoader } from '@workspace/ui';
 
@@ -21,7 +20,6 @@ interface LinkPixelTabProps {
 export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelTabProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [showToken, setShowToken] = useState(false);
 
   // Auto-Save Lifecycle & Indicator State
@@ -83,7 +81,7 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
       const res = await api.get(`/api/v1/traffic-director/links/${linkId}/pixel`);
       const cfg = res.data?.data;
       if (cfg) {
-        setActivePlatform(cfg.activePlatform || 'both');
+        setActivePlatform('both');
         // Meta
         setMasterPixelId(cfg.masterPixelId || '');
         setBackupPixelIds(cfg.backupPixelIds || []);
@@ -195,23 +193,13 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
     const hasGoogle = Boolean(googleConversionId.trim());
 
     if (isManual) {
-      if (activePlatform === 'meta' && !hasMeta) {
-        toast.error('Master Meta Pixel ID is required when Meta Ads is active');
-        return false;
-      }
-      if (activePlatform === 'google' && !hasGoogle) {
-        toast.error('Google Conversion ID (e.g. AW-123456789) is required when Google Ads is active');
-        return false;
-      }
-      if (activePlatform === 'both' && !hasMeta && !hasGoogle) {
+      if (!hasMeta && !hasGoogle) {
         toast.error('Please configure at least one Meta Pixel ID or Google Conversion ID');
         return false;
       }
     } else {
       // Auto-save guard: only save if configured properly to avoid dirty state on partial typing
-      if (activePlatform === 'meta' && !hasMeta) return false;
-      if (activePlatform === 'google' && !hasGoogle) return false;
-      if (activePlatform === 'both' && !hasMeta && !hasGoogle) return false;
+      if (!hasMeta && !hasGoogle) return false;
     }
 
     try {
@@ -352,39 +340,6 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
     }
   };
 
-  const [domainMode, setDomainMode] = useState<'dedicated' | 'custom' | 'platform'>(
-    linkData?.customDomain ? 'custom' : 'dedicated'
-  );
-
-  // Dedicated edge domain from environment
-  const calculateCdnDomain = (): string => {
-    return (process.env.NEXT_PUBLIC_TRAFFIC_DIRECTOR_CDN_URL || getDefaultEdgeDomain() || '')
-      .replace(/^https?:\/\//, '')
-      .replace(/\/+$/, '');
-  };
-
-  const dedicatedCdnUrl = calculateCdnDomain();
-  const apiBase = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '') || (typeof window !== 'undefined' ? window.location.origin : '');
-
-  const getSelectedHost = () => {
-    if (domainMode === 'custom' && linkData?.customDomain) {
-      return `https://${linkData.customDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`;
-    }
-    if (domainMode === 'dedicated') {
-      return `https://${dedicatedCdnUrl}`;
-    }
-    return apiBase.replace(/\/+$/, '');
-  };
-
-  const snippetTag = `<script src="${getSelectedHost()}/tag/${linkData?.slug || 'slug'}.js" async></script>`;
-
-  const copySnippet = () => {
-    navigator.clipboard.writeText(snippetTag);
-    setCopied(true);
-    toast.success('Snippet tag copied to clipboard!');
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   if (loading) {
     return (
       <div className="py-16 flex flex-col items-center justify-center space-y-3">
@@ -396,71 +351,6 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
 
   return (
     <div className="space-y-6">
-      {/* ─── 1-Line Remote Tag Embed Card with Domain Switcher ─── */}
-      <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/10 space-y-3.5 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 dark:border-white/5 pb-3">
-          <div>
-            <h4 className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-              <Globe className="w-4 h-4 text-indigo-500" />
-              1-Line Universal Tracking Script Snippet
-            </h4>
-            <p className="text-[11px] text-gray-500">Paste this script tag once into the &lt;head&gt; of your landing page, Shopify theme, or WordPress header</p>
-          </div>
-
-          {/* Domain Mode Selector */}
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-zinc-800 p-1 rounded-xl shrink-0">
-            <button
-              type="button"
-              onClick={() => setDomainMode('dedicated')}
-              className={`px-2.5 py-1 rounded-lg text-[10.5px] font-semibold transition cursor-pointer ${
-                domainMode === 'dedicated'
-                  ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                  : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
-              }`}
-            >
-              Dedicated CDN ({dedicatedCdnUrl})
-            </button>
-            {linkData?.customDomain && (
-              <button
-                type="button"
-                onClick={() => setDomainMode('custom')}
-                className={`px-2.5 py-1 rounded-lg text-[10.5px] font-semibold transition cursor-pointer ${
-                  domainMode === 'custom'
-                    ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                    : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
-                }`}
-              >
-                Custom CNAME ({linkData.customDomain})
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setDomainMode('platform')}
-              className={`px-2.5 py-1 rounded-lg text-[10.5px] font-semibold transition cursor-pointer ${
-                domainMode === 'platform'
-                  ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                  : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
-              }`}
-            >
-              Direct Platform URL
-            </button>
-          </div>
-        </div>
-
-        <div className="relative">
-          <pre className="p-3.5 rounded-xl bg-gray-950 text-indigo-300 font-mono text-[11.5px] overflow-x-auto border border-white/5 select-all">
-            <code>{snippetTag}</code>
-          </pre>
-          <button
-            onClick={copySnippet}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-white text-[11px] font-semibold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-          >
-            {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-            {copied ? 'Copied' : 'Copy'}
-          </button>
-        </div>
-      </div>
-
       {/* ─── Platform Selector & Tab Switcher Bar ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/10 shadow-xs">
         {/* Navigation Tabs */}
@@ -502,52 +392,9 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
           </button>
         </div>
 
-        {/* Global Active Tracking Engines Toggle, Auto-Save Status & Save Button */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 px-2 py-1 rounded-xl bg-gray-50 dark:bg-gray-800/80 border border-gray-200/80 dark:border-zinc-800">
-            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider pl-1">
-              Engine Mode:
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setActivePlatform('meta')}
-                className={`px-2.5 py-1 rounded-lg text-[10.5px] font-semibold transition cursor-pointer ${
-                  activePlatform === 'meta'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
-                }`}
-              >
-                Meta Only
-              </button>
-              <button
-                type="button"
-                onClick={() => setActivePlatform('google')}
-                className={`px-2.5 py-1 rounded-lg text-[10.5px] font-semibold transition cursor-pointer ${
-                  activePlatform === 'google'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
-                }`}
-              >
-                Google Only
-              </button>
-              <button
-                type="button"
-                onClick={() => setActivePlatform('both')}
-                className={`px-2.5 py-1 rounded-lg text-[10.5px] font-semibold transition cursor-pointer ${
-                  activePlatform === 'both'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
-                }`}
-              >
-                Both (Dual Engine)
-              </button>
-            </div>
-          </div>
-
-          {/* Auto-Save Status Indicator & Manual Save Button */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-2 py-1 text-xs">
+        {/* Auto-Save Status Indicator & Manual Save Button */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2 py-1 text-xs">
               {saveStatus === 'saving' && (
                 <span className="flex items-center gap-1 text-amber-500 font-medium">
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -585,7 +432,6 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
             </button>
           </div>
         </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ─── Column 1 & 2: Dynamic Form Panels ─── */}
