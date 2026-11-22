@@ -328,7 +328,13 @@ export default function LinkPixelTab({ linkId, linkData, onUpdated }: LinkPixelT
       });
 
       if (res.data?.success) {
-        toast.success('Test conversion dispatched! Check Meta Events Manager / Google Ads Diagnostics.');
+        if (res.data?.capiFired) {
+          toast.success('Test conversion dispatched via Meta CAPI! Check Meta Events Manager.');
+        } else if (!hasCapiToken) {
+          toast.success('Test event logged. To forward to Meta Events Manager via server-to-server CAPI, add your Meta API Token below.');
+        } else {
+          toast.success('Test conversion processed.');
+        }
         fetchLogs();
       } else {
         toast.error(res.data?.error || 'Test event failed');

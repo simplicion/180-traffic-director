@@ -768,6 +768,9 @@ export default async function middleware(request) {
         // Dynamic Meta Dispatch Block
     const metaDispatchBlock = hasMeta ? `
       try {
+        for (var pi = 0; pi < _pixels.length; pi++) {
+          w.fbq('trackSingle', _pixels[pi], eventName, customData, { eventID: eventId });
+        }
         w.fbq('track', eventName, customData, { eventID: eventId });
       } catch(err) {}
 ` : '';

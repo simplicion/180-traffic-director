@@ -368,7 +368,9 @@ export class PublicRoutingController {
       }
 
       res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-      res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=900, stale-while-revalidate=86400');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.setHeader('Access-Control-Allow-Origin', '*');
       return res.send(scriptJs);
     } catch (error: any) {
