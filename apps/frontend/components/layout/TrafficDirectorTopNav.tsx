@@ -17,6 +17,7 @@ import {
 import clsx from 'clsx';
 import { getAuthToken } from '@/lib/api';
 import { useSubscription } from '@/lib/useSubscription';
+import { WEBSITE_BUILDER_COMING_SOON } from '@/lib/feature-flags';
 
 export function TrafficDirectorTopNav() {
   const pathname = usePathname();
@@ -160,6 +161,11 @@ export function TrafficDirectorTopNav() {
             >
               <Globe className="w-3.5 h-3.5" />
               <span>Website Builder</span>
+              {WEBSITE_BUILDER_COMING_SOON && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-md font-mono font-bold uppercase bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                  SOON
+                </span>
+              )}
             </Link>
 
             <Link

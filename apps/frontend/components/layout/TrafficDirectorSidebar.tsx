@@ -304,6 +304,8 @@ export function TrafficDirectorSidebar() {
                       'text-[9px] px-1.5 py-0.5 rounded-md font-mono font-bold uppercase shrink-0',
                       item.badgePaid
                         ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25'
+                        : item.badge === 'SOON'
+                        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
                         : 'bg-zinc-200/80 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300'
                     )}
                   >
