@@ -130,15 +130,15 @@ async function runSubscriptionTrialAndLockingTest() {
     assert(cloakingActivationBlocked, 'Cloaking power toggle is locked when trial expired');
 
     // -------------------------------------------------------------
-    // Test 4: Upgrade to PRO Plan ($50, 5 Links, Advanced Analytics)
+    // Test 4: Upgrade to PRO Plan ($80, 5 Links, Advanced Analytics)
     // -------------------------------------------------------------
-    console.log('\n4️⃣ Testing Upgrade to PRO Plan ($50 Armor)...');
+    console.log('\n4️⃣ Testing Upgrade to PRO Plan ($80 Armor)...');
     
     // Simulate paid subscription activation
     try {
       await (db as any).$executeRawUnsafe(
         `UPDATE "TrafficDirectorSubscription" 
-         SET "planTier" = 'PRO', "maxLinks" = 5, "status" = 'ACTIVE', "amountCharged" = 50.0, "updatedAt" = NOW()
+         SET "planTier" = 'PRO', "maxLinks" = 5, "status" = 'ACTIVE', "amountCharged" = 80.0, "updatedAt" = NOW()
          WHERE "userId" = $1`,
         testUserId
       );
@@ -167,14 +167,14 @@ async function runSubscriptionTrialAndLockingTest() {
     assert(Boolean(link3?.id), 'Successfully created Link 3 under PRO tier (3/5)');
 
     // -------------------------------------------------------------
-    // Test 5: Upgrade to ENTERPRISE Plan ($75, Unlimited Links)
+    // Test 5: Upgrade to ENTERPRISE Plan ($120, Unlimited Links)
     // -------------------------------------------------------------
-    console.log('\n5️⃣ Testing Upgrade to ENTERPRISE Plan ($75 Sovereign)...');
+    console.log('\n5️⃣ Testing Upgrade to ENTERPRISE Plan ($120 Sovereign)...');
 
     try {
       await (db as any).$executeRawUnsafe(
         `UPDATE "TrafficDirectorSubscription" 
-         SET "planTier" = 'ENTERPRISE', "maxLinks" = -1, "status" = 'ACTIVE', "amountCharged" = 75.0, "updatedAt" = NOW()
+         SET "planTier" = 'ENTERPRISE', "maxLinks" = -1, "status" = 'ACTIVE', "amountCharged" = 120.0, "updatedAt" = NOW()
          WHERE "userId" = $1`,
         testUserId
       );

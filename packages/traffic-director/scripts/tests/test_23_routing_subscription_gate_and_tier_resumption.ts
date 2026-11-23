@@ -131,7 +131,7 @@ async function runEdgeCloakingSubscriptionGateTest() {
       data: {
         subscriptionId: `sub_180_${Date.now()}`,
         planCode: 'pro-monthly',
-        amount: 50,
+        amount: 80,
         currency: 'USD',
         metadata: {
           userId: testUserId,
@@ -142,7 +142,7 @@ async function runEdgeCloakingSubscriptionGateTest() {
 
     const statusAfterUpgrade = await TrafficDirectorBillingService.getSubscriptionStatus(testUserId);
     assert(statusAfterUpgrade.subscription.status === 'ACTIVE', 'Subscription status updated to ACTIVE');
-    assert(statusAfterUpgrade.subscription.planTier === 'PRO', 'Plan tier updated to PRO ($50 Armor)');
+    assert(statusAfterUpgrade.subscription.planTier === 'PRO', 'Plan tier updated to PRO ($80 Armor)');
     assert(statusAfterUpgrade.subscription.cloakingEnabled === true, 'Cloaking enabled is TRUE after upgrade');
     assert(statusAfterUpgrade.subscription.hasAdvancedAnalytics === true, 'hasAdvancedAnalytics is TRUE for PRO tier');
 
@@ -163,15 +163,15 @@ async function runEdgeCloakingSubscriptionGateTest() {
     assert(evalUpgraded.isFallback === false, 'isFallback is FALSE after upgrade');
 
     // -------------------------------------------------------------
-    // 4. Starter Plan Analytics Gating ($25 Plan)
+    // 4. Starter Plan Analytics Gating ($30 Plan)
     // -------------------------------------------------------------
-    console.log('\n4️⃣ Verifying Starter Plan ($25) Analytics Gating...');
+    console.log('\n4️⃣ Verifying Starter Plan ($30) Analytics Gating...');
     await TrafficDirectorBillingService.handleWebhookEvent({
       event: 'subscription.activated',
       data: {
         subscriptionId: `sub_starter_${Date.now()}`,
         planCode: 'starter-monthly',
-        amount: 25,
+        amount: 30,
         currency: 'USD',
         metadata: {
           userId: testUserId,
@@ -182,7 +182,7 @@ async function runEdgeCloakingSubscriptionGateTest() {
 
     const statusStarter = await TrafficDirectorBillingService.getSubscriptionStatus(testUserId);
     assert(statusStarter.subscription.planTier === 'STARTER', 'Plan tier is STARTER');
-    assert(statusStarter.subscription.hasAdvancedAnalytics === false, 'hasAdvancedAnalytics is FALSE for STARTER ($25 basic plan)');
+    assert(statusStarter.subscription.hasAdvancedAnalytics === false, 'hasAdvancedAnalytics is FALSE for STARTER ($30 basic plan)');
     assert(statusStarter.subscription.cloakingEnabled === true, 'Cloaking enabled is TRUE on STARTER');
     assert(statusStarter.subscription.maxLinks === 2, 'maxLinks is 2 on STARTER');
 

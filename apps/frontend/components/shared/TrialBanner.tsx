@@ -89,7 +89,7 @@ export function TrialBanner() {
             href="/traffic-director/subscription"
             className="group inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white border border-white/30 font-semibold text-xs active:scale-95 transition shrink-0"
           >
-            <span>View Plans ($25, $50, $75)</span>
+            <span>View Plans ($30, $80, $120)</span>
             <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>

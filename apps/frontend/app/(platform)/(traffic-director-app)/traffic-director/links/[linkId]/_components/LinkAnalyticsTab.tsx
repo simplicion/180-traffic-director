@@ -703,7 +703,7 @@ export default function LinkAnalyticsTab({ linkId, linkData }: LinkAnalyticsTabP
         ) : (
           <FeatureLock
             title="Geographic Traffic Split Locked"
-            description="Country-level traffic distributions and geo-spoofing telemetry require Pro Armor ($50/mo) or Enterprise Sovereign."
+            description="Country-level traffic distributions and geo-spoofing telemetry require Pro Armor ($80/mo) or Enterprise Sovereign."
             actionText="Upgrade to Pro Armor"
             actionHref="/traffic-director/subscription"
             className="min-h-[300px]"
@@ -817,7 +817,7 @@ export default function LinkAnalyticsTab({ linkId, linkData }: LinkAnalyticsTabP
       ) : (
         <FeatureLock
           title="Client Device Telemetry Locked"
-          description="Detailed hardware architecture breakdown, OS platforms, and in-app WebView detection require Pro Armor ($50/mo) or Enterprise Sovereign."
+          description="Detailed hardware architecture breakdown, OS platforms, and in-app WebView detection require Pro Armor ($80/mo) or Enterprise Sovereign."
           actionText="Upgrade to Pro Armor"
           actionHref="/traffic-director/subscription"
           className="min-h-[220px]"
@@ -915,7 +915,7 @@ export default function LinkAnalyticsTab({ linkId, linkData }: LinkAnalyticsTabP
       ) : (
         <FeatureLock
           title="Real-Time Decision Stream Locked"
-          description="Live millisecond request inspections, raw User-Agent telemetry, and hardware probe details require Pro Armor ($50/mo) or Enterprise Sovereign."
+          description="Live millisecond request inspections, raw User-Agent telemetry, and hardware probe details require Pro Armor ($80/mo) or Enterprise Sovereign."
           actionText="Unlock Live Edge Feed"
           actionHref="/traffic-director/subscription"
           className="min-h-[280px]"

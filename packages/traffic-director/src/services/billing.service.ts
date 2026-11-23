@@ -101,7 +101,7 @@ export const DEFAULT_TRAFFIC_DIRECTOR_PLANS: Record<TrafficDirectorTier, PlanDef
   STARTER: {
     tier: 'STARTER',
     name: 'Starter Edge',
-    price: 25,
+    price: 30,
     currency: 'USD',
     interval: 'monthly',
     maxLinks: 2,
@@ -119,7 +119,7 @@ export const DEFAULT_TRAFFIC_DIRECTOR_PLANS: Record<TrafficDirectorTier, PlanDef
   PRO: {
     tier: 'PRO',
     name: 'Pro Armor',
-    price: 50,
+    price: 80,
     currency: 'USD',
     interval: 'monthly',
     maxLinks: 5,
@@ -139,7 +139,7 @@ export const DEFAULT_TRAFFIC_DIRECTOR_PLANS: Record<TrafficDirectorTier, PlanDef
   ENTERPRISE: {
     tier: 'ENTERPRISE',
     name: 'Enterprise Sovereign',
-    price: 75,
+    price: 120,
     currency: 'USD',
     interval: 'monthly',
     maxLinks: -1, // Unlimited
@@ -692,7 +692,7 @@ export class TrafficDirectorBillingService {
     if (!sub.canCreateMoreLinks) {
       if (sub.planTier === 'FREE') {
         throw new Error(
-          `SUBSCRIPTION_REQUIRED: Free accounts can create only 1 Smart Link free of cost (${sub.currentLinksCount}/${sub.maxLinks} used). Upgrade to Starter ($25/mo), Pro ($50/mo), or Enterprise to create more links.`
+          `SUBSCRIPTION_REQUIRED: Free accounts can create only 1 Smart Link free of cost (${sub.currentLinksCount}/${sub.maxLinks} used). Upgrade to Starter ($30/mo), Pro ($80/mo), or Enterprise ($120/mo) to create more links.`
         );
       }
       throw new Error(
@@ -1101,7 +1101,7 @@ export class TrafficDirectorBillingService {
         else if (sessionId.includes('_pro_')) devTier = 'PRO';
 
         const dynamicPlans = await this.getPlans();
-        const tierPrice = dynamicPlans[devTier]?.price || (devTier === 'ENTERPRISE' ? 75 : devTier === 'STARTER' ? 25 : 50);
+        const tierPrice = dynamicPlans[devTier]?.price || (devTier === 'ENTERPRISE' ? 120 : devTier === 'STARTER' ? 30 : 80);
 
         const updatedRecord = await this.activateSubscriptionFromSessionRecord(userId, {
           id: sessionId,

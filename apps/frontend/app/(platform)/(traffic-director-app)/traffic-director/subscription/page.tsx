@@ -220,20 +220,20 @@ export default function SubscriptionPage() {
   const isPaid = subData?.status === 'ACTIVE' && currentTier !== 'FREE';
   const isTrial = subData?.isTrialing || currentTier === 'FREE' || subData?.status === 'TRIALING';
   const targetPlan = plans.find((p) => p.tier === selectedTier) || plans[0] || {
-    price: selectedTier === 'STARTER' ? 25 : selectedTier === 'PRO' ? 50 : 75,
+    price: selectedTier === 'STARTER' ? 30 : selectedTier === 'PRO' ? 80 : 120,
     name: selectedTier,
     currency: 'USD',
     currencySymbol: '$',
-    basePriceUsd: selectedTier === 'STARTER' ? 25 : selectedTier === 'PRO' ? 50 : 75,
+    basePriceUsd: selectedTier === 'STARTER' ? 30 : selectedTier === 'PRO' ? 80 : 120,
   };
 
   const starterPlan = plans.find((p) => p.tier === 'STARTER') || {
     tier: 'STARTER' as const,
     name: 'Starter Edge',
-    price: 25,
+    price: 30,
     currency: 'USD',
     currencySymbol: '$',
-    basePriceUsd: 25,
+    basePriceUsd: 30,
     interval: 'monthly',
     maxLinks: 2,
     features: [],
@@ -241,10 +241,10 @@ export default function SubscriptionPage() {
   const proPlan = plans.find((p) => p.tier === 'PRO') || {
     tier: 'PRO' as const,
     name: 'Pro Armor',
-    price: 50,
+    price: 80,
     currency: 'USD',
     currencySymbol: '$',
-    basePriceUsd: 50,
+    basePriceUsd: 80,
     interval: 'monthly',
     maxLinks: 5,
     features: [],
@@ -252,10 +252,10 @@ export default function SubscriptionPage() {
   const enterprisePlan = plans.find((p) => p.tier === 'ENTERPRISE') || {
     tier: 'ENTERPRISE' as const,
     name: 'Enterprise Sovereign',
-    price: 75,
+    price: 120,
     currency: 'USD',
     currencySymbol: '$',
-    basePriceUsd: 75,
+    basePriceUsd: 120,
     interval: 'monthly',
     maxLinks: -1,
     features: [],
@@ -343,7 +343,7 @@ export default function SubscriptionPage() {
               {isPaid ? (
                 <>
                   {subData?.currency === 'INR' ? '₹' : '$'}
-                  {subData?.amountCharged !== undefined ? subData.amountCharged.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '25.00'}
+                  {subData?.amountCharged !== undefined ? subData.amountCharged.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '30.00'}
                   <span className="text-xs text-zinc-400 font-normal"> / month</span>
                 </>
               ) : (
