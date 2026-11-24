@@ -65,9 +65,18 @@ def resolve_server_names():
     edge_domains = [os.environ.get('DEFAULT_EDGE_DOMAIN', '')] + _split(os.environ.get('AVAILABLE_EDGE_DOMAINS'))
     for raw in edge_domains:
         domain = _host(raw)
-        # The portal apex lives on Cloudflare Pages; only dedicated edge domains are served here.
-        if domain and domain != portal_host:
+        if not domain:
+            continue
+        # The portal apex lives on Cloudflare Pages, but wildcards (*.domain)
+        # are dynamic smart links/subdomains that must be handled by this edge gateway.
+        if domain == portal_host:
+            names.append('*.' + domain)
+        else:
             names.extend([domain, '*.' + domain])
+
+    # Ensure production root domain wildcard is always included
+    if '*.180trafficdirector.pro' not in names:
+        names.append('*.180trafficdirector.pro')
 
     names.extend(_split(os.environ.get('NGINX_EXTRA_SERVER_NAMES')))
 
