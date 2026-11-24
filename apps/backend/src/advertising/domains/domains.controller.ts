@@ -73,9 +73,12 @@ export const checkSubdomainAvailability = async (req: Request, res: Response) =>
       return res.status(400).json({ error: 'Slug parameter is required.' });
     }
 
+    const rootDomain = req.query.rootDomain ? String(req.query.rootDomain) : undefined;
+
     const result = await DomainsService.checkSubdomainAvailability(slug, {
       targetId,
-      companyId: userId
+      companyId: userId,
+      rootDomain
     });
 
     res.json({ success: true, data: result });

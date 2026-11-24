@@ -308,7 +308,8 @@ export default function WebsiteCard({ website, companyData, onRefresh, index = 0
                 targetType="ADVERTISING_WEBSITE"
                 targetId={website.id}
                 targetName={website.name}
-                initialDomain={website.customDomain || (website.slug ? `${website.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'localhost'}` : null)}
+                initialDomain={website.customDomain || (website.slug ? `${website.slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '180trafficdirector.pro'}` : null)}
+                rootDomain={process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '180trafficdirector.pro'}
                 onDomainSaved={() => onRefresh()}
                 onDomainRemoved={() => onRefresh()}
             />

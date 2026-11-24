@@ -1150,6 +1150,7 @@ serve_safe_page($config);
           targetName={linkName}
           initialDomain={customDomain}
           apiBaseUrl={getApiBase()}
+          rootDomain={getDefaultEdgeDomain()}
           onDomainSaved={() => {
             if (onDomainUpdated) onDomainUpdated();
           }}
