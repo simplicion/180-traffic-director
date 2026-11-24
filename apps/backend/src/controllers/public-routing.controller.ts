@@ -41,7 +41,7 @@ export class PublicRoutingController {
 
       // If link is configured for client-side shield, render the shield probe page
       if (link.shieldMode === 'client_shield') {
-        return PublicRoutingController.handleShieldRoute(req, res);
+        return PublicRoutingController.handleShieldRoute(req, res, link);
       }
 
       // 2. Extract Signals from Client Request
@@ -227,10 +227,18 @@ export class PublicRoutingController {
     }
   }
 
-  static async handleShieldRoute(req: Request, res: Response) {
+  static async handleShieldRoute(req: Request, res: Response, existingLink?: any) {
     try {
-      const { slug } = req.params;
-      const link = await TrafficLinksService.getLinkBySlug(slug);
+      const rawSlug = req.params.slug || (req.params as any)['0'] || '';
+      const domainQuery = (req.query.domain as string) || (req.headers['x-forwarded-host'] as string) || (req.headers.host as string);
+
+      let link = existingLink || null;
+      if (!link && rawSlug && rawSlug !== '_domain') {
+        link = await TrafficLinksService.getLinkBySlug(rawSlug);
+      }
+      if (!link && domainQuery) {
+        link = await TrafficLinksService.getLinkByCustomDomain(domainQuery);
+      }
       if (!link) {
         return res.status(404).send('Smart Link Not Found');
       }
@@ -312,8 +320,16 @@ export class PublicRoutingController {
   static async handleDynamicTag(req: Request, res: Response) {
     try {
       const { slug } = req.params;
-      const cleanSlug = slug.replace(/\.js$/, '');
-      const link = await TrafficLinksService.getLinkBySlug(cleanSlug);
+      const cleanSlug = (slug || '').replace(/\.js$/, '');
+      const domainQuery = (req.query.domain as string) || (req.headers['x-forwarded-host'] as string) || (req.headers.host as string);
+
+      let link = null;
+      if (cleanSlug && cleanSlug !== '_domain') {
+        link = await TrafficLinksService.getLinkBySlug(cleanSlug);
+      }
+      if (!link && domainQuery) {
+        link = await TrafficLinksService.getLinkByCustomDomain(domainQuery);
+      }
       if (!link) {
         return res.status(404).type('application/javascript').send('// Smart Link Not Found');
       }
@@ -420,8 +436,16 @@ export class PublicRoutingController {
   static async handleEdgeEvaluate(req: Request, res: Response) {
     try {
       const { slug } = req.params;
-      const cleanSlug = slug.replace(/\.js$/, '');
-      const link = await TrafficLinksService.getLinkBySlug(cleanSlug);
+      const cleanSlug = (slug || '').replace(/\.js$/, '');
+      const domainQuery = (req.query.domain as string) || (req.headers['x-forwarded-host'] as string) || (req.headers.host as string);
+
+      let link = null;
+      if (cleanSlug && cleanSlug !== '_domain') {
+        link = await TrafficLinksService.getLinkBySlug(cleanSlug);
+      }
+      if (!link && domainQuery) {
+        link = await TrafficLinksService.getLinkByCustomDomain(domainQuery);
+      }
       if (!link) {
         return res.status(404).json({ success: false, error: 'Smart Link Not Found' });
       }
