@@ -201,6 +201,10 @@ export class DomainsService {
       }
     }
 
+    const isPlatformSubdomain = this.isPlatformDomain(cleanDomain);
+    const initialStatus = (vercelData?.verified || isPlatformSubdomain) ? 'ACTIVE' : 'PENDING_VERIFICATION';
+    const initialSslStatus = (vercelData?.verified || isPlatformSubdomain) ? 'ACTIVE' : 'PENDING';
+
     // Upsert into DomainRegistry
     const registry = await (prisma as any).domainRegistry.upsert({
       where: { domain: cleanDomain },
@@ -208,14 +212,18 @@ export class DomainsService {
         type: params.type,
         targetId: params.targetId,
         userId: companyId,
-        isApex
+        isApex,
+        ...(isPlatformSubdomain ? { status: 'ACTIVE', sslStatus: 'ACTIVE', verifiedAt: new Date() } : {})
       },
       create: {
         domain: cleanDomain,
         type: params.type,
         targetId: params.targetId,
         userId: companyId,
-        isApex
+        isApex,
+        status: initialStatus,
+        sslStatus: initialSslStatus,
+        verifiedAt: isPlatformSubdomain ? new Date() : null
       },
       select: {
         id: true,
@@ -232,9 +240,6 @@ export class DomainsService {
     // Update target model customDomain reference
     await this.syncTargetCustomDomain(params.type, params.targetId, cleanDomain);
 
-    const initialStatus = vercelData?.verified ? 'ACTIVE' : 'PENDING_VERIFICATION';
-    const initialSslStatus = vercelData?.verified ? 'ACTIVE' : 'PENDING';
-
     return {
       success: true,
       data: {
@@ -249,7 +254,9 @@ export class DomainsService {
         verifiedAt: (registry as any).verifiedAt ? (registry as any).verifiedAt.toISOString() : null,
         lastCheckedAt: new Date().toISOString()
       },
-      message: 'Domain registered successfully. Please configure the required DNS records.'
+      message: isPlatformSubdomain
+        ? 'Platform subdomain connected successfully and active immediately.'
+        : 'Domain registered successfully. Please configure the required DNS records.'
     };
   }
 
