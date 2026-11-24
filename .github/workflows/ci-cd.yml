@@ -310,33 +310,56 @@ jobs:
               if (apexDomains.includes(rootDomain)) {
                 recordNames.unshift(rootDomain);
               }
+              // Automatically provision wildcard A record (*.rootDomain) so dynamic platform subdomains resolve instantly
+              recordNames.push(`*.${rootDomain}`);
+
               for (const fullRecordName of recordNames) {
                 const conflicting = records.find(r => r.name === fullRecordName && r.type === 'CNAME');
                 if (conflicting) {
                   console.log(`Skipping ${fullRecordName}: a CNAME record already exists (-> ${conflicting.content}). Remove it manually to route this host to EC2.`);
                   continue;
                 }
-                const existing = records.find(r => r.name === fullRecordName && r.type === 'A');
+                const existing = records.find(r => (r.name === fullRecordName || (fullRecordName.startsWith('*') && r.name === fullRecordName)) && r.type === 'A');
 
                 if (existing) {
                   console.log(`Updating existing A record: ${fullRecordName} -> ${targetIp} (id: ${existing.id})`);
-                  const updateRes = await cfRequest(`/zones/${zoneId}/dns_records/${existing.id}`, 'PUT', {
+                  let updateRes = await cfRequest(`/zones/${zoneId}/dns_records/${existing.id}`, 'PUT', {
                     type: 'A',
                     name: fullRecordName,
                     content: targetIp,
                     proxied: true,
                     ttl: 1
                   });
+                  if (!updateRes?.success && fullRecordName.startsWith('*')) {
+                    console.log(`Proxied wildcard update note: ${JSON.stringify(updateRes?.errors)}. Retrying as DNS-only (proxied: false)...`);
+                    updateRes = await cfRequest(`/zones/${zoneId}/dns_records/${existing.id}`, 'PUT', {
+                      type: 'A',
+                      name: fullRecordName,
+                      content: targetIp,
+                      proxied: false,
+                      ttl: 1
+                    });
+                  }
                   console.log(`Update result for ${fullRecordName}: success=${updateRes?.success}`);
                 } else {
                   console.log(`Creating new A record: ${fullRecordName} -> ${targetIp}`);
-                  const createRes = await cfRequest(`/zones/${zoneId}/dns_records`, 'POST', {
+                  let createRes = await cfRequest(`/zones/${zoneId}/dns_records`, 'POST', {
                     type: 'A',
                     name: fullRecordName,
                     content: targetIp,
                     proxied: true,
                     ttl: 1
                   });
+                  if (!createRes?.success && fullRecordName.startsWith('*')) {
+                    console.log(`Proxied wildcard create note: ${JSON.stringify(createRes?.errors)}. Retrying as DNS-only (proxied: false)...`);
+                    createRes = await cfRequest(`/zones/${zoneId}/dns_records`, 'POST', {
+                      type: 'A',
+                      name: fullRecordName,
+                      content: targetIp,
+                      proxied: false,
+                      ttl: 1
+                    });
+                  }
                   console.log(`Create result for ${fullRecordName}: success=${createRes?.success}`);
                 }
               }

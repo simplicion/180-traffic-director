@@ -1,0 +1,156 @@
+name: Cloudflare DNS Sync & Wildcard Provisioning
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/sync-cloudflare-dns.yml'
+
+concurrency:
+  group: sync-cloudflare-dns-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync-dns:
+    name: Sync Cloudflare DNS & Wildcard Records
+    runs-on: ubuntu-latest
+    steps:
+      - name: Synchronize DNS Records
+        env:
+          CF_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CF_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TARGET_IP: ${{ secrets.EC2_HOST }}
+          DNS_SYNC_ZONES: ${{ vars.DNS_SYNC_ZONES }}
+          DNS_APEX_ZONES: ${{ vars.DNS_APEX_ZONES }}
+        run: |
+          node << 'EOF'
+          const https = require('https');
+
+          const authKey = (process.env.CF_KEY || '').trim();
+          const authEmail = (process.env.CF_EMAIL || '').trim();
+          const targetIp = (process.env.TARGET_IP || '').trim();
+          const splitList = (raw) => (raw || '').split(',').map((d) => d.trim().toLowerCase()).filter(Boolean);
+          const targetDomains = splitList(process.env.DNS_SYNC_ZONES);
+          const apexDomains = splitList(process.env.DNS_APEX_ZONES);
+
+          if (!authKey || !authEmail || !targetIp) {
+            console.log('Skipping DNS sync: Cloudflare credentials or target IP not configured.');
+            process.exit(0);
+          }
+
+          function cfRequest(path, method = 'GET', body = null) {
+            return new Promise((resolve, reject) => {
+              const bodyStr = body ? JSON.stringify(body) : null;
+              const req = https.request({
+                hostname: 'api.cloudflare.com',
+                port: 443,
+                path: `/client/v4${path}`,
+                method,
+                headers: {
+                  'X-Auth-Email': authEmail,
+                  'X-Auth-Key': authKey,
+                  'Content-Type': 'application/json',
+                  ...(bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {})
+                }
+              }, res => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                  try {
+                    resolve(JSON.parse(data));
+                  } catch (e) {
+                    reject(new Error(`Failed to parse JSON response: ${data}`));
+                  }
+                });
+              });
+              req.on('error', reject);
+              if (bodyStr) req.write(bodyStr);
+              req.end();
+            });
+          }
+
+          async function main() {
+            if (targetDomains.length === 0) {
+              console.log('Skipping DNS sync: DNS_SYNC_ZONES repository variable is not set.');
+              return;
+            }
+            for (const rootDomain of targetDomains) {
+              console.log(`==> Checking Cloudflare DNS for ${rootDomain} -> EC2 ${targetIp}...`);
+              const zonesRes = await cfRequest(`/zones?name=${rootDomain}`);
+              if (!zonesRes.success || !zonesRes.result || zonesRes.result.length === 0) {
+                console.log(`Zone ${rootDomain} not found in this Cloudflare account. Skipping.`);
+                continue;
+              }
+              const zoneId = zonesRes.result[0].id;
+              console.log(`==> Zone ${rootDomain} confirmed (id: ${zoneId}). Syncing edge routing records...`);
+
+              const dnsRecords = await cfRequest(`/zones/${zoneId}/dns_records`);
+              const records = dnsRecords.result || [];
+
+              const recordNames = ['edge', 'api', 'trk'].map((sub) => `${sub}.${rootDomain}`);
+              if (apexDomains.includes(rootDomain)) {
+                recordNames.unshift(rootDomain);
+              }
+              // Provision wildcard A record (*.rootDomain) so dynamic platform subdomains resolve instantly
+              recordNames.push(`*.${rootDomain}`);
+
+              for (const fullRecordName of recordNames) {
+                const conflicting = records.find(r => r.name === fullRecordName && r.type === 'CNAME');
+                if (conflicting) {
+                  console.log(`Skipping ${fullRecordName}: a CNAME record already exists (-> ${conflicting.content}). Remove it manually to route this host to EC2.`);
+                  continue;
+                }
+                const existing = records.find(r => (r.name === fullRecordName || (fullRecordName.startsWith('*') && r.name === fullRecordName)) && r.type === 'A');
+
+                if (existing) {
+                  console.log(`Updating existing A record: ${fullRecordName} -> ${targetIp} (id: ${existing.id})`);
+                  let updateRes = await cfRequest(`/zones/${zoneId}/dns_records/${existing.id}`, 'PUT', {
+                    type: 'A',
+                    name: fullRecordName,
+                    content: targetIp,
+                    proxied: true,
+                    ttl: 1
+                  });
+                  if (!updateRes?.success && fullRecordName.startsWith('*')) {
+                    console.log(`Proxied wildcard update note: ${JSON.stringify(updateRes?.errors)}. Retrying as DNS-only (proxied: false)...`);
+                    updateRes = await cfRequest(`/zones/${zoneId}/dns_records/${existing.id}`, 'PUT', {
+                      type: 'A',
+                      name: fullRecordName,
+                      content: targetIp,
+                      proxied: false,
+                      ttl: 1
+                    });
+                  }
+                  console.log(`Update result for ${fullRecordName}: success=${updateRes?.success}`);
+                } else {
+                  console.log(`Creating new A record: ${fullRecordName} -> ${targetIp}`);
+                  let createRes = await cfRequest(`/zones/${zoneId}/dns_records`, 'POST', {
+                    type: 'A',
+                    name: fullRecordName,
+                    content: targetIp,
+                    proxied: true,
+                    ttl: 1
+                  });
+                  if (!createRes?.success && fullRecordName.startsWith('*')) {
+                    console.log(`Proxied wildcard create note: ${JSON.stringify(createRes?.errors)}. Retrying as DNS-only (proxied: false)...`);
+                    createRes = await cfRequest(`/zones/${zoneId}/dns_records`, 'POST', {
+                      type: 'A',
+                      name: fullRecordName,
+                      content: targetIp,
+                      proxied: false,
+                      ttl: 1
+                    });
+                  }
+                  console.log(`Create result for ${fullRecordName}: success=${createRes?.success}`);
+                }
+              }
+            }
+            console.log('==> Cloudflare DNS & Wildcard synchronization completed.');
+          }
+
+          main().catch(err => {
+            console.warn('DNS sync non-blocking warning:', err.message);
+            process.exit(0);
+          });
+          EOF
