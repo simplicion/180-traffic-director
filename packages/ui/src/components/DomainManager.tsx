@@ -41,6 +41,7 @@ export interface DomainManagerProps {
   targetName?: string;
   initialDomain?: string | null;
   apiBaseUrl?: string;
+  rootDomain?: string;
   onDomainSaved?: (domain: string) => void;
   onDomainRemoved?: () => void;
   onClose?: () => void;
@@ -52,6 +53,7 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
   targetName = 'Resource',
   initialDomain = null,
   apiBaseUrl = '',
+  rootDomain,
   onDomainSaved,
   onDomainRemoved,
   onClose
@@ -73,7 +75,15 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
     reason?: string;
   } | null>(null);
 
-  const platformRoot = process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || '';
+  const platformRoot = (
+    rootDomain ||
+    process.env.NEXT_PUBLIC_ROOT_DOMAIN ||
+    process.env.NEXT_PUBLIC_MAIN_DOMAIN ||
+    process.env.NEXT_PUBLIC_DEFAULT_EDGE_DOMAIN ||
+    (typeof window !== 'undefined' && window.location.hostname && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')
+      ? window.location.hostname
+      : '180trafficdirector.pro')
+  ).trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
 
   const cleanCustomInput = customDomainInput.trim().toLowerCase().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
   const isApex = cleanCustomInput ? cleanCustomInput.split('.').filter(Boolean).length <= 2 : false;
@@ -99,7 +109,7 @@ export const DomainManager: React.FC<DomainManagerProps> = ({
     setCheckingAvailability(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(getApiUrl(`/api/v1/domains/check-availability?slug=${encodeURIComponent(cleanSubdomain)}&targetId=${encodeURIComponent(targetId)}`));
+        const res = await fetch(getApiUrl(`/api/v1/domains/check-availability?slug=${encodeURIComponent(cleanSubdomain)}&targetId=${encodeURIComponent(targetId)}&rootDomain=${encodeURIComponent(platformRoot)}`));
         if (res.ok) {
           const json = await res.json();
           setAvailabilityResult({
