@@ -1,4 +1,4 @@
-import { EvaluationResult, ExtractedSignals, RuleCondition } from '../types';
+import { EvaluationResult, ExtractedSignals, RuleCondition, TrafficActionType } from '../types';
 import { ThreatIntelligenceService } from '../services/threat-intelligence.service';
 
 export interface EvaluatableRule {
@@ -193,11 +193,12 @@ export class DecisionEngine {
         }
 
         const elapsed = Math.round(performance.now() - startTime);
+        const rawAction = (rule.actionType as any) || (rule as any).action || 'redirect_302';
         return {
           matchedRuleId: rule.id,
           matchedRuleName: rule.name,
           destinationUrl: ensureAbsoluteUrl(rule.destinationUrl || (rule as any).targetUrl),
-          actionType: (rule.actionType as any) || (rule as any).action || 'redirect_302',
+          actionType: String(rawAction).toLowerCase().trim() as TrafficActionType,
           isFallback: false,
           evaluationLatencyMs: elapsed,
           signals
@@ -211,7 +212,7 @@ export class DecisionEngine {
       matchedRuleId: null,
       matchedRuleName: null,
       destinationUrl: safeFallbackUrl,
-      actionType: fallbackAction,
+      actionType: String(fallbackAction).toLowerCase().trim() as TrafficActionType,
       isFallback: true,
       evaluationLatencyMs: elapsed,
       signals

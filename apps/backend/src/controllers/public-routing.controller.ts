@@ -138,7 +138,8 @@ export class PublicRoutingController {
       }
 
       // 6. Action Execution: Reverse Proxy (HTTP 200 OK) vs JavaScript Replace vs Standard 302 Redirect
-      const shouldProxyInPlace = result.actionType === 'proxy_safe_page' || result.actionType === 'proxy_target_offer' || result.actionType === 'rewrite';
+      const normAction = (result.actionType || '').toLowerCase().trim();
+      const shouldProxyInPlace = normAction === 'proxy_safe_page' || normAction === 'proxy_target_offer' || normAction === 'rewrite' || normAction.includes('proxy');
 
       if (shouldProxyInPlace) {
         try {
@@ -160,11 +161,19 @@ export class PublicRoutingController {
           res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
           return res.status(streamResult.statusCode || 200).send(streamResult.html);
         } catch (proxyErr: any) {
-          console.warn('[PublicRoutingController] Reverse proxy direct stream fallback to 302:', proxyErr.message);
+          console.warn('[PublicRoutingController] Reverse proxy direct stream failed, serving seamless container fallback:', proxyErr.message);
+          try {
+            const containerHtml = ReverseProxyService.renderSeamlessContainer(finalDestination);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+            return res.status(200).send(containerHtml);
+          } catch (contErr: any) {
+            console.warn('[PublicRoutingController] Container fallback failed, falling back to 302 redirect:', contErr.message);
+          }
         }
       }
 
-      if (result.actionType === 'js_replace') {
+      if (normAction === 'js_replace') {
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         const safeUrl = JSON.stringify(finalDestination);
@@ -172,9 +181,9 @@ export class PublicRoutingController {
       }
 
       // Default Standard Redirect (302 / 301 / 307)
-      const statusCode = result.actionType === 'redirect_301' 
+      const statusCode = normAction === 'redirect_301' 
         ? 301 
-        : (result.actionType === 'redirect_307' ? 307 : 302);
+        : (normAction === 'redirect_307' ? 307 : 302);
 
       // Strip COOP / CSP / X-Frame-Options headers from Helmet that can break cross-origin redirection
       res.removeHeader('Cross-Origin-Opener-Policy');

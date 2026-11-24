@@ -172,13 +172,26 @@ export class TrafficLinksService {
   }
 
   static async getLinkByCustomDomain(domain: string) {
-    const cleanDomain = domain.toLowerCase().split(':')[0].trim();
-    const subdomainPrefix = cleanDomain.includes('.') ? cleanDomain.split('.')[0] : cleanDomain;
+    const cleanDomain = domain.toLowerCase().split(':')[0].trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+    const cleanWithoutWww = cleanDomain.replace(/\.www\./i, '.').replace(/^www\./i, '');
+    const cleanWithWww = cleanDomain.includes('.www.') ? cleanDomain : cleanDomain.replace(/([^.]+)\.(180trafficdirector\.pro)/i, '$1.www.$2');
+    const subdomainPrefix = cleanWithoutWww.includes('.') ? cleanWithoutWww.split('.')[0] : cleanWithoutWww;
     
+    const candidateDomains = Array.from(new Set([
+      cleanDomain,
+      cleanWithoutWww,
+      cleanWithWww,
+      `${cleanDomain}.localhost`,
+      `${cleanWithoutWww}.localhost`,
+      cleanDomain.replace('.localhost', ''),
+      cleanWithoutWww.replace('.localhost', ''),
+      subdomainPrefix
+    ])).filter(Boolean);
+
     // 1. Try finding in DomainRegistry
     const registry = await db.domainRegistry.findFirst({
       where: {
-        domain: { in: [cleanDomain, `${cleanDomain}.localhost`, cleanDomain.replace('.localhost', ''), subdomainPrefix] },
+        domain: { in: candidateDomains },
         type: 'TRAFFIC_LINK'
       }
     });
@@ -208,12 +221,7 @@ export class TrafficLinksService {
     if (!link) {
       link = await db.trafficLink.findFirst({
         where: {
-          OR: [
-            { customDomain: cleanDomain },
-            { customDomain: `${cleanDomain}.localhost` },
-            { customDomain: cleanDomain.replace('.localhost', '') },
-            { customDomain: subdomainPrefix }
-          ]
+          OR: candidateDomains.map(d => ({ customDomain: d }))
         },
         include: {
           rules: {

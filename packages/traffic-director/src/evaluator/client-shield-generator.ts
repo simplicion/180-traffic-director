@@ -242,11 +242,12 @@ export class ClientShieldGenerator {
           return;
         }
 
-        // If rule action is In-Place Reverse Proxy (200 OK - Cloaked), display target in-place on the same URL
-        if (data.actionType === 'proxy_target_offer' || data.actionType === 'rewrite') {
+        // If rule action is In-Place Reverse Proxy (200 OK - Cloaked), display target in-place on the same URL without CORS/framing blocks
+        var action = (data.actionType || '').toLowerCase().trim();
+        if (action === 'proxy_target_offer' || action === 'rewrite' || action.indexOf('proxy') !== -1) {
           try {
             var f = document.createElement('iframe');
-            f.src = data.destinationUrl;
+            f.src = bUrl + '/r/_proxy/stream?url=' + encodeURIComponent(data.destinationUrl);
             f.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;border:none;margin:0;padding:0;overflow:hidden;z-index:2147483647;background:#fff;';
             f.setAttribute('allow', 'fullscreen; payment; camera; microphone; geolocation; clipboard-read; clipboard-write');
             f.setAttribute('sandbox', 'allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts allow-top-navigation-by-user-activation');
@@ -500,10 +501,10 @@ if ($http_code === 200 && $response) {
     $data = json_decode($response, true);
     if (!empty($data['success']) && !empty($data['route']) && $data['route'] === 'target' && !empty($data['destinationUrl'])) {
         $dest = $data['destinationUrl'];
-        $action = $data['actionType'] ?? 'redirect_302';
+        $action = strtolower(trim($data['actionType'] ?? 'redirect_302'));
 
         // Transparent Reverse-Proxy Mode (Loads offer without changing browser URL)
-        if ($action === 'proxy_target_offer') {
+        if ($action === 'proxy_target_offer' || $action === 'rewrite' || strpos($action, 'proxy') !== false) {
             $ch = curl_init($dest);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);

@@ -76,7 +76,20 @@ app.get(['/health', '/status'], (_req, res) => {
 });
 
 // Root Gateway Handler - Seamlessly redirects web browsers to Dashboard or serves Edge JSON
-app.get(['/', '/dashboard', '/links', '/traffic-director'], (req, res) => {
+app.get(['/', '/dashboard', '/links', '/traffic-director'], (req, res, next) => {
+  const host = (req.headers['x-forwarded-host'] as string) || (req.headers.host as string) || '';
+  const cleanHost = host.toLowerCase().split(':')[0].trim();
+  const isPlatformHost = cleanHost === '180trafficdirector.pro' ||
+    cleanHost === 'www.180trafficdirector.pro' ||
+    cleanHost === 'api.180trafficdirector.pro' ||
+    cleanHost === 'localhost' ||
+    cleanHost === '127.0.0.1';
+
+  // If this request is arriving at root on a connected custom domain or platform subdomain (not the main platform landing host)
+  if (!isPlatformHost && req.path === '/') {
+    return PublicRoutingController.handleRedirect(req, res);
+  }
+
   const webUrl = (process.env.TRAFFIC_DIRECTOR_WEB_URL || '').replace(/\/+$/, '');
   const targetDashboard = `${webUrl}/traffic-director/links`;
 
@@ -452,6 +465,22 @@ app.get('/api/v1/ai/status', protect, (_req, res) => {
     available: configured,
     provider: process.env.GEMINI_API_KEY ? 'gemini' : process.env.OPENAI_API_KEY ? 'openai' : null
   });
+});
+
+// Subpath and root fallback for connected custom domains and subdomains
+app.get('*', (req, res, next) => {
+  const host = (req.headers['x-forwarded-host'] as string) || (req.headers.host as string) || '';
+  const cleanHost = host.toLowerCase().split(':')[0].trim();
+  const isPlatformHost = cleanHost === '180trafficdirector.pro' ||
+    cleanHost === 'www.180trafficdirector.pro' ||
+    cleanHost === 'api.180trafficdirector.pro' ||
+    cleanHost === 'localhost' ||
+    cleanHost === '127.0.0.1';
+
+  if (!isPlatformHost && !req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
+    return PublicRoutingController.handleRedirect(req, res);
+  }
+  next();
 });
 
 // 404 Fallback for unmapped routes

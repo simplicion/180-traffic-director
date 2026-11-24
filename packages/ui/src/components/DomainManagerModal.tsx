@@ -88,11 +88,11 @@ export const DomainManagerModal: React.FC<DomainManagerModalProps> = ({
     (typeof window !== 'undefined' && window.location.hostname && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')
       ? window.location.hostname
       : '180trafficdirector.pro')
-  ).trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+  ).trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '');
 
-  const cleanCustomInput = customDomainInput.trim().toLowerCase().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+  const cleanCustomInput = customDomainInput.trim().toLowerCase().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '');
   const isApex = cleanCustomInput ? cleanCustomInput.split('.').filter(Boolean).length <= 2 : false;
-  const cleanSubdomain = subdomainSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const cleanSubdomain = subdomainSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/^www-?/, '');
 
   const getApiUrl = (endpoint: string) => {
     let base = apiBaseUrl || '';

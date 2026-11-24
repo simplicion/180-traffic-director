@@ -14,12 +14,13 @@
  */
 export const getDefaultEdgeDomain = (): string => {
   const envDomain = process.env.NEXT_PUBLIC_DEFAULT_EDGE_DOMAIN || '';
-  const cleaned = envDomain.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  const cleaned = envDomain
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/^www\./i, '')
+    .replace(/\/+$/, '');
   if (cleaned && cleaned !== 'lokaya.shop') {
     return cleaned;
-  }
-  if (typeof window !== 'undefined' && window.location.hostname && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
-    return window.location.host;
   }
   return '180trafficdirector.pro';
 };
@@ -27,6 +28,7 @@ export const getDefaultEdgeDomain = (): string => {
 /**
  * Returns list of available edge domains for the selector, with default domain first.
  * If the link has an active customDomain, it is appended.
+ * Strictly filters out any "www." domains to avoid domain collision and routing issues.
  */
 export const getAvailableEdgeDomains = (customDomain?: string | null): string[] => {
   const defaultDomain = getDefaultEdgeDomain();
@@ -34,37 +36,44 @@ export const getAvailableEdgeDomains = (customDomain?: string | null): string[] 
   
   const envDomains = rawList
     .split(',')
-    .map((d) => d.trim().replace(/^https?:\/\//, '').replace(/\/+$/, ''))
-    .filter((d) => Boolean(d) && d !== 'lokaya.shop');
+    .map((d) => d.trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, ''))
+    .filter((d) => Boolean(d) && d !== 'lokaya.shop' && !d.startsWith('www.'));
 
   const domains: string[] = [];
 
-  // Default domain always appears first
+  // Default domain always appears first (e.g. 180trafficdirector.pro)
   if (defaultDomain && !domains.includes(defaultDomain)) {
     domains.push(defaultDomain);
   }
 
-  // Ensure production edge domain is always included
+  // Ensure production edge domain is always included (without www)
   if (!domains.includes('180trafficdirector.pro')) {
     domains.push('180trafficdirector.pro');
   }
 
   // Add all other configured edge domains from environment
   for (const d of envDomains) {
-    if (!domains.includes(d)) {
-      domains.push(d);
+    const cleanD = d.replace(/^www\./i, '');
+    if (cleanD && !domains.includes(cleanD) && !cleanD.startsWith('www.')) {
+      domains.push(cleanD);
     }
   }
 
   // If the link has its own verified custom domain, include it
   if (customDomain) {
-    const cleanCustom = customDomain.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
-    if (cleanCustom && !domains.includes(cleanCustom)) {
+    const cleanCustom = customDomain
+      .trim()
+      .replace(/^https?:\/\//i, '')
+      .replace(/\.www\./i, '.')
+      .replace(/^www\./i, '')
+      .replace(/\/+$/, '');
+    if (cleanCustom && !domains.includes(cleanCustom) && cleanCustom !== '180trafficdirector.pro') {
       domains.push(cleanCustom);
     }
   }
 
-  return domains;
+  // Strictly filter out any lingering www. domains
+  return domains.filter(d => !d.startsWith('www.'));
 };
 
 /**

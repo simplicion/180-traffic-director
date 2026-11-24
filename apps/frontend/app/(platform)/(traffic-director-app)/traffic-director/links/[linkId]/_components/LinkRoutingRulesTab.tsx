@@ -93,9 +93,42 @@ export default function LinkRoutingRulesTab({
                         #{index + 1} Priority
                       </span>
                       <h3 className="text-base font-bold text-gray-900 dark:text-white">{rule.name}</h3>
-                      <span className="px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 text-[10px] font-semibold uppercase">
-                        {rule.actionType}
-                      </span>
+                      {(() => {
+                        const act = (rule.actionType || '').toLowerCase();
+                        if (act === 'proxy_target_offer' || act === 'proxy_safe_page' || act.includes('proxy')) {
+                          return (
+                            <span className="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[10px] font-semibold flex items-center gap-1">
+                              🛡️ In-Place Reverse Proxy (200 OK)
+                            </span>
+                          );
+                        }
+                        if (act === 'js_replace') {
+                          return (
+                            <span className="px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 text-[10px] font-semibold">
+                              ⚡ JS Replace
+                            </span>
+                          );
+                        }
+                        if (act === 'redirect_301') {
+                          return (
+                            <span className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-[10px] font-semibold">
+                              🔗 301 Permanent
+                            </span>
+                          );
+                        }
+                        if (act === 'redirect_307') {
+                          return (
+                            <span className="px-2 py-0.5 rounded bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 text-[10px] font-semibold">
+                              📦 307 Temporary
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 text-[10px] font-semibold">
+                            🔀 302 Redirect
+                          </span>
+                        );
+                      })()}
                       {rule.weight < 100 && (
                         <span className="px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 text-[10px] font-semibold">
                           Split: {rule.weight}%

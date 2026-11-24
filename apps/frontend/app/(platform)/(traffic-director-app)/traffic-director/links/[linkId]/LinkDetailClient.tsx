@@ -243,7 +243,9 @@ export default function SmartLinkRuleCanvasPage() {
   const defaultEdgeDomain = getDefaultEdgeDomain();
   const activeEdgeDomain = (linkData?.customDomain || defaultEdgeDomain || '')
     .trim()
-    .replace(/^https?:\/\//, '')
+    .replace(/^https?:\/\//i, '')
+    .replace(/\.www\./i, '.')
+    .replace(/^www\./i, '')
     .replace(/\/+$/, '');
 
   const handleCopyUrl = () => {

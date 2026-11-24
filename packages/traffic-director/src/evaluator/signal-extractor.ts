@@ -120,6 +120,7 @@ export class SignalExtractor {
       (typeof headers['cf-ipcountry'] === 'string' ? headers['cf-ipcountry'] : '') || 
       (typeof headers['x-country-code'] === 'string' ? headers['x-country-code'] : '') || 
       (typeof headers['x-geo-country'] === 'string' ? headers['x-geo-country'] : '') || 
+      (typeof query.country === 'string' ? query.country : undefined) ||
       'US';
 
     const city =
@@ -140,6 +141,8 @@ export class SignalExtractor {
       (typeof headers['cf-region'] === 'string' ? headers['cf-region'] : '') ||
       (typeof headers['cf-region-code'] === 'string' ? headers['cf-region-code'] : '') ||
       (typeof headers['x-geo-region'] === 'string' ? headers['x-geo-region'] : '') ||
+      (typeof query.region === 'string' ? query.region : undefined) ||
+      (typeof query.state === 'string' ? query.state : undefined) ||
       undefined;
     const timezone =
       (typeof headers['x-td-visitor-timezone'] === 'string' ? headers['x-td-visitor-timezone'] : '') ||

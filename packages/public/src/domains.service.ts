@@ -39,6 +39,7 @@ export class DomainsService {
     domain = domain.replace(/^https?:\/\//i, '');
     domain = domain.replace(/\/.*$/, '');
     domain = domain.replace(/:\d+$/, '');
+    domain = domain.replace(/\.www\./i, '.');
     return domain;
   }
 
@@ -561,8 +562,8 @@ export class DomainsService {
     fullDomain: string;
     reason?: string;
   }> {
-    const cleanSlug = (slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
-    const root = (options?.rootDomain || process.env.ROOT_DOMAIN || process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || process.env.DEFAULT_EDGE_DOMAIN || '180trafficdirector.pro').trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+    const cleanSlug = (slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/^www-?/, '');
+    const root = (options?.rootDomain || process.env.ROOT_DOMAIN || process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || process.env.DEFAULT_EDGE_DOMAIN || '180trafficdirector.pro').trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '');
     const fullDomain = root ? `${cleanSlug}.${root}` : cleanSlug;
 
     if (!cleanSlug || cleanSlug.length < 2) {
