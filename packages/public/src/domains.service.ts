@@ -58,6 +58,26 @@ export class DomainsService {
   }
 
   /**
+   * Checks if domain is a managed platform root domain or subdomain
+   */
+  static isPlatformDomain(domain: string): boolean {
+    const clean = this.normalizeDomain(domain);
+    const platformRoots = [
+      process.env.ROOT_DOMAIN,
+      process.env.NEXT_PUBLIC_ROOT_DOMAIN,
+      process.env.NEXT_PUBLIC_MAIN_DOMAIN,
+      process.env.DEFAULT_EDGE_DOMAIN,
+      process.env.NEXT_PUBLIC_DEFAULT_EDGE_DOMAIN,
+      '180trafficdirector.pro',
+      'lokaya.shop'
+    ]
+      .filter(Boolean)
+      .map(r => r!.trim().toLowerCase().replace(/^https?:\/\//i, '').replace(/\/.*$/, ''));
+
+    return platformRoots.some(root => clean === root || clean.endsWith(`.${root}`));
+  }
+
+  /**
    * Calculates required DNS records for a given custom domain
    */
   static calculateRequiredRecords(domain: string, verificationToken?: string): DnsRecord[] {
@@ -361,7 +381,10 @@ export class DomainsService {
 
     // 3. Perform live DNS query via Node.js dns resolver
     try {
-      if (isApex) {
+      if (this.isPlatformDomain(cleanDomain)) {
+        isDnsValid = true;
+        details.platform = 'Managed platform domain automatically validated';
+      } else if (isApex) {
         const aRecords = await dns.promises.resolve4(cleanDomain).catch(() => []);
         details.resolvedA = aRecords;
         if (aRecords.includes(this.SERVER_PUBLIC_IP) || aRecords.includes(this.VERCEL_ANYCAST_IP)) {
@@ -539,7 +562,7 @@ export class DomainsService {
     reason?: string;
   }> {
     const cleanSlug = (slug || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
-    const root = options?.rootDomain || process.env.ROOT_DOMAIN || process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || process.env.DEFAULT_EDGE_DOMAIN || '';
+    const root = (options?.rootDomain || process.env.ROOT_DOMAIN || process.env.NEXT_PUBLIC_ROOT_DOMAIN || process.env.NEXT_PUBLIC_MAIN_DOMAIN || process.env.DEFAULT_EDGE_DOMAIN || '180trafficdirector.pro').trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
     const fullDomain = root ? `${cleanSlug}.${root}` : cleanSlug;
 
     if (!cleanSlug || cleanSlug.length < 2) {
